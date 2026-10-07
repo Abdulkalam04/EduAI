@@ -32,22 +32,32 @@ Set `OMNIROUTE_BASE_URL`, `OMNIROUTE_API_KEY`, and the model role IDs in
 `backend/.env`. See [backend/README.md](./backend/README.md) for role guidance
 and the full configuration list. Never commit `.env`.
 
-Start the backend from `backend/`:
+## Run the app
+
+Start each service in its own terminal. Run `bun install` from the project root
+once first if the frontend dependencies are not installed.
+
+| Terminal | Folder | Command |
+| --- | --- | --- |
+| OmniRoute | Any | `docker start omniroute` (skip this if `docker ps` already shows `omniroute` as `Up`) |
+| Backend | `EduAI\backend` | `python -m uvicorn app.main:app --reload` (with the backend virtual environment activated) |
+| Frontend | `EduAI` | `npm run dev` |
+
+In the backend terminal, from `backend/`, activate the virtual environment and
+start the server:
 
 ```powershell
+.\.venv\Scripts\Activate.ps1
 python -m uvicorn app.main:app --reload
 ```
 
 Using `python -m uvicorn` is recommended on Windows when application-control
 policies block executable launchers.
 
-## Start the frontend
-
-From the project root:
+In the frontend terminal, from the project root, run:
 
 ```powershell
-bun install
-bun run dev
+npm run dev
 ```
 
 The frontend is available at `http://localhost:5173` and sends requests to the
