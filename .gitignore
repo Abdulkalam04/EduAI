@@ -1,0 +1,53 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+.output
+.vinxi
+.tanstack/**
+.nitro
+*.local
+
+# Backend secrets and uploaded student files
+.env
+.env.*
+!.env.example
+backend/uploads/**
+!backend/uploads/.gitkeep
+
+# Python environments, bytecode, and test artifacts
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+
+# Local database and vector-store data
+*.db
+*.sqlite
+*.sqlite3
+chroma/
+chroma_db/
+vector_store/
+
+# Wrangler / Cloudflare
+.wrangler/
+.dev.vars
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
