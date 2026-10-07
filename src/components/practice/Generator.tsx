@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ArrowRight, ScanSearch, Sparkles, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GradientButton, SoftCard } from "@/components/ui-custom";
+import { AsciiThinking } from "@/components/ui-custom/AsciiThinking";
 import {
   Select,
   SelectContent,
@@ -25,13 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { generatePaper } from "@/lib/api";
-import {
-  CHAPTER_SUGGESTIONS,
-  MARK_OPTIONS,
-  paperStructure,
-  timeForMarks,
-  type Difficulty,
-} from "@/lib/mock/practice";
+import { MARK_OPTIONS, paperStructure, timeForMarks, type Difficulty } from "@/lib/types";
 import { LEVELS, SUBJECTS, useUserStore, type LevelId } from "@/store/useUserStore";
 import { usePracticeStore } from "@/store/usePracticeStore";
 
@@ -46,9 +41,8 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
   const userLevel = useUserStore((s) => s.level);
   const { papers, attempts, addPaper, startAttempt, setView, removePaper } = usePracticeStore();
   const [level, setLevel] = useState<LevelId>(userLevel);
-  const [subject, setSubject] = useState("Science");
-  const [chapter, setChapter] = useState("Electricity");
-  const [chapterOpen, setChapterOpen] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [chapter, setChapter] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty>("Medium");
   const [marks, setMarks] = useState(50);
   const [time, setTime] = useState(timeForMarks(50));
@@ -74,11 +68,12 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
     };
   }, [loading]);
   const structure = paperStructure(marks);
-  const chapterMatches = CHAPTER_SUGGESTIONS.filter(
-    (c) => c.toLowerCase().includes(chapter.toLowerCase()) && c !== chapter,
-  );
 
   const generate = async () => {
+    if (!subject || !chapter.trim()) {
+      toast.error("Choose a subject and enter a chapter before generating a paper.");
+      return;
+    }
     setLoading(true);
     setErrorMessage("");
     try {
@@ -154,7 +149,7 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
             <Field label="Level">
               <Select value={level} onValueChange={(v) => setLevel(v as LevelId)}>
                 <SelectTrigger aria-label="Level">
-                  <SelectValue />
+                  <SelectValue placeholder="Choose a subject" />
                 </SelectTrigger>
                 <SelectContent>
                   {LEVELS.map((l) => (
@@ -181,39 +176,12 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
             </Field>
           </div>
           <Field label="Chapter">
-            <div className="relative">
-              <Input
-                aria-label="Chapter"
-                value={chapter}
-                onChange={(e) => {
-                  setChapter(e.target.value);
-                  setChapterOpen(true);
-                }}
-                onFocus={() => setChapterOpen(true)}
-                onBlur={() => setTimeout(() => setChapterOpen(false), 150)}
-                placeholder="e.g. Electricity"
-                role="combobox"
-                aria-expanded={chapterOpen}
-              />
-              {chapterOpen && chapterMatches.length > 0 && (
-                <ul className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-xl border bg-popover p-1 shadow-lift">
-                  {chapterMatches.map((c) => (
-                    <li key={c}>
-                      <button
-                        type="button"
-                        onMouseDown={() => {
-                          setChapter(c);
-                          setChapterOpen(false);
-                        }}
-                        className="w-full rounded-lg px-3 py-1.5 text-left text-sm hover:bg-muted"
-                      >
-                        {c}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+            <Input
+              aria-label="Chapter"
+              value={chapter}
+              onChange={(e) => setChapter(e.target.value)}
+              placeholder="Enter chapter name"
+            />
           </Field>
           <Field label="Difficulty">
             <div
@@ -301,7 +269,7 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
             size="lg"
             className="w-full"
             onClick={() => void generate()}
-            disabled={!chapter.trim() || loading}
+            disabled={!subject || !chapter.trim() || loading}
           >
             <Sparkles className="h-4 w-4" />
             Generate paper
@@ -468,6 +436,9 @@ function ExamSkeleton({ currentStep }: { currentStep: number }) {
       aria-busy="true"
       aria-label="Generating paper"
     >
+      <div className="flex justify-center" aria-hidden="true">
+        <AsciiThinking />
+      </div>
       <h2 className="text-center text-lg font-semibold">Creating your practice paper</h2>
       <ol
         className="grid grid-cols-2 gap-3 sm:grid-cols-4"
@@ -485,9 +456,7 @@ function ExamSkeleton({ currentStep }: { currentStep: number }) {
               index > currentStep && "text-muted-foreground",
             )}
           >
-            <span className="mb-1 block text-xs">
-              {index < currentStep ? "✓" : index + 1}
-            </span>
+            <span className="mb-1 block text-xs">{index < currentStep ? "✓" : index + 1}</span>
             {step}
           </li>
         ))}

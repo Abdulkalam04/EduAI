@@ -126,16 +126,6 @@ async def extract_questions(text: str) -> list[ExtractedQuestion]:
     return split_questions_regex(text)
 
 
-def _sample_paper_text(subject: str | None) -> str:
-    selected_subject = subject or "Mathematics"
-    return (
-        f"Sample {selected_subject} examination paper:\n"
-        "1. Solve 2x + 5 = 15. [2 marks]\n"
-        "2. Factorise x^2 + 5x + 6. [3 marks]\n"
-        "3. Find the area of a circle with radius 7 cm. [2 marks]\n"
-    )
-
-
 async def _solve_question(
     question: ExtractedQuestion,
     level: LevelId,
@@ -219,24 +209,18 @@ _question_semaphore = asyncio.Semaphore(settings.max_concurrent_llm)
 
 @router.post("/solve")
 async def solve_paper(
-    file: UploadFile | None = File(default=None),
+    file: UploadFile = File(...),
     level: LevelId = Form(default="c9-10"),
     subject: str | None = Form(default=None),
     mode: SolveMode = Form(default="exam"),
     style: SolveStyle = Form(default="Exam"),
-    sample: str = Form(default="false"),
 ) -> list[dict[str, object]]:
-    if file is None:
-        if sample.lower() not in {"true", "1", "yes"}:
-            raise HTTPException(status_code=400, detail="Upload a question paper to solve.")
-        source_text = _sample_paper_text(subject)
-    else:
-        filename, payload = await read_validated_upload(file)
-        try:
-            pages = await extract_document(payload, filename, file.content_type)
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-        source_text = format_page_text(pages)
+    filename, payload = await read_validated_upload(file)
+    try:
+        pages = await extract_document(payload, filename, file.content_type)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    source_text = format_page_text(pages)
     if not source_text.strip():
         raise HTTPException(status_code=422, detail="No readable text was found in the paper.")
     questions = await extract_questions(source_text)

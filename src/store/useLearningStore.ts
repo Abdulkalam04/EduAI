@@ -1,11 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import {
-  mockProgress,
-  progressMastery,
-  type ProgressSnapshot,
-  type VivaReport,
-} from "@/lib/mock/learning";
+import type { ProgressSnapshot, VivaReport } from "@/lib/types";
 
 interface LearningState {
   vivaReports: VivaReport[];
@@ -13,11 +8,19 @@ interface LearningState {
   saveVivaReport: (report: VivaReport) => void;
   setProgress: (progress: ProgressSnapshot) => void;
   recordQuestions: (count: number, score: number) => void;
+  clearHistory: () => void;
 }
 
 const freshProgress = (): ProgressSnapshot => ({
-  ...structuredClone(mockProgress),
-  mastery: structuredClone(progressMastery),
+  mastery: {},
+  streak: 0,
+  longestStreak: 0,
+  questionsAttempted: 0,
+  averageScore: 0,
+  weeklyMinutes: [],
+  activity: [],
+  weakTopics: [],
+  studyPlan: [],
 });
 
 export const useLearningStore = create<LearningState>()(
@@ -66,6 +69,7 @@ export const useLearningStore = create<LearningState>()(
           return { vivaReports: [report, ...state.vivaReports], progress };
         }),
       setProgress: (progress) => set({ progress }),
+      clearHistory: () => set({ vivaReports: [], progress: freshProgress() }),
       recordQuestions: (count, score) =>
         set((state) => {
           const previous = state.progress;

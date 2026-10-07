@@ -38,7 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Markdown } from "@/components/tutor/Markdown";
 import { checkHandwritten, reEvaluateAnswer } from "@/lib/api";
 import { takePracticeFiles } from "@/lib/practice-upload";
-import type { Evaluation } from "@/lib/mock/practice";
+import type { Evaluation } from "@/lib/types";
 import { usePracticeStore } from "@/store/usePracticeStore";
 import { useUiStore } from "@/store/useUiStore";
 
@@ -70,7 +70,6 @@ interface Item {
   rotation: number;
   file?: File;
 }
-const STEPS = ["Reading handwriting", "Matching answers", "Evaluating", "Writing feedback"];
 const total = (e: Evaluation) => ({
   got: e.rubric.reduce((s, r) => s + r.got, 0),
   max: e.rubric.reduce((s, r) => s + r.max, 0),
@@ -89,7 +88,6 @@ function CheckPage() {
   const [paperId, setPaperId] = useState<string>(search.paper ?? papers[0]?.id ?? "");
   const [qpFile, setQpFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [step, setStep] = useState(0);
   const [evals, setEvals] = useState<Evaluation[]>([]);
   const [drag, setDrag] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -116,16 +114,6 @@ function CheckPage() {
       })),
     ]);
   }, []);
-  const loadSample = () =>
-    setItems(
-      [1, 2, 3].map((n) => ({
-        id: `s${n}`,
-        name: `answer_sheet_page_${n}.jpg`,
-        url: null,
-        rotation: 0,
-      })),
-    );
-
   useEffect(() => {
     addFiles(takePracticeFiles());
     return () => itemsRef.current.forEach((item) => item.url && URL.revokeObjectURL(item.url));
@@ -133,12 +121,11 @@ function CheckPage() {
 
   const run = async () => {
     setPhase("processing");
-    setStep(0);
     setUploadProgress(0);
     setErrorMessage("");
     try {
       setEvals(
-        await checkHandwritten(items, setStep, setUploadProgress, {
+        await checkHandwritten(items, setUploadProgress, {
           ...(source === "generated" && paperId ? { paperId } : {}),
           ...(source === "upload" && qpFile ? { questionPaper: qpFile } : {}),
         }),
@@ -250,15 +237,6 @@ function CheckPage() {
                   Browse files
                 </GradientButton>
               </div>
-              <button
-                onClick={() => {
-                  items.forEach((item) => item.url && URL.revokeObjectURL(item.url));
-                  loadSample();
-                }}
-                className="text-sm font-medium text-primary hover:underline"
-              >
-                Try a sample
-              </button>
               <input
                 ref={inputRef}
                 type="file"
@@ -372,7 +350,7 @@ function CheckPage() {
                 </Select>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No saved papers yet — we'll match answers to the sample Electricity paper.
+                  "Generate a practice paper or upload a question paper to check your answers."
                 </p>
               )
             ) : (
@@ -399,33 +377,11 @@ function CheckPage() {
 
       {phase === "processing" && (
         <div className="space-y-5">
-          <SoftCard className="p-6">
-            <ol className="grid gap-4 sm:grid-cols-4">
-              {STEPS.map((s, i) => (
-                <li key={s} className="flex items-center gap-3">
-                  <span
-                    className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm font-semibold",
-                      i < step && "border-success bg-success text-primary-foreground",
-                      i === step && "border-primary text-primary",
-                    )}
-                  >
-                    {i < step ? (
-                      <Check className="h-4 w-4" />
-                    ) : i === step ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      i + 1
-                    )}
-                  </span>
-                  <span
-                    className={cn("text-sm", i <= step ? "font-medium" : "text-muted-foreground")}
-                  >
-                    {s}
-                  </span>
-                </li>
-              ))}
-            </ol>
+          <SoftCard className="space-y-4 p-6" role="status">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              Checking your answer pages
+            </p>
             {uploadProgress > 0 && (
               <div className="mt-5 space-y-1.5">
                 <div className="flex justify-between text-xs text-muted-foreground">

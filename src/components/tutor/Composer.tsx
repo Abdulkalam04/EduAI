@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { LevelBadge } from "@/components/ui-custom";
 import { LEVELS, useUserStore } from "@/store/useUserStore";
-import type { AnswerStyle } from "@/lib/mock/tutor";
+import type { AnswerStyle } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
@@ -156,7 +156,6 @@ export function Composer({
                 onClick={() => set({ level: l.id })}
                 className="flex w-full items-start gap-2 rounded-lg p-2 text-left text-sm hover:bg-muted"
               >
-                <span aria-hidden>{l.emoji}</span>
                 <span className="flex-1">
                   <span className="block font-medium">{l.label}</span>
                   <span className="block text-xs text-muted-foreground">{l.style}</span>

@@ -9,7 +9,6 @@ interface UiState {
   theme: Theme;
   paletteOpen: boolean;
   hydrated: boolean;
-  useMock: boolean;
   accent: AccentColor;
   reduceMotion: boolean;
   fontSize: number;
@@ -18,7 +17,6 @@ interface UiState {
   setCollapsed: (v: boolean) => void;
   setTheme: (t: Theme) => void;
   setPaletteOpen: (v: boolean) => void;
-  setUseMock: (v: boolean) => void;
   setAccent: (v: AccentColor) => void;
   setReduceMotion: (v: boolean) => void;
   setFontSize: (v: number) => void;
@@ -33,7 +31,6 @@ export const useUiStore = create<UiState>()(
       theme: "system",
       paletteOpen: false,
       hydrated: false,
-      useMock: true,
       accent: "indigo",
       reduceMotion: false,
       fontSize: 16,
@@ -42,13 +39,6 @@ export const useUiStore = create<UiState>()(
       setCollapsed: (collapsed) => set({ collapsed }),
       setTheme: (theme) => set({ theme }),
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
-      setUseMock: (useMock) => {
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem("useMock", String(useMock));
-          window.dispatchEvent(new CustomEvent("eduai:mock-mode", { detail: useMock }));
-        }
-        set({ useMock });
-      },
       setAccent: (accent) => set({ accent }),
       setReduceMotion: (reduceMotion) => set({ reduceMotion }),
       setFontSize: (fontSize) => set({ fontSize: Math.max(14, Math.min(20, fontSize)) }),
@@ -59,10 +49,16 @@ export const useUiStore = create<UiState>()(
       name: "eduai-ui",
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
+      merge: (persistedState, currentState) => {
+        if (!persistedState || typeof persistedState !== "object") return currentState;
+        const { useMock: _legacyUseMock, ...preferences } = persistedState as Partial<UiState> & {
+          useMock?: boolean;
+        };
+        return { ...currentState, ...preferences };
+      },
       partialize: (s) => ({
         collapsed: s.collapsed,
         theme: s.theme,
-        useMock: s.useMock,
         accent: s.accent,
         reduceMotion: s.reduceMotion,
         fontSize: s.fontSize,

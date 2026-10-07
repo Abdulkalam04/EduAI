@@ -36,9 +36,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getProgress } from "@/lib/api";
-import type { ProgressSnapshot } from "@/lib/mock/learning";
+import type { ProgressSnapshot } from "@/lib/types";
 import { useLearningStore } from "@/store/useLearningStore";
 import { usePracticeStore } from "@/store/usePracticeStore";
+import { useUiStore } from "@/store/useUiStore";
 import { pageHead } from "@/components/ComingSoonPage";
 
 const ProgressCharts = lazy(() => import("@/components/progress/ProgressCharts"));
@@ -54,17 +55,19 @@ function ProgressPage() {
   const progress = useLearningStore((state) => state.progress);
   const setProgress = useLearningStore((state) => state.setProgress);
   const setPracticeView = usePracticeStore((state) => state.setView);
+  const hydrated = useUiStore((state) => state.hydrated);
   const [subject, setSubject] = useState("All subjects");
   const [range, setRange] = useState<Range>("30 days");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoaded(false);
     setError("");
     try {
-      setProgress(await getProgress(useLearningStore.getState().progress));
+      setProgress(await getProgress());
       setLoaded(true);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Progress couldn't be loaded.";
@@ -75,8 +78,8 @@ function ProgressPage() {
     }
   }, [setProgress]);
   useEffect(() => {
-    if (!loaded) void load();
-  }, [loaded, load]);
+    if (hydrated) void load();
+  }, [hydrated, load]);
 
   const subjects = useMemo(() => Object.keys(progress.mastery), [progress.mastery]);
   const selectedSubjects =
@@ -95,7 +98,12 @@ function ProgressPage() {
   const activity = progress.activity.slice(-activityDays);
   const weekCount = range === "7 days" ? 1 : range === "30 days" ? 4 : 7;
   const weeklyMinutes = progress.weeklyMinutes.slice(-weekCount);
-  const plan = progress.studyPlan.slice(0, 7);
+  const plan = progress.weakTopics.length ? progress.studyPlan.slice(0, 7) : [];
+  const hasProgress =
+    progress.questionsAttempted > 0 ||
+    Object.values(progress.mastery).some((items) => items.length > 0) ||
+    progress.activity.some((item) => item.count > 0) ||
+    progress.weeklyMinutes.some((item) => item.minutes > 0);
 
   const achievements = [
     {
@@ -145,7 +153,7 @@ function ProgressPage() {
         />
       </div>
     );
-  if (loading && !loaded)
+  if (!hydrated || (loading && !loaded))
     return (
       <div className="mx-auto max-w-6xl space-y-5 px-4 py-5 md:px-8">
         <PageHeader
@@ -215,7 +223,7 @@ function ProgressPage() {
           </button>
         </div>
       )}
-      {progress.questionsAttempted === 0 ? (
+      {!hasProgress ? (
         <EmptyState
           icon={GraduationCap}
           accent="progress"
@@ -232,7 +240,7 @@ function ProgressPage() {
         />
       ) : (
         <>
-          <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-5">
             <Summary
               label="Overall mastery"
               value={
@@ -425,17 +433,17 @@ function Summary({
   accent: "progress" | "viva" | "solver" | "book" | "ppt";
 }) {
   return (
-    <SoftCard className="flex min-h-28 items-center gap-3 p-4">
+    <SoftCard className="flex min-h-32 min-w-0 items-center gap-3 p-4">
       <span
         style={{ backgroundColor: `var(--${accent}-soft)`, color: `var(--${accent})` }}
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
       >
         <Icon className="h-5 w-5" />
       </span>
-      <div className="min-w-0">
-        <p className="truncate text-xs text-muted-foreground">{label}</p>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs leading-snug text-muted-foreground">{label}</p>
         <p className="mt-0.5 text-xl font-bold tabular-nums">{value}</p>
-        <p className="truncate text-[11px] text-muted-foreground">{sub}</p>
+        <p className="text-[11px] leading-snug text-muted-foreground">{sub}</p>
       </div>
     </SoftCard>
   );

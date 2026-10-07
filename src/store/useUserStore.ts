@@ -8,7 +8,6 @@ export interface LevelMeta {
   label: string;
   short: string;
   style: string;
-  emoji: string;
 }
 
 export const LEVELS: LevelMeta[] = [
@@ -17,35 +16,30 @@ export const LEVELS: LevelMeta[] = [
     label: "Class 1–5",
     short: "Class 1–5",
     style: "Stories and simple examples",
-    emoji: "🧸",
   },
   {
     id: "c6-8",
     label: "Class 6–8",
     short: "Class 6–8",
     style: "Clear concepts with everyday analogies",
-    emoji: "🔭",
   },
   {
     id: "c9-10",
     label: "Class 9–10",
     short: "Class 9–10",
     style: "Exam-focused, step-by-step",
-    emoji: "📝",
   },
   {
     id: "c11-12",
     label: "Class 11–12",
     short: "Class 11–12",
     style: "Deeper theory, derivations and board + entrance prep",
-    emoji: "🧪",
   },
   {
     id: "grad",
     label: "Graduation",
     short: "Graduation",
     style: "Technical, with equations and industry examples",
-    emoji: "🎓",
   },
 ];
 
@@ -81,8 +75,8 @@ const initial = {
   level: "c9-10" as LevelId,
   subject: "Maths",
   interests: [] as string[],
-  xp: 1240,
-  streak: 6,
+  xp: 0,
+  streak: 0,
   onboarded: false,
   levelSet: false,
 };

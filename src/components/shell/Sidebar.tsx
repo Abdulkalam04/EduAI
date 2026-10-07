@@ -111,7 +111,10 @@ export function Sidebar() {
           </button>
         )}
 
-        <nav className="flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-3 py-2">
+        <nav
+          aria-label="Main navigation"
+          className="sidebar-nav-scroll flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-3 py-2"
+        >
           {NAV_GROUPS.map((g) => (
             <div key={g.label}>
               {collapsed ? (

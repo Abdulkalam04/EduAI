@@ -50,9 +50,10 @@ bun install
 bun run dev
 ```
 
-The frontend is available at `http://localhost:5173`. In Settings, turn off
-demo mode to connect to the backend at `http://localhost:8000`; configure a
-different URL there if needed.
+The frontend is available at `http://localhost:5173` and sends requests to the
+backend at `http://localhost:8000`. Configure a different backend URL in
+Settings if needed. AI-powered features require the backend and a configured
+OmniRoute gateway; EduAI does not provide local demo responses.
 
 ## Checks
 

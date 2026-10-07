@@ -42,7 +42,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { generateDiagram, refineDiagram } from "@/lib/api";
-import { explanationFor, type DiagramType, type GeneratedDiagram } from "@/lib/mock/creative";
+import type { DiagramType, GeneratedDiagram } from "@/lib/types";
 import { useCreativeStore } from "@/store/useCreativeStore";
 import { LEVELS, useUserStore, type LevelId } from "@/store/useUserStore";
 import { resolvedTheme, useUiStore } from "@/store/useUiStore";
@@ -68,13 +68,6 @@ const TYPES: DiagramType[] = [
   "Process",
   "Network",
   "Block Diagram",
-];
-const EXAMPLES = [
-  "Flowchart to check if a number is even or odd",
-  "Explain SDLC",
-  "Mind map for OOP",
-  "Water cycle process",
-  "ER diagram for a library system",
 ];
 
 function DiagramMaker() {
@@ -184,7 +177,7 @@ function DiagramMaker() {
       ...current,
       code,
       level: selectedLevel,
-      explanation: explanationFor(current.title, selectedLevel),
+      explanation: current.explanation,
     };
     updateDiagram(current.id, saved);
     setCurrent(saved);
@@ -415,21 +408,6 @@ function DiagramMaker() {
             rows={4}
             placeholder="Describe a process, system, or concept…"
           />
-          <div className="flex flex-wrap gap-1.5">
-            {EXAMPLES.map((example) => (
-              <button
-                key={example}
-                onClick={() => {
-                  setPrompt(example);
-                  if (/mind map/i.test(example)) setMode("Mind Map");
-                  else if (/flowchart/i.test(example)) setMode("Flowchart Generator");
-                }}
-                className="rounded-full border px-2.5 py-1 text-left text-xs text-muted-foreground transition-colors hover:bg-muted"
-              >
-                {example}
-              </button>
-            ))}
-          </div>
           <div className="space-y-2">
             <p className="text-sm font-medium">Diagram type</p>
             <div className="flex flex-wrap gap-1.5">
@@ -690,7 +668,7 @@ function DiagramMaker() {
             </div>
           ) : current ? (
             <div className="min-h-[380px] flex-1 overflow-y-auto rounded-xl border p-5">
-              <Markdown content={explanationFor(current.title, selectedLevel)} />
+              <Markdown content={current.explanation} />
             </div>
           ) : (
             <div className="flex min-h-[380px] flex-1 items-center justify-center text-sm text-muted-foreground">

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouterState, Link } from "@tanstack/react-router";
 import { Search, ChevronDown, Check, User, Settings, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,10 +11,23 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { LEVELS, SUBJECTS, getLevel, useUserStore } from "@/store/useUserStore";
 import { useUiStore } from "@/store/useUiStore";
 import { titleFor } from "@/lib/nav";
-import { checkApiHealth } from "@/lib/api";
+import { checkApiHealth, resetLearningActivity } from "@/lib/api";
+import { useChatStore } from "@/store/useChatStore";
+import { usePracticeStore } from "@/store/usePracticeStore";
+import { useLearningStore } from "@/store/useLearningStore";
 import { Logo } from "./Logo";
 
 export const initials = (name: string) =>
@@ -31,9 +46,10 @@ export function TopBar() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const { level, subject, name, set, reset } = useUserStore();
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
-  const useMock = useUiStore((s) => s.useMock);
-  const setUseMock = useUiStore((s) => s.setUseMock);
+  const queryClient = useQueryClient();
   const [backendConnected, setBackendConnected] = useState<boolean | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const lvl = getLevel(level);
 
   useEffect(() => {
@@ -54,10 +70,27 @@ export function TopBar() {
     };
   }, []);
 
+  const resetLearningAndOnboarding = async () => {
+    setResetting(true);
+    try {
+      await resetLearningActivity();
+      useChatStore.getState().clearHistory();
+      usePracticeStore.getState().clearHistory();
+      useLearningStore.getState().clearHistory();
+      reset();
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      setResetOpen(false);
+      toast.success("Learning activity cleared. Set up your profile again.");
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Couldn't reset learning activity.");
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const LevelMenu = (
     <DropdownMenu>
       <DropdownMenuTrigger className={pillBtn}>
-        <span aria-hidden>{lvl.emoji}</span>
         <span className="hidden lg:inline">{lvl.label}</span>
         <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
       </DropdownMenuTrigger>
@@ -69,7 +102,6 @@ export function TopBar() {
             onSelect={() => set({ level: l.id })}
             className="flex items-start gap-2 rounded-lg"
           >
-            <span aria-hidden>{l.emoji}</span>
             <span className="flex-1">
               <span className="block font-medium">{l.label}</span>
               <span className="block text-xs text-muted-foreground">{l.style}</span>
@@ -108,9 +140,9 @@ export function TopBar() {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => reset()}>
+        <DropdownMenuItem onSelect={() => setResetOpen(true)}>
           <RotateCcw className="mr-2 h-4 w-4" />
-          Restart onboarding
+          Reset learning data & onboarding
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -123,14 +155,9 @@ export function TopBar() {
           <Logo />
         </div>
         <p className="hidden truncate text-lg font-semibold md:block">{titleFor(path)}</p>
-        {useMock && (
-          <span className="hidden items-center gap-1.5 rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-accent-foreground lg:inline-flex">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" /> Demo mode
-          </span>
-        )}
         <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
+          <div
+            role="status"
             aria-label={
               backendConnected === null
                 ? "Checking backend connection"
@@ -145,24 +172,15 @@ export function TopBar() {
                   ? "Checking backend connection"
                   : "Backend unavailable"
             }
-            onClick={() => {
-              if (!backendConnected && !useMock) setUseMock(true);
-            }}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border bg-card px-2.5 text-xs transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border bg-card px-2.5 text-xs"
           >
             <span
               className={`h-2 w-2 rounded-full ${backendConnected ? "bg-success" : backendConnected === false ? "bg-destructive" : "animate-pulse bg-warning"}`}
             />
             <span className="hidden sm:inline">
-              {backendConnected
-                ? "Connected"
-                : backendConnected === false
-                  ? useMock
-                    ? "Offline"
-                    : "Switch to demo"
-                  : "Checking"}
+              {backendConnected ? "Connected" : backendConnected === false ? "Offline" : "Checking"}
             </span>
-          </button>
+          </div>
           <button
             onClick={() => setPaletteOpen(true)}
             className={`${pillBtn} !hidden text-muted-foreground lg:!inline-flex lg:w-56`}
@@ -204,6 +222,32 @@ export function TopBar() {
           {Avatar}
         </div>
       </div>
+      <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset learning activity and onboarding?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently clears chat history, practice results, viva history, and progress on
+              the configured backend, then restarts your profile setup. This backend does not
+              separate users, so the reset affects everyone using it. Uploaded documents and created
+              diagrams or presentations are kept.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={resetting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={resetting}
+              onClick={(event) => {
+                event.preventDefault();
+                void resetLearningAndOnboarding();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {resetting ? "Resetting…" : "Clear activity and restart"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </header>
   );
 }

@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Sparkles, RotateCcw, ThumbsUp, ThumbsDown, AlertCircle, FileText } from "lucide-react";
 import type { ChatMessage } from "@/store/useChatStore";
 import { cn } from "@/lib/utils";
+import { AsciiThinking } from "@/components/ui-custom/AsciiThinking";
 import { Markdown, CopyButton } from "./Markdown";
 
 export const LEVEL_REPLIES = [
@@ -25,16 +26,7 @@ export function TypingDots() {
   return (
     <div className="flex gap-3">
       <Avatar />
-      <div className="flex items-center gap-1 py-2" aria-label="AI is typing">
-        {[0, 1, 2].map((i) => (
-          <motion.span
-            key={i}
-            className="h-2 w-2 rounded-full bg-muted-foreground/60"
-            animate={{ y: [0, -4, 0], opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15 }}
-          />
-        ))}
-      </div>
+      <AsciiThinking className="shrink-0" />
     </div>
   );
 }

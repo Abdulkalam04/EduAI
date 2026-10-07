@@ -33,6 +33,7 @@ interface ChatState {
   activeId: string | null;
   setActive: (id: string | null) => void;
   createChat: () => string;
+  clearHistory: () => void;
   removeChat: (id: string) => void;
   renameChat: (id: string, title: string) => void;
   addMessage: (chatId: string, m: ChatMessage) => void;
@@ -53,6 +54,7 @@ export const useChatStore = create<ChatState>()(
         }));
         return id;
       },
+      clearHistory: () => set({ chats: [], activeId: null }),
       removeChat: (id) =>
         set((s) => ({
           chats: s.chats.filter((c) => c.id !== id),

@@ -1,8 +1,9 @@
 # EduAI backend
 
-FastAPI backend for the EduAI frontend. It keeps the response contracts in
-`src/lib/api.ts` and `src/lib/mock/` and routes model calls through an
-OpenAI-compatible OmniRoute gateway. Python 3.11+ is supported.
+FastAPI backend for the EduAI frontend. The frontend request and response
+contracts are defined in `src/lib/types.ts` and API calls are centralized in
+`src/lib/api.ts`. Model calls route through an OpenAI-compatible OmniRoute
+gateway. Python 3.11+ is supported.
 
 ## Setup
 

@@ -21,6 +21,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const onboarded = useUserStore((s) => s.onboarded);
 
   useEffect(() => {
+    window.localStorage.removeItem("useMock");
     void Promise.all([
       useUiStore.persist.rehydrate(),
       useUserStore.persist.rehydrate(),
@@ -29,7 +30,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       usePracticeStore.persist.rehydrate(),
       useCreativeStore.persist.rehydrate(),
       useLearningStore.persist.rehydrate(),
-    ]).finally(() => useUiStore.setState({ hydrated: true }));
+    ]).finally(() => {
+      useUiStore.setState({ hydrated: true });
+    });
   }, []);
 
   useEffect(() => {

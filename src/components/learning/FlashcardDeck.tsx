@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, RotateCcw, Shuffle, ThumbsUp, X } from "luci
 import { cn } from "@/lib/utils";
 import { GradientButton, ProgressBar, ProgressRing, SoftCard } from "@/components/ui-custom";
 import { Markdown } from "@/components/tutor/Markdown";
-import type { Flashcard } from "@/lib/mock/book";
+import type { Flashcard } from "@/lib/types";
 
 export function FlashcardDeck({ cards }: { cards: Flashcard[] }) {
   const [deck, setDeck] = useState(cards);

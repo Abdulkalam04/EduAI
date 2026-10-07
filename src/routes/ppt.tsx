@@ -46,9 +46,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { exportPptx, generatePpt, isMockMode } from "@/lib/api";
-import { renderMermaidSvg } from "@/lib/mermaid";
-import type { DeckSlide, GeneratedDeck, PptTheme } from "@/lib/mock/creative";
+import { exportPptx, generatePpt } from "@/lib/api";
+import type { DeckSlide, GeneratedDeck, PptTheme } from "@/lib/types";
 import { useCreativeStore } from "@/store/useCreativeStore";
 import { LEVELS, useUserStore, type LevelId } from "@/store/useUserStore";
 import { pageHead } from "@/components/ComingSoonPage";
@@ -84,12 +83,6 @@ const THEMES: { id: PptTheme; colors: string[]; description: string }[] = [
   { id: "Clean White", colors: ["#FFFFFF", "#E5E7EB", "#111827"], description: "White" },
   { id: "Dark Elegant", colors: ["#111827", "#374151", "#A78BFA"], description: "Dark" },
   { id: "Playful", colors: ["#F97316", "#FDE68A", "#0F766E"], description: "Playful" },
-];
-const TOPICS = [
-  "Artificial Intelligence",
-  "Human Digestive System",
-  "Photosynthesis",
-  "Cloud Computing",
 ];
 const STEPS = [
   { title: "Research", icon: FileText },
@@ -280,144 +273,20 @@ function PptMaker() {
     if (!deck || !slides.length) return;
     try {
       const fileName = `${deck.topic.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "presentation"}.pptx`;
-      if (!isMockMode()) {
-        const blob = await exportPptx({
-          topic: deck.topic,
-          theme: deck.theme,
-          slides,
-          speakerNotes: deck.speakerNotes,
-        });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-        toast.success("PowerPoint downloaded");
-        return;
-      }
-      const { default: pptxgen } = await import("pptxgenjs");
-      const pptx = new pptxgen();
-      pptx.layout = "LAYOUT_WIDE";
-      pptx.author = "EduAI";
-      pptx.subject = `Presentation on ${deck.topic}`;
-      pptx.title = deck.topic;
-      pptx.company = "EduAI";
-      pptx.theme = {
-        headFontFace: "Aptos Display",
-        bodyFontFace: "Aptos",
-      };
-      const palette = THEMES.find((item) => item.id === deck.theme)!;
-      const bg = palette.colors[0]!.replace("#", "");
-      const accent = palette.colors[1]!.replace("#", "");
-      const white = deck.theme === "Clean White" || deck.theme === "Playful";
-      for (const [index, item] of slides.entries()) {
-        const slide = pptx.addSlide();
-        slide.background = { color: bg };
-        if (index === 0 || item.kind === "title") {
-          slide.addShape(pptx.ShapeType.rect, {
-            x: 0,
-            y: 0,
-            w: 13.333,
-            h: 7.5,
-            line: { color: bg, transparency: 100 },
-            fill: { color: bg },
-          });
-          slide.addText(item.title, {
-            x: 0.8,
-            y: 2.15,
-            w: 11.7,
-            h: 1.5,
-            fontFace: "Aptos Display",
-            fontSize: 36,
-            bold: true,
-            color: white ? "172033" : "FFFFFF",
-            align: "center",
-            breakLine: false,
-            fit: "shrink",
-          });
-          slide.addText(item.bullets.join("\n"), {
-            x: 1.5,
-            y: 4.1,
-            w: 10.3,
-            h: 1.2,
-            fontSize: 18,
-            color: white ? "475569" : "E0E7FF",
-            align: "center",
-            breakLine: false,
-            fit: "shrink",
-          });
-        } else {
-          slide.addText(item.title, {
-            x: 0.65,
-            y: 0.45,
-            w: 12,
-            h: 0.85,
-            fontFace: "Aptos Display",
-            fontSize: 28,
-            bold: true,
-            color: white ? accent : "FFFFFF",
-            breakLine: false,
-            fit: "shrink",
-          });
-          slide.addShape(pptx.ShapeType.line, {
-            x: 0.7,
-            y: 1.42,
-            w: 11.9,
-            h: 0,
-            line: { color: accent, width: 2 },
-          });
-          const bulletRows = item.bullets.map((text) => ({
-            text,
-            options: { bullet: { indent: 15 }, hanging: 4, breakLine: true },
-          }));
-          slide.addText(bulletRows, {
-            x: 0.85,
-            y: 1.85,
-            w: item.diagram ? 6.1 : 11.5,
-            h: 4.9,
-            fontSize: 20,
-            color: white ? "172033" : "F9FAFB",
-            breakLine: false,
-            paraSpaceAfter: 16,
-            fit: "shrink",
-            margin: 0.08,
-          });
-          if (item.diagram) {
-            const svg = await renderMermaidSvg(
-              item.diagram,
-              deck.theme === "Dark Elegant" ? "dark" : "light",
-              `pptx-slide-${item.id}`,
-            );
-            const binary = Array.from(new TextEncoder().encode(svg), (byte) =>
-              String.fromCharCode(byte),
-            ).join("");
-            slide.addImage({
-              data: `data:image/svg+xml;base64,${btoa(binary)}`,
-              x: 7.2,
-              y: 1.8,
-              w: 5.3,
-              h: 4.8,
-            });
-          }
-        }
-        slide.addText(`${deck.topic}  ·  ${index + 1} / ${slides.length}`, {
-          x: 0.65,
-          y: 7.08,
-          w: 12,
-          h: 0.2,
-          fontSize: 9,
-          color: white ? "64748B" : "CBD5E1",
-          align: "right",
-          margin: 0,
-        });
-        if (deck.speakerNotes) slide.addNotes(item.notes || "");
-      }
-      await pptx.writeFile({
-        fileName,
+      const blob = await exportPptx({
+        topic: deck.topic,
+        theme: deck.theme,
+        slides,
+        speakerNotes: deck.speakerNotes,
       });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       toast.success("PowerPoint downloaded");
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : "Couldn't export this presentation.");
@@ -569,17 +438,6 @@ function PptMaker() {
             placeholder="e.g. Artificial Intelligence"
             className="h-12 text-base"
           />
-          <div className="flex flex-wrap gap-1.5">
-            {TOPICS.map((item) => (
-              <button
-                key={item}
-                onClick={() => setTopic(item)}
-                className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted"
-              >
-                {item}
-              </button>
-            ))}
-          </div>
           <label className="block space-y-1.5 text-sm font-medium">
             Learning level
             <Select

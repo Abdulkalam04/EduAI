@@ -10,7 +10,7 @@
 <!-- LOVABLE:END -->
 
 ## Architecture rules
-- All backend calls go through `src/lib/api.ts` (mock data in `src/lib/mock/`); UI never fetches directly — keeps the future backend swap to one file.
+- All backend calls go through `src/lib/api.ts`; request and response types live in `src/lib/types.ts`. UI never fetches directly — keeps the future backend swap to one file.
 - Persisted client state lives in zustand stores under `src/store/` with `skipHydration`, rehydrated in `AppShell` — avoids SSR hydration mismatches.
 - App chrome (sidebar, top bar, mobile tabs, command palette, onboarding) lives in `src/components/shell/` and wraps `<Outlet />` in `__root.tsx`.
 - Shared design primitives live in `src/components/ui-custom/`; feature accent colours are CSS vars `--<accent>` / `--<accent>-soft` in `src/styles.css`.

@@ -3,11 +3,18 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import ChatMessage, PracticeAttempt, VivaSession
+from app.models import (
+    ChatMessage,
+    ChatSession,
+    PracticeAttempt,
+    PracticeEvaluation,
+    PracticePaper,
+    VivaSession,
+)
 router = APIRouter(prefix="/api", tags=["progress"])
 
 
@@ -193,6 +200,21 @@ def build_progress_snapshot(db: Session) -> dict[str, object]:
 @router.get("/progress")
 def get_progress(db: Session = Depends(get_db)):
     return build_progress_snapshot(db)
+
+
+@router.delete("/progress")
+def reset_progress(db: Session = Depends(get_db)) -> dict[str, str]:
+    for model in (
+        ChatMessage,
+        ChatSession,
+        PracticeAttempt,
+        PracticeEvaluation,
+        PracticePaper,
+        VivaSession,
+    ):
+        db.execute(delete(model))
+    db.commit()
+    return {"status": "cleared"}
 
 
 @router.get("/dashboard")

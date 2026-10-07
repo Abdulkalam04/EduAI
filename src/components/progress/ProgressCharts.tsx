@@ -16,7 +16,7 @@ import {
   YAxis,
 } from "recharts";
 import { SoftCard, SectionHeader } from "@/components/ui-custom";
-import type { ProgressSnapshot } from "@/lib/mock/learning";
+import type { ProgressSnapshot } from "@/lib/types";
 type Topic = ProgressSnapshot["mastery"][string][number];
 
 type Props = {
@@ -39,13 +39,11 @@ function activityColor(count: number) {
 export default function ProgressCharts({ topics, activity, weeklyMinutes, range }: Props) {
   const chartTopics = topics.length ? topics : [{ name: "No data", value: 0 }];
   const radarData = chartTopics.slice(0, 8);
-  const heatmap =
-    range === "All"
-      ? activity
-      : Array.from({ length: 84 - activity.length }, (_, i) => ({
-          date: `empty-${i}`,
-          count: 0,
-        })).concat(activity);
+  const heatmapDays = range === "All" ? 84 : range === "30 days" ? 30 : 7;
+  const heatmap = Array.from({ length: Math.max(0, heatmapDays - activity.length) }, (_, i) => ({
+    date: `empty-${i}`,
+    count: 0,
+  })).concat(activity);
   const ticks =
     weeklyMinutes.length > 1
       ? [weeklyMinutes[0]?.week ?? "", weeklyMinutes.at(-1)?.week ?? ""]

@@ -91,7 +91,6 @@ export function LevelBadge({ level, className }: { level: LevelId; className?: s
         className,
       )}
     >
-      <span aria-hidden>{meta.emoji}</span>
       {meta.label}
     </span>
   );

@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   AlertTriangle,
+  ArrowUpRight,
   CheckCircle2,
   Download,
   Loader2,
@@ -38,7 +39,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { AnswerStyle } from "@/lib/mock/tutor";
+import type { AnswerStyle } from "@/lib/types";
 
 export const Route = createFileRoute("/settings")({
   head: pageHead(
@@ -113,7 +114,6 @@ function SettingsPage() {
         }),
       );
       data["apiUrl"] = getApiUrl();
-      data["useMock"] = ui.useMock;
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const anchor = Object.assign(document.createElement("a"), {
@@ -133,19 +133,13 @@ function SettingsPage() {
   };
 
   const resetEverything = () => {
-    for (const key of [
-      "eduai-user",
-      "eduai-ui",
-      "eduai-chats",
-      "eduai-book",
-      "eduai-practice",
-      "eduai-creative",
-      "eduai-learning",
-      "apiUrl",
-      "useMock",
-    ]) {
-      localStorage.removeItem(key);
+    for (const key of Array.from({ length: localStorage.length }, (_, index) =>
+      localStorage.key(index),
+    )) {
+      if (key?.startsWith("eduai")) localStorage.removeItem(key);
     }
+    localStorage.removeItem("apiUrl");
+    localStorage.removeItem("useMock");
     useUserStore.persist.clearStorage();
     useChatStore.persist.clearStorage();
     useBookStore.persist.clearStorage();
@@ -163,6 +157,14 @@ function SettingsPage() {
         description="Make EduAI feel like yours."
         icon={Palette}
         accent="progress"
+        action={
+          <Link
+            to="/welcome"
+            className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Welcome page <ArrowUpRight className="h-4 w-4" />
+          </Link>
+        }
       />
       <Tabs defaultValue="profile" className="space-y-5">
         <div className="-mx-1 w-full min-w-0 overflow-x-auto px-1 pb-1">
@@ -198,9 +200,7 @@ function SettingsPage() {
                     onClick={() => set({ level: item.id })}
                     className={`min-h-14 rounded-xl border p-3 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] ${item.id === level ? "border-primary bg-primary/5" : "bg-card"}`}
                   >
-                    <span className="font-medium">
-                      {item.emoji} {item.label}
-                    </span>
+                    <span className="font-medium">{item.label}</span>
                     <span className="mt-0.5 block text-xs text-muted-foreground">{item.style}</span>
                   </button>
                 ))}
@@ -322,7 +322,7 @@ function SettingsPage() {
                 autoComplete="url"
               />
               <p className="text-xs text-muted-foreground">
-                Requests are sent to this server when demo mode is disabled.
+                EduAI sends backend requests to this server.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -351,14 +351,6 @@ function SettingsPage() {
                   {connection ? "Connected" : "Not connected"}
                 </span>
               )}
-            </div>
-            <div className="border-t pt-4">
-              <PreferenceSwitch
-                label="Use demo data"
-                description="Keep this on to use local mock responses without a backend."
-                checked={ui.useMock}
-                onCheckedChange={ui.setUseMock}
-              />
             </div>
           </SoftCard>
         </TabsContent>

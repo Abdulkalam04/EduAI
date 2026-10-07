@@ -15,7 +15,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { submitPaper } from "@/lib/api";
 import { stagePracticeFiles } from "@/lib/practice-upload";
-import type { Paper, PQuestion } from "@/lib/mock/practice";
+import type { Paper, PQuestion } from "@/lib/types";
 import { getLevel } from "@/store/useUserStore";
 import { usePracticeStore, type Attempt as AttemptT } from "@/store/usePracticeStore";
 

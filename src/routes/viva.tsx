@@ -38,7 +38,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { answerViva, createVivaReport, startViva } from "@/lib/api";
-import type { VivaAnswerFeedback, VivaQuestion, VivaReport } from "@/lib/mock/learning";
+import type { VivaAnswerFeedback, VivaQuestion, VivaReport } from "@/lib/types";
 import { useUserStore, LEVELS, type LevelId } from "@/store/useUserStore";
 import { useLearningStore } from "@/store/useLearningStore";
 import { usePracticeStore } from "@/store/usePracticeStore";
@@ -72,7 +72,7 @@ function VivaMode() {
   const saveVivaReport = useLearningStore((state) => state.saveVivaReport);
   const setPracticeView = usePracticeStore((state) => state.setView);
   const [phase, setPhase] = useState<"setup" | "interview" | "report">("setup");
-  const [subject, setSubject] = useState("DBMS");
+  const [subject, setSubject] = useState("");
   const [topic, setTopic] = useState("");
   const [level, setLevel] = useState<LevelId>(defaultLevel);
   const [count, setCount] = useState("10");
@@ -319,7 +319,7 @@ function VivaMode() {
                   <Label htmlFor="viva-subject">Subject</Label>
                   <Select value={subject} onValueChange={setSubject}>
                     <SelectTrigger id="viva-subject">
-                      <SelectValue />
+                      <SelectValue placeholder="Choose a subject" />
                     </SelectTrigger>
                     <SelectContent>
                       {["DBMS", "Science", "Computer Science", "Biology", "Physics", "Maths"].map(
@@ -397,7 +397,7 @@ function VivaMode() {
               <GradientButton
                 className="mt-6 w-full"
                 size="lg"
-                disabled={busy}
+                disabled={busy || !subject}
                 onClick={() => void begin()}
               >
                 {busy ? (

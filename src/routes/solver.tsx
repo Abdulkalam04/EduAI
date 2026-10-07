@@ -46,8 +46,8 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { isMockMode, solvePaper, resolveQuestion, solutionFollowUp } from "@/lib/api";
-import type { PaperQuestion, SolveMode, SolveStyle } from "@/lib/mock/solver";
+import { solvePaper, resolveQuestion, solutionFollowUp } from "@/lib/api";
+import type { PaperQuestion, SolveMode, SolveStyle } from "@/lib/types";
 import { downloadPdf } from "@/lib/pdf";
 import { SUBJECTS, useUserStore } from "@/store/useUserStore";
 import { useUiStore } from "@/store/useUiStore";
@@ -73,7 +73,6 @@ export const Route = createFileRoute("/solver")({
 });
 
 type Phase = "idle" | "uploading" | "processing" | "results" | "error";
-const STEPS = ["Reading document", "Detecting questions", "Solving", "Formatting"];
 const fmtSize = (b: number) =>
   b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1e3))} KB`;
 
@@ -94,13 +93,10 @@ function SolverPage() {
   const level = useUserStore((s) => s.level);
   const [phase, setPhase] = useState<Phase>("idle");
   const [file, setFile] = useState<File | null>(null);
-  const [sample, setSample] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [subject, setSubject] = useState<string>("Maths");
+  const [subject, setSubject] = useState<string>("");
   const [mode, setMode] = useState<SolveMode>(() => useUiStore.getState().solverMode);
   const [style, setStyle] = useState<SolveStyle>("Exam");
-  const [step, setStep] = useState(0);
-  const [found, setFound] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const defaultSolverMode = useUiStore((state) => state.solverMode);
 
@@ -119,30 +115,16 @@ function SolverPage() {
       return;
     }
     setFile(f);
-    setSample(false);
     setProgress(0);
   };
 
   const solve = async () => {
+    if (!file || !subject) return;
     setPhase("processing");
-    setStep(0);
-    setFound(0);
     setErrorMessage("");
     try {
-      if (isMockMode()) {
-        for (let i = 0; i < STEPS.length; i++) {
-          setStep(i);
-          if (i === 1)
-            for (let k = 1; k <= 5; k++) {
-              await new Promise((r) => setTimeout(r, 150));
-              setFound(k);
-            }
-          await new Promise((r) => setTimeout(r, 550));
-        }
-      }
       const qs = await solvePaper({
         file,
-        sample,
         level,
         subject,
         mode,
@@ -150,7 +132,6 @@ function SolverPage() {
         onProgress: setProgress,
       });
       setProgress(100);
-      setStep(STEPS.length);
       setQuestions(qs);
       setActive(0);
       setMobileTab("q");
@@ -167,7 +148,6 @@ function SolverPage() {
   const reset = () => {
     setPhase("idle");
     setFile(null);
-    setSample(false);
     setQuestions([]);
     setProgress(0);
   };
@@ -248,7 +228,7 @@ function SolverPage() {
                   drag ? "border-transparent" : "border-border",
                 )}
               >
-                {!file && !sample ? (
+                {!file ? (
                   <>
                     <span
                       className="flex h-14 w-14 items-center justify-center rounded-2xl"
@@ -273,15 +253,6 @@ function SolverPage() {
                         Take a photo
                       </GradientButton>
                     </div>
-                    <button
-                      onClick={() => {
-                        setSample(true);
-                        setFile(null);
-                      }}
-                      className="text-sm font-medium text-primary hover:underline"
-                    >
-                      Try a sample paper
-                    </button>
                   </>
                 ) : (
                   <div className="flex w-full max-w-md items-center gap-3 rounded-2xl border bg-background p-3 text-left">
@@ -300,12 +271,8 @@ function SolverPage() {
                       </span>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {file ? file.name : "Sample_Maths_Paper.pdf"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {file ? fmtSize(file.size) : "5 questions · demo"}
-                      </p>
+                      <p className="truncate text-sm font-medium">{file.name}</p>
+                      <p className="text-xs text-muted-foreground">{fmtSize(file.size)}</p>
                       {file && progress < 100 && (
                         <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
                           <div
@@ -319,7 +286,6 @@ function SolverPage() {
                       aria-label="Remove file"
                       onClick={() => {
                         setFile(null);
-                        setSample(false);
                       }}
                       className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"
                     >
@@ -350,7 +316,7 @@ function SolverPage() {
                 <label className="text-sm font-medium">Subject</label>
                 <Select value={subject} onValueChange={setSubject}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Choose a subject" />
                   </SelectTrigger>
                   <SelectContent>
                     {SUBJECTS.map((s) => (
@@ -406,7 +372,7 @@ function SolverPage() {
                   onChange={setStyle}
                 />
               </div>
-              <GradientButton size="lg" disabled={!sample && !file} onClick={solve}>
+              <GradientButton size="lg" disabled={!file || !subject} onClick={solve}>
                 <Sparkles className="h-4 w-4" />
                 Solve paper
               </GradientButton>
@@ -424,40 +390,12 @@ function SolverPage() {
             exit={{ opacity: 0 }}
             className="space-y-5"
           >
-            <SoftCard className="p-6">
-              <ol className="grid gap-4 sm:grid-cols-4">
-                {STEPS.map((s, i) => (
-                  <li key={s} className="flex items-center gap-3">
-                    <span
-                      className={cn(
-                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm font-semibold transition-colors",
-                        i < step && "border-success bg-success text-primary-foreground",
-                        i === step && "border-primary text-primary",
-                      )}
-                    >
-                      {i < step ? (
-                        <Check className="h-4 w-4" />
-                      ) : i === step ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        i + 1
-                      )}
-                    </span>
-                    <span
-                      className={cn("text-sm", i <= step ? "font-medium" : "text-muted-foreground")}
-                    >
-                      {s}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-              <p className="mt-5 text-sm text-muted-foreground">
-                Found <span className="font-semibold text-foreground tabular-nums">{found}</span>{" "}
-                questions
-              </p>
+            <SoftCard className="flex items-center gap-3 p-6" role="status">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <p className="text-sm font-medium">Analyzing your question paper…</p>
             </SoftCard>
             <div className="grid gap-3 md:grid-cols-2">
-              {Array.from({ length: Math.max(2, found) }).map((_, i) => (
+              {Array.from({ length: 2 }).map((_, i) => (
                 <CardSkeleton key={i} />
               ))}
             </div>

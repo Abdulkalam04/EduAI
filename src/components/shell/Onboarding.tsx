@@ -187,9 +187,6 @@ export function Onboarding() {
                             l.id === "grad" && "sm:col-span-2",
                           )}
                         >
-                          <span className="text-2xl" aria-hidden>
-                            {l.emoji}
-                          </span>
                           <span className="flex-1">
                             <span className="block font-semibold">{l.label}</span>
                             <span className="text-sm text-muted-foreground">{l.style}</span>

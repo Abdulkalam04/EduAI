@@ -4,7 +4,7 @@ import { Check, ChevronDown, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GradientButton, ProgressBar, ProgressRing, SoftCard } from "@/components/ui-custom";
 import { Markdown } from "@/components/tutor/Markdown";
-import type { Mcq } from "@/lib/mock/book";
+import type { Mcq } from "@/lib/types";
 
 const L = ["A", "B", "C", "D"];
 
@@ -65,7 +65,7 @@ export function McqQuiz({ questions }: { questions: Mcq[] }) {
           />
           <h3 className="text-lg font-semibold">
             {score === set.length
-              ? "Perfect score! 🎉"
+              ? "Perfect score!"
               : score >= set.length / 2
                 ? "Nice work!"
                 : "Keep practising"}

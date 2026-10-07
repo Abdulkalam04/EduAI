@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { Compass, ArrowLeft } from "lucide-react";
+import { useRouterState } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -130,11 +131,16 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   return (
     <QueryClientProvider client={queryClient}>
-      <AppShell>
+      {pathname === "/welcome" ? (
         <Outlet />
-      </AppShell>
+      ) : (
+        <AppShell>
+          <Outlet />
+        </AppShell>
+      )}
     </QueryClientProvider>
   );
 }

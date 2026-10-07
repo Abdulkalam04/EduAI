@@ -12,7 +12,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Markdown } from "@/components/tutor/Markdown";
-import type { Paper } from "@/lib/mock/practice";
+import type { Paper } from "@/lib/types";
 import { downloadPdf } from "@/lib/pdf";
 import { usePracticeStore, type Attempt } from "@/store/usePracticeStore";
 import { useUiStore } from "@/store/useUiStore";
@@ -107,10 +107,7 @@ export function Results({ paper, attempt }: { paper: Paper; attempt: Attempt }) 
           <p className="text-sm text-muted-foreground">
             {paper.subject} · {paper.chapter}
           </p>
-          <h2 className="text-2xl font-semibold">
-            {grade}
-            {pct >= 80 ? " 🎉" : ""}
-          </h2>
+          <h2 className="text-2xl font-semibold">{grade}</h2>
           <p className="text-muted-foreground">
             {pct >= 80
               ? "Brilliant work — you really know this chapter."

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { GeneratedDiagram, GeneratedDeck } from "@/lib/mock/creative";
+import type { GeneratedDiagram, GeneratedDeck } from "@/lib/types";
 
 interface CreativeState {
   diagrams: GeneratedDiagram[];

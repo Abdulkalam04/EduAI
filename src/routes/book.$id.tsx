@@ -46,14 +46,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { askDoc, generateFromDoc, type DocTask } from "@/lib/api";
-import {
-  quoteFor,
-  suggestedQuestions,
-  type Flashcard,
-  type ImportantQ,
-  type Mcq,
-  type Source,
-} from "@/lib/mock/book";
+import type { Flashcard, ImportantQ, Mcq, Source } from "@/lib/types";
 import { downloadPdf, downloadText } from "@/lib/pdf";
 import { useBookStore } from "@/store/useBookStore";
 import { useUserStore } from "@/store/useUserStore";
@@ -406,17 +399,6 @@ function Workspace() {
                     <div ref={endRef} />
                   </div>
                   <div className="border-t p-3">
-                    <div className="mb-2 flex flex-wrap gap-1.5">
-                      {suggestedQuestions.map((q) => (
-                        <button
-                          key={q}
-                          onClick={() => void ask(q)}
-                          className="rounded-full border bg-background px-3 py-1 text-xs hover:bg-muted"
-                        >
-                          {q}
-                        </button>
-                      ))}
-                    </div>
                     <form
                       onSubmit={(e) => {
                         e.preventDefault();
@@ -622,7 +604,7 @@ function Workspace() {
             className="mt-4 rounded-xl border-l-4 bg-muted/50 p-4 text-sm leading-relaxed"
             style={{ borderColor: "var(--book)" }}
           >
-            {source ? source.quote || quoteFor(source.page) : ""}
+            {source?.quote ?? ""}
           </blockquote>
           <p className="mt-3 text-xs text-muted-foreground">From {doc.title}</p>
         </SheetContent>

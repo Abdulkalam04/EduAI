@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -17,10 +17,10 @@ import {
   Presentation,
 } from "lucide-react";
 import { dashboardQuery } from "@/lib/api";
-import type { PlanItem, Activity } from "@/lib/mock/dashboard";
+import type { PlanItem, Activity } from "@/lib/types";
 import { TOOLS, type Accent } from "@/lib/nav";
 import { useUserStore, getLevel } from "@/store/useUserStore";
-import { useLearningStore } from "@/store/useLearningStore";
+import { useUiStore } from "@/store/useUiStore";
 import {
   SoftCard,
   EmptyState,
@@ -59,8 +59,8 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
-function dailyProgress(doneCount: number) {
-  return Math.min(100, 58 + doneCount * 14);
+function dailyProgress(doneCount: number, totalCount: number) {
+  return totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 }
 
 function greeting(h: number) {
@@ -68,31 +68,47 @@ function greeting(h: number) {
 }
 
 const TONE: Record<string, string> = {
-  "c1-5": "Ready for a fun learning adventure today? 🚀✨",
-  "c6-8": "Let's discover something new today 🔍",
-  "c9-10": "A focused session today keeps exam stress away 📚",
+  "c1-5": "Ready for a fun learning adventure today?",
+  "c6-8": "Let's discover something new today.",
+  "c9-10": "A focused session today keeps exam stress away.",
   "c11-12": "Small daily wins add up to big results.",
   grad: "Pick up where you left off and keep building depth.",
 };
 
 function Dashboard() {
-  const { name, level, streak } = useUserStore();
-  const learningMastery = useLearningStore((state) => state.progress.mastery);
-  const { data, isLoading, isError, error, refetch, isFetching } = useQuery(dashboardQuery);
+  const { name, level, onboarded } = useUserStore();
+  const hydrated = useUiStore((state) => state.hydrated);
+  const navigate = useNavigate();
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
+    ...dashboardQuery,
+  });
   const [hour, setHour] = useState<number | null>(null);
   const [plan, setPlan] = useState<PlanItem[]>([]);
   const [tab, setTab] = useState<"Maths" | "Science" | "CS">("Maths");
 
   useEffect(() => setHour(new Date().getHours()), []);
   useEffect(() => {
-    if (data) setPlan(data.plan);
+    if (!hydrated) return;
+    const onboardingRequested =
+      typeof window !== "undefined" &&
+      window.sessionStorage.getItem("eduai-start-onboarding") === "true";
+    if (onboardingRequested && !onboarded) return;
+    if (onboardingRequested) {
+      window.sessionStorage.removeItem("eduai-start-onboarding");
+    }
+    if (!onboarded) void navigate({ to: "/welcome" });
+  }, [hydrated, navigate, onboarded]);
+  useEffect(() => {
+    if (!data) return;
+    const hasWeakTopics = Object.values(data.mastery).some((topics) =>
+      topics.some((topic) => topic.value < 70),
+    );
+    setPlan(hasWeakTopics ? data.plan : []);
   }, [data]);
 
   const done = plan.filter((p) => p.done).length;
-  const progress = data ? dailyProgress(done) : 0;
-  const masteryData = data
-    ? { ...data, mastery: { ...data.mastery, ...learningMastery } }
-    : undefined;
+  const progress = data ? dailyProgress(done, plan.length) : 0;
+  const masteryData = data;
   const playful = level === "c1-5";
 
   if (isError && !data) {
@@ -103,9 +119,11 @@ function Dashboard() {
           title="Dashboard couldn't load"
           description={error instanceof Error ? error.message : "Please try again."}
           action={
-            <GradientButton onClick={() => void refetch()} disabled={isFetching}>
-              {isFetching ? "Retrying..." : "Try again"}
-            </GradientButton>
+            <div className="flex flex-wrap justify-center gap-2">
+              <GradientButton onClick={() => void refetch()} disabled={isFetching}>
+                {isFetching ? "Retrying..." : "Try again"}
+              </GradientButton>
+            </div>
           }
         />
       </div>
@@ -133,7 +151,7 @@ function Dashboard() {
             <LevelBadge level={level} />
             <h2 className="mt-4 text-3xl font-bold sm:text-4xl">
               {hour === null ? "Welcome back" : greeting(hour)},{" "}
-              <span className="text-gradient-primary">{name || "friend"}</span> 👋
+              <span className="text-gradient-primary">{name || "friend"}</span>
             </h2>
             <p className="mt-2 text-muted-foreground">
               {TONE[level]} <span className="hidden sm:inline">· {getLevel(level).style}.</span>
@@ -142,7 +160,7 @@ function Dashboard() {
               <Link to="/tutor">
                 <GradientButton size="lg">
                   <Bot className="h-4 w-4" />
-                  {playful ? "Ask your AI buddy 🤖" : "Ask the AI Tutor"}
+                  {playful ? "Ask your AI buddy" : "Ask the AI Tutor"}
                 </GradientButton>
               </Link>
               <Link to="/solver">
@@ -162,7 +180,11 @@ function Dashboard() {
           Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} lines={2} />)
         ) : (
           <>
-            <Stat label="Daily progress" sub={`${done} of ${plan.length} tasks done`}>
+            <Stat
+              label="Daily progress"
+              sub={`${done} of ${plan.length} tasks done`}
+              icon={<FeatureIcon icon={CheckCircle2} accent="book" />}
+            >
               <ProgressRing value={progress} size={64} />
             </Stat>
             <Stat
@@ -171,12 +193,12 @@ function Dashboard() {
               icon={<FeatureIcon icon={Flame} accent="viva" />}
             >
               <span className="text-2xl font-bold">
-                <AnimatedNumber value={streak || data.stats.streak} /> days
+                <AnimatedNumber value={data.stats.streak} /> days
               </span>
             </Stat>
             <Stat
               label="XP this week"
-              sub="+18% vs last week"
+              sub="From your learning activity"
               icon={<FeatureIcon icon={Zap} accent="solver" />}
             >
               <span className="text-2xl font-bold">
@@ -251,7 +273,7 @@ function Dashboard() {
                   <Shimmer key={i} className="h-8" />
                 ))}
               </div>
-            ) : (
+            ) : (masteryData.mastery[tab] ?? []).length ? (
               <div className="space-y-5" key={tab}>
                 {(masteryData.mastery[tab] ?? []).map((t) => {
                   const color =
@@ -271,6 +293,10 @@ function Dashboard() {
                   );
                 })}
               </div>
+            ) : (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                Take a quiz or practice paper to see your progress.
+              </p>
             )}
             {masteryData &&
               (() => {
@@ -302,12 +328,16 @@ function Dashboard() {
                   <Shimmer key={i} className="h-10" />
                 ))}
               </div>
-            ) : (
+            ) : data.activity.length ? (
               <ol className="relative space-y-5 before:absolute before:bottom-2 before:left-4 before:top-2 before:w-px before:bg-border">
                 {data.activity.map((a) => (
                   <ActivityRow key={a.id} a={a} />
                 ))}
               </ol>
+            ) : (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                Your learning activity will appear here.
+              </p>
             )}
           </SoftCard>
         </motion.div>
@@ -326,7 +356,7 @@ function Dashboard() {
                 <Shimmer key={i} className="h-14" />
               ))}
             </div>
-          ) : (
+          ) : plan.length ? (
             <ul className="space-y-2">
               {plan.map((p) => (
                 <li key={p.id}>
@@ -374,6 +404,10 @@ function Dashboard() {
                 </li>
               ))}
             </ul>
+          ) : (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              No study tasks yet. Practice a topic to build your plan.
+            </p>
           )}
         </SoftCard>
       </motion.div>

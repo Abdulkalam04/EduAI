@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { GradientButton, PageHeader, SoftCard } from "@/components/ui-custom";
 import { Markdown } from "@/components/tutor/Markdown";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -41,14 +42,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { codeAction } from "@/lib/api";
 import {
   CODE_LANGUAGES,
-  EXERCISE_TOPICS,
-  LOOP_EXERCISE,
-  STARTERS,
+  type CodeExercise,
   type CodeActionKind,
   type CodeActionResult,
   type CodeLanguage,
   type ExerciseDifficulty,
-} from "@/lib/mock/learning";
+} from "@/lib/types";
 import { useUserStore, LEVELS, type LevelId } from "@/store/useUserStore";
 import { useLearningStore } from "@/store/useLearningStore";
 import { resolvedTheme, useUiStore } from "@/store/useUiStore";
@@ -80,7 +79,7 @@ const editorLanguage: Record<CodeLanguage, string> = {
 export const Route = createFileRoute("/coding")({
   head: pageHead(
     "Coding Practice",
-    "Solve coding problems with guided AI actions, hints, and mock interviews.",
+    "Work with code using guided AI actions, hints, and interview practice.",
   ),
   component: CodingPractice,
 });
@@ -88,8 +87,8 @@ export const Route = createFileRoute("/coding")({
 function CodingPractice() {
   const level = useUserStore((state) => state.level);
   const [language, setLanguage] = useState<CodeLanguage>("Python");
-  const [exercise, setExercise] = useState(LOOP_EXERCISE);
-  const [code, setCode] = useState(STARTERS.Python);
+  const [exercise, setExercise] = useState<CodeExercise | null>(null);
+  const [code, setCode] = useState("");
   const [tab, setTab] = useState<ActionTab>("Output");
   const [mobileTab, setMobileTab] = useState<MobileTab>("Code");
   const [result, setResult] = useState<CodeActionResult | null>(null);
@@ -98,10 +97,10 @@ function CodingPractice() {
   const [error, setError] = useState("");
   const [problemOpen, setProblemOpen] = useState(true);
   const [generateOpen, setGenerateOpen] = useState(false);
-  const [topic, setTopic] = useState("loops");
+  const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState<ExerciseDifficulty>("Easy");
   const [exerciseLevel, setExerciseLevel] = useState<LevelId>(level);
-  const [mockInterview, setMockInterview] = useState(false);
+  const [interviewPractice, setInterviewPractice] = useState(false);
   const [interviewStartedAt, setInterviewStartedAt] = useState<number | null>(null);
   const [interviewSeconds, setInterviewSeconds] = useState(0);
   const [interviewDone, setInterviewDone] = useState(false);
@@ -111,6 +110,12 @@ function CodingPractice() {
 
   const runAction = useCallback(
     async (action: CodeActionKind) => {
+      if (action !== "Generate Exercise" && !code.trim()) {
+        const message = "Enter code or generate an exercise before requesting a coding action.";
+        setError(message);
+        toast.error(message);
+        return;
+      }
       setBusy(true);
       setError("");
       setLastAction(action);
@@ -126,7 +131,7 @@ function CodingPractice() {
         });
         if (next.exercise) {
           setExercise(next.exercise);
-          setCode(next.exercise.starter[language] ?? STARTERS[language]);
+          setCode(next.exercise.starter[language] ?? "");
           setHintsRevealed(0);
           setGenerateOpen(false);
         }
@@ -142,7 +147,7 @@ function CodingPractice() {
         );
         setMobileTab(action === "Run" || action === "Predict Output" ? "Output" : "AI");
         if (action === "Interview") setInterviewDone(true);
-        toast.success(action === "Run" ? "Demo run complete" : `${action} complete`);
+        toast.success(action === "Run" ? "Code run complete" : `${action} complete`);
       } catch (cause) {
         const message = cause instanceof Error ? cause.message : "The coding action failed.";
         setError(message);
@@ -155,13 +160,13 @@ function CodingPractice() {
   );
 
   useEffect(() => {
-    if (!mockInterview || interviewStartedAt === null || interviewDone) return;
+    if (!interviewPractice || interviewStartedAt === null || interviewDone) return;
     const timer = window.setInterval(
       () => setInterviewSeconds(Math.floor((Date.now() - interviewStartedAt) / 1000)),
       1000,
     );
     return () => window.clearInterval(timer);
-  }, [mockInterview, interviewStartedAt, interviewDone]);
+  }, [interviewPractice, interviewStartedAt, interviewDone]);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -181,16 +186,17 @@ function CodingPractice() {
 
   const changeLanguage = (next: CodeLanguage) => {
     setLanguage(next);
-    setCode(exercise.starter[next] ?? STARTERS[next]);
+    const starter = exercise?.starter[next];
+    if (starter !== undefined) setCode(starter);
     setResult(null);
   };
 
   const nextHint = async () => {
-    if (hintsRevealed >= exercise.hints.length) return;
     const count = hintsRevealed + 1;
     setHintsRevealed(count);
     await runAction("Give Hint");
   };
+  const availableHints = result?.hints ?? exercise?.hints ?? [];
 
   const actionPanel = (
     <div className="flex h-full min-h-[320px] flex-col">
@@ -211,12 +217,12 @@ function CodingPractice() {
           className="min-h-0 flex-1 overflow-auto rounded-xl border bg-[#111827] p-4 font-mono text-xs text-emerald-300"
         >
           <p className="mb-3 text-gray-400">
-            $ {language === "Python" ? "python main.py" : `${language} · demo sandbox`}
+            $ {language === "Python" ? "python main.py" : `${language} · execution unavailable`}
           </p>
           {result?.output ? (
             <pre className="whitespace-pre-wrap">{result.output}</pre>
           ) : (
-            <p className="text-gray-500">Run your Python code to see the mocked demo output.</p>
+            <p className="text-gray-500">Run your Python code to see the output.</p>
           )}
           {error && (
             <p role="alert" className="mt-3 whitespace-pre-wrap text-rose-300">
@@ -238,7 +244,7 @@ function CodingPractice() {
               Choose Explain, Debug, or Predict Output for level-aware feedback.
             </p>
           )}
-          {mockInterview && interviewDone && (
+          {interviewPractice && interviewDone && (
             <div className="mt-4 border-t pt-4">
               <Markdown content={result?.markdown ?? ""} />
             </div>
@@ -304,7 +310,7 @@ function CodingPractice() {
             <p className="text-sm text-muted-foreground">
               Hints unlock one at a time. Try each idea before revealing the next.
             </p>
-            {exercise.hints.slice(0, hintsRevealed).map((hint, index) => (
+            {availableHints.slice(0, hintsRevealed).map((hint, index) => (
               <div key={hint} className="flex gap-3 rounded-xl bg-muted/70 p-3 text-sm">
                 <span className="font-semibold text-primary">Hint {index + 1}</span>
                 <span>{hint}</span>
@@ -313,14 +319,16 @@ function CodingPractice() {
             <GradientButton
               size="sm"
               onClick={() => void nextHint()}
-              disabled={busy || hintsRevealed >= exercise.hints.length}
+              disabled={
+                busy || (availableHints.length > 0 && hintsRevealed >= availableHints.length)
+              }
             >
               {busy ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Lightbulb className="h-4 w-4" />
               )}
-              {hintsRevealed >= exercise.hints.length
+              {availableHints.length > 0 && hintsRevealed >= availableHints.length
                 ? "All hints revealed"
                 : `Reveal Hint ${hintsRevealed + 1}`}
             </GradientButton>
@@ -387,43 +395,24 @@ function CodingPractice() {
               ))}
             </SelectContent>
           </Select>
-          <Select
-            value={exercise.id}
-            onValueChange={(value) => {
-              const next = value === LOOP_EXERCISE.id ? LOOP_EXERCISE : { ...exercise, id: value };
-              setExercise(next);
-              setCode(next.starter[language] ?? STARTERS[language]);
-              setHintsRevealed(0);
-            }}
-          >
-            <SelectTrigger className="min-w-40 flex-1 sm:max-w-64" aria-label="Choose exercise">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={LOOP_EXERCISE.id}>{LOOP_EXERCISE.title}</SelectItem>
-              <SelectItem value="array-practice">Array practice</SelectItem>
-              <SelectItem value="recursion-practice">Recursion practice</SelectItem>
-              <SelectItem value="sql-joins">SQL joins</SelectItem>
-            </SelectContent>
-          </Select>
           <GradientButton variant="secondary" size="sm" onClick={() => setGenerateOpen(true)}>
             <WandSparkles className="h-4 w-4" />
             New exercise
           </GradientButton>
           <div className="ml-auto flex items-center gap-2">
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              Mock interview
+              Interview practice
               <Switch
-                checked={mockInterview}
+                checked={interviewPractice}
                 onCheckedChange={(checked) => {
-                  setMockInterview(checked);
+                  setInterviewPractice(checked);
                   setInterviewStartedAt(checked ? Date.now() : null);
                   setInterviewSeconds(0);
                   setInterviewDone(false);
                 }}
               />
             </label>
-            {mockInterview && (
+            {interviewPractice && (
               <span className="inline-flex items-center gap-1 rounded-lg bg-muted px-2 py-1 font-mono text-xs">
                 <Timer className="h-3.5 w-3.5" />
                 {Math.floor(interviewSeconds / 60)}:{String(interviewSeconds % 60).padStart(2, "0")}
@@ -434,7 +423,7 @@ function CodingPractice() {
                 <span tabIndex={language === "Python" ? undefined : 0}>
                   <GradientButton
                     size="sm"
-                    onClick={() => void runAction(mockInterview ? "Interview" : "Run")}
+                    onClick={() => void runAction(interviewPractice ? "Interview" : "Run")}
                     disabled={busy || language !== "Python"}
                   >
                     <Play className="h-4 w-4" />
@@ -443,54 +432,59 @@ function CodingPractice() {
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                {language === "Python"
-                  ? "Basic sandbox · Ctrl/Cmd + Enter"
-                  : "Run supports Python only · Basic sandbox"}
+                {language === "Python" ? "Run code · Ctrl/Cmd + Enter" : "Run supports Python only"}
               </TooltipContent>
             </Tooltip>
           </div>
         </div>
-        <button
-          onClick={() => setProblemOpen((open) => !open)}
-          aria-expanded={problemOpen}
-          className="flex w-full items-center justify-between rounded-xl border bg-muted/50 px-4 py-2.5 text-left text-sm font-semibold"
-        >
-          <span>
-            Problem · {exercise.title}
-            <span className="ml-2 rounded-full bg-warning/15 px-2 py-0.5 text-xs text-warning">
-              {exercise.difficulty}
-            </span>
-          </span>
-          <ChevronDown
-            className={cn("h-4 w-4 transition-transform", problemOpen && "rotate-180")}
-          />
-        </button>
-        {problemOpen && (
-          <SoftCard className="space-y-3 p-4">
-            <p className="text-sm">{exercise.statement}</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {exercise.examples.map((example) => (
-                <div key={example.input} className="rounded-xl bg-muted/60 p-3 text-xs">
-                  <p className="font-semibold">Example</p>
-                  <p className="mt-1 font-mono">Input: {example.input}</p>
-                  <p className="font-mono">Output: {example.output}</p>
+        {exercise ? (
+          <>
+            <button
+              onClick={() => setProblemOpen((open) => !open)}
+              aria-expanded={problemOpen}
+              className="flex w-full items-center justify-between rounded-xl border bg-muted/50 px-4 py-2.5 text-left text-sm font-semibold"
+            >
+              <span>
+                Problem · {exercise.title}
+                <span className="ml-2 rounded-full bg-warning/15 px-2 py-0.5 text-xs text-warning">
+                  {exercise.difficulty}
+                </span>
+              </span>
+              <ChevronDown
+                className={cn("h-4 w-4 transition-transform", problemOpen && "rotate-180")}
+              />
+            </button>
+            {problemOpen && (
+              <SoftCard className="space-y-3 p-4">
+                <p className="text-sm">{exercise.statement}</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {exercise.examples.map((example) => (
+                    <div key={example.input} className="rounded-xl bg-muted/60 p-3 text-xs">
+                      <p className="font-semibold">Example</p>
+                      <p className="mt-1 font-mono">Input: {example.input}</p>
+                      <p className="font-mono">Output: {example.output}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </SoftCard>
+              </SoftCard>
+            )}
+          </>
+        ) : (
+          <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+            Enter your code or generate an exercise to begin.
+          </p>
         )}
-        {mockInterview && (
+        {interviewPractice && (
           <SoftCard className="flex flex-wrap items-center gap-3 p-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-coding-soft text-coding">
               <Code2 className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Mock interview question
+                Interview practice
               </p>
               <p className="text-sm">
-                Explain the time complexity of your approach and how you would test the smallest
-                valid input.
+                When you are ready, request Interview feedback to review your approach.
               </p>
             </div>
             {interviewDone && (
@@ -557,19 +551,12 @@ function CodingPractice() {
             </DialogHeader>
             <div className="space-y-4">
               <label className="block space-y-1.5 text-sm font-medium">
-                Topic
-                <Select value={topic} onValueChange={setTopic}>
-                  <SelectTrigger aria-label="Exercise topic">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EXERCISE_TOPICS.map((item) => (
-                      <SelectItem key={item} value={item}>
-                        {item}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  value={topic}
+                  onChange={(event) => setTopic(event.target.value)}
+                  placeholder="Enter a topic"
+                  aria-label="Exercise topic"
+                />
               </label>
               <label className="block space-y-1.5 text-sm font-medium">
                 Difficulty
@@ -612,7 +599,10 @@ function CodingPractice() {
               <GradientButton variant="secondary" onClick={() => setGenerateOpen(false)}>
                 Cancel
               </GradientButton>
-              <GradientButton onClick={() => void runAction("Generate Exercise")} disabled={busy}>
+              <GradientButton
+                onClick={() => void runAction("Generate Exercise")}
+                disabled={busy || !topic.trim()}
+              >
                 {busy ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (

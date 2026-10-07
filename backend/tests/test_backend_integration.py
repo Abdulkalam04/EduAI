@@ -10,6 +10,14 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
 from app.main import app
+from app.models import (
+    ChatMessage,
+    ChatSession,
+    PracticeAttempt,
+    PracticeEvaluation,
+    PracticePaper,
+    VivaSession,
+)
 from app.services.documents import DocumentPage
 from app.services.llm import OmniRouteError
 
@@ -137,6 +145,12 @@ def test_chat_request_uses_current_session_recent_history_and_level_style(client
 def test_solver_router_preserves_paper_question_shape(client, monkeypatch):
     from app.routers import solve
 
+    async def fake_read_validated_upload(file):
+        return file.filename, await file.read()
+
+    async def fake_extract_document(data, filename, content_type):
+        return [DocumentPage(1, "Question paper fixture for the solver contract test.")]
+
     def fake_json_call(messages, response_model, task="json"):
         if response_model is solve.ExtractedQuestionSet:
             return response_model(questions=[{"number": 1, "text": "Define gravity.", "marks": 2}])
@@ -150,10 +164,13 @@ def test_solver_router_preserves_paper_question_shape(client, monkeypatch):
     async def async_fake_json_call(*args, **kwargs):
         return fake_json_call(*args, **kwargs)
 
+    monkeypatch.setattr(solve, "read_validated_upload", fake_read_validated_upload)
+    monkeypatch.setattr(solve, "extract_document", fake_extract_document)
     monkeypatch.setattr(solve, "json_call", async_fake_json_call)
     response = client.post(
         "/api/solve",
-        data={"sample": "true", "level": "c9-10", "subject": "Science", "mode": "exam", "style": "Exam"},
+        files={"file": ("paper.pdf", b"uploaded test bytes", "application/pdf")},
+        data={"level": "c9-10", "subject": "Science", "mode": "exam", "style": "Exam"},
     )
     assert response.status_code == 200
     question = response.json()[0]
@@ -693,3 +710,82 @@ def test_upload_validation_and_error_contracts(client):
         files={"file": ("large.pdf", b"%PDF-" + b"x" * (20 * 1024 * 1024 + 1), "application/pdf")},
     )
     assert oversized.status_code == 413
+
+
+def test_reset_progress_clears_learning_activity_and_xp(client):
+    db_generator = app.dependency_overrides[get_db]()
+    db = next(db_generator)
+    try:
+        db.add(ChatSession(id="reset-chat"))
+        db.add(
+            ChatMessage(
+                session_id="reset-chat",
+                role="user",
+                content="Previously asked question",
+            )
+        )
+        db.add(
+            PracticePaper(
+                id="reset-paper",
+                paper_json=json.dumps({"questions": []}),
+            )
+        )
+        db.add(
+            PracticeAttempt(
+                paper_id="reset-paper",
+                subject="Science",
+                chapter="Electricity",
+                total=1,
+                score=1,
+                paper_json=json.dumps(
+                    {"questions": [{"id": "q1", "topic": "Current", "marks": 1}]}
+                ),
+                result_json=json.dumps(
+                    {"perQ": [{"id": "q1", "awarded": 1}], "timeUsedSec": 60}
+                ),
+            )
+        )
+        db.add(
+            PracticeEvaluation(
+                id="reset-evaluation",
+                evaluation_json=json.dumps({"question": "Previously checked answer"}),
+            )
+        )
+        db.add(
+            VivaSession(
+                id="reset-viva",
+                subject="Science",
+                topic="Gravity",
+                level="c9-10",
+                questions_json="[]",
+                answers_json="[]",
+                report_json=json.dumps(
+                    {
+                        "total": 1,
+                        "score": 1,
+                        "questions": [
+                            {
+                                "topic": "Gravity",
+                                "feedback": {"score": 1},
+                            }
+                        ],
+                    }
+                ),
+            )
+        )
+        db.commit()
+    finally:
+        db_generator.close()
+
+    response = client.delete("/api/progress")
+    assert response.status_code == 200
+    assert response.json() == {"status": "cleared"}
+
+    dashboard = client.get("/api/dashboard")
+    assert dashboard.status_code == 200
+    assert dashboard.json()["stats"] == {
+        "dailyProgress": 0,
+        "streak": 0,
+        "xpWeek": 0,
+        "solved": 0,
+    }

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -18,8 +18,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { uploadDoc } from "@/lib/api";
+import { listDocs, uploadDoc } from "@/lib/api";
 import { useBookStore } from "@/store/useBookStore";
+import { useUiStore } from "@/store/useUiStore";
 
 const TITLE = "Study From My Book — EduAI";
 const DESC =
@@ -39,18 +40,41 @@ export const Route = createFileRoute("/book/")({
   component: Library,
 });
 
-const STEPS = ["Extracting text", "Creating embeddings", "Ready"];
-
 function Library() {
-  const { docs, add, remove } = useBookStore();
+  const { docs, add, remove, setDocs } = useBookStore();
+  const hydrated = useUiStore((state) => state.hydrated);
+  const [loadingDocs, setLoadingDocs] = useState(true);
+  const [listError, setListError] = useState("");
   const [uploading, setUploading] = useState<{
     name: string;
-    step: number;
     progress: number;
   } | null>(null);
   const [uploadError, setUploadError] = useState("");
   const [drag, setDrag] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    let active = true;
+    setLoadingDocs(true);
+    setListError("");
+    setDocs([]);
+    void listDocs()
+      .then((items) => {
+        if (active) setDocs(items);
+      })
+      .catch((cause: unknown) => {
+        if (active) {
+          setListError(cause instanceof Error ? cause.message : "Your library couldn't load.");
+        }
+      })
+      .finally(() => {
+        if (active) setLoadingDocs(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [hydrated, setDocs]);
 
   const upload = async (f: File | undefined) => {
     if (!f) return;
@@ -58,13 +82,11 @@ function Library() {
       toast.error("Please upload a PDF file.");
       return;
     }
-    setUploading({ name: f.name, step: 0, progress: 0 });
+    setUploading({ name: f.name, progress: 0 });
     setUploadError("");
     try {
-      const d = await uploadDoc(
-        f,
-        (step) => setUploading((current) => (current ? { ...current, step } : current)),
-        (progress) => setUploading((current) => (current ? { ...current, progress } : current)),
+      const d = await uploadDoc(f, (progress) =>
+        setUploading((current) => (current ? { ...current, progress } : current)),
       );
       add(d);
       toast.success(`${f.name} is ready to study`);
@@ -98,28 +120,14 @@ function Library() {
       {uploading ? (
         <div className="w-full space-y-2 text-left">
           <p className="truncate text-sm font-medium">{uploading.name}</p>
-          {STEPS.map((s, i) => (
-            <p
-              key={s}
-              className={cn(
-                "flex items-center gap-2 text-xs",
-                i <= uploading.step ? "text-foreground" : "text-muted-foreground",
-              )}
-            >
-              {i < uploading.step ? (
-                <Check className="h-3.5 w-3.5 text-success" />
-              ) : i === uploading.step ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <span className="h-3.5 w-3.5" />
-              )}
-              {s}
-            </p>
-          ))}
+          <p className="flex items-center gap-2 text-xs text-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Uploading and processing document
+          </p>
           <div className="h-1.5 overflow-hidden rounded-full bg-muted">
             <div
               className="h-full bg-gradient-primary transition-all duration-300"
-              style={{ width: `${uploading.progress || ((uploading.step + 1) / 3) * 100}%` }}
+              style={{ width: `${uploading.progress}%` }}
             />
           </div>
         </div>
@@ -156,6 +164,14 @@ function Library() {
         accent="book"
         description="Upload a chapter from your textbook and learn from it with AI."
       />
+      {listError && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+        >
+          <span>{listError}</span>
+        </div>
+      )}
       {uploadError && (
         <div
           role="alert"
@@ -171,7 +187,7 @@ function Library() {
           </button>
         </div>
       )}
-      {docs.length === 0 && !uploading ? (
+      {!loadingDocs && docs.length === 0 && !uploading ? (
         <div className="space-y-4">
           <EmptyState
             icon={BookOpen}
@@ -187,6 +203,8 @@ function Library() {
           />
           <div className="hidden">{dropZone}</div>
         </div>
+      ) : loadingDocs ? (
+        <div className="h-48 animate-pulse rounded-2xl bg-muted" aria-label="Loading library" />
       ) : (
         <motion.div
           variants={stagger}

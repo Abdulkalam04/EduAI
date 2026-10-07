@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { Paper, PaperResult } from "@/lib/mock/practice";
+import type { Paper, PaperResult } from "@/lib/types";
 
 export interface Attempt {
   paperId: string;
@@ -21,6 +21,7 @@ interface PracticeState {
   attempts: Record<string, Attempt>;
   view: Stage;
   setView: (v: Stage) => void;
+  clearHistory: () => void;
   addPaper: (p: Paper) => void;
   startAttempt: (p: Paper) => void;
   patchAttempt: (paperId: string, patch: Partial<Attempt>) => void;
@@ -34,6 +35,7 @@ export const usePracticeStore = create<PracticeState>()(
       attempts: {},
       view: { stage: "generate" },
       setView: (view) => set({ view }),
+      clearHistory: () => set({ papers: [], attempts: {}, view: { stage: "generate" } }),
       addPaper: (p) => set((s) => ({ papers: [p, ...s.papers] })),
       startAttempt: (p) =>
         set((s) => ({

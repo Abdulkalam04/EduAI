@@ -20,6 +20,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SolverRouteImport } from './routes/solver'
 import { Route as TutorRouteImport } from './routes/tutor'
 import { Route as VivaRouteImport } from './routes/viva'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as BookIndexRouteImport } from './routes/book.index'
 import { Route as BookIdRouteImport } from './routes/book.$id'
 import { Route as PracticeIndexRouteImport } from './routes/practice.index'
@@ -80,6 +81,11 @@ const VivaRoute = VivaRouteImport.update({
   path: '/viva',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BookIndexRoute = BookIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/solver': typeof SolverRoute
   '/tutor': typeof TutorRoute
   '/viva': typeof VivaRoute
+  '/welcome': typeof WelcomeRoute
   '/book/$id': typeof BookIdRoute
   '/practice/check': typeof PracticeCheckRoute
   '/book/': typeof BookIndexRoute
@@ -128,6 +135,7 @@ export interface FileRoutesByTo {
   '/solver': typeof SolverRoute
   '/tutor': typeof TutorRoute
   '/viva': typeof VivaRoute
+  '/welcome': typeof WelcomeRoute
   '/book/$id': typeof BookIdRoute
   '/practice/check': typeof PracticeCheckRoute
   '/book': typeof BookIndexRoute
@@ -146,6 +154,7 @@ export interface FileRoutesById {
   '/solver': typeof SolverRoute
   '/tutor': typeof TutorRoute
   '/viva': typeof VivaRoute
+  '/welcome': typeof WelcomeRoute
   '/book/$id': typeof BookIdRoute
   '/practice/check': typeof PracticeCheckRoute
   '/book/': typeof BookIndexRoute
@@ -165,6 +174,7 @@ export interface FileRouteTypes {
     | '/solver'
     | '/tutor'
     | '/viva'
+    | '/welcome'
     | '/book/$id'
     | '/practice/check'
     | '/book/'
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
     | '/solver'
     | '/tutor'
     | '/viva'
+    | '/welcome'
     | '/book/$id'
     | '/practice/check'
     | '/book'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/solver'
     | '/tutor'
     | '/viva'
+    | '/welcome'
     | '/book/$id'
     | '/practice/check'
     | '/book/'
@@ -215,6 +227,7 @@ export interface RootRouteChildren {
   SolverRoute: typeof SolverRoute
   TutorRoute: typeof TutorRoute
   VivaRoute: typeof VivaRoute
+  WelcomeRoute: typeof WelcomeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -296,6 +309,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VivaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/book/': {
       id: '/book/'
       path: '/'
@@ -365,6 +385,7 @@ const rootRouteChildren: RootRouteChildren = {
   SolverRoute: SolverRoute,
   TutorRoute: TutorRoute,
   VivaRoute: VivaRoute,
+  WelcomeRoute: WelcomeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

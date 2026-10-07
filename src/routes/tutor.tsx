@@ -12,7 +12,7 @@ import { useChatStore, uid } from "@/store/useChatStore";
 import { useUserStore, type LevelId } from "@/store/useUserStore";
 import { useUiStore } from "@/store/useUiStore";
 import { streamTutor } from "@/lib/api";
-import { SUGGESTIONS, type AnswerStyle } from "@/lib/mock/tutor";
+import type { AnswerStyle } from "@/lib/types";
 import { Shimmer } from "@/components/ui-custom";
 
 export const Route = createFileRoute("/tutor")({
@@ -182,7 +182,7 @@ function TutorPage() {
   const last = messages[messages.length - 1];
 
   return (
-    <div className="mx-0 -mt-6 flex h-[calc(100dvh-4rem-7rem)] overflow-hidden md:-mt-8 md:h-[calc(100dvh-4rem-3rem)]">
+    <div className="mx-0 flex h-[calc(100dvh-4rem-7rem)] overflow-hidden md:h-[calc(100dvh-4rem-3rem)]">
       {/* Desktop history panel */}
       <motion.aside
         animate={{ width: panelOpen ? 280 : 0, opacity: panelOpen ? 1 : 0 }}
@@ -240,7 +240,7 @@ function TutorPage() {
                 ))}
               </div>
             ) : messages.length === 0 ? (
-              <Empty level={level} onPick={send} />
+              <Empty />
             ) : (
               <div className="space-y-6 pb-4">
                 {messages.map((m, i) =>
@@ -303,7 +303,7 @@ function TutorPage() {
   );
 }
 
-function Empty({ level, onPick }: { level: LevelId; onPick: (t: string) => void }) {
+function Empty() {
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center py-8 text-center">
       <motion.span
@@ -314,25 +314,7 @@ function Empty({ level, onPick }: { level: LevelId; onPick: (t: string) => void 
         <Sparkles className="h-6 w-6" />
       </motion.span>
       <h2 className="mt-5 text-2xl font-bold sm:text-3xl">What would you like to learn today?</h2>
-      <p className="mt-2 text-muted-foreground">Answers adapt to your level. Try one of these:</p>
-      <motion.div
-        initial="hidden"
-        animate="show"
-        variants={{ hidden: {}, show: { transition: { staggerChildren: 0.04 } } }}
-        className="mt-8 grid w-full gap-3 sm:grid-cols-2"
-      >
-        {SUGGESTIONS[level].map((s) => (
-          <motion.button
-            key={s}
-            variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
-            whileHover={{ y: -2 }}
-            onClick={() => onPick(s)}
-            className="rounded-2xl border bg-card p-4 text-left text-sm font-medium shadow-soft transition-shadow hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {s}
-          </motion.button>
-        ))}
-      </motion.div>
+      <p className="mt-2 text-muted-foreground">Answers adapt to your learning level.</p>
     </div>
   );
 }

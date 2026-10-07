@@ -1,9 +1,10 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { seedDocs, type BookDoc } from "@/lib/mock/book";
+import type { BookDoc } from "@/lib/types";
 
 interface BookState {
   docs: BookDoc[];
+  setDocs: (docs: BookDoc[]) => void;
   add: (d: BookDoc) => void;
   remove: (id: string) => void;
 }
@@ -11,7 +12,8 @@ interface BookState {
 export const useBookStore = create<BookState>()(
   persist(
     (set) => ({
-      docs: seedDocs,
+      docs: [],
+      setDocs: (docs) => set({ docs }),
       add: (d) => set((s) => ({ docs: [d, ...s.docs] })),
       remove: (id) => set((s) => ({ docs: s.docs.filter((d) => d.id !== id) })),
     }),
