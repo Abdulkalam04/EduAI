@@ -53,7 +53,7 @@ REASONING_EFFORT_CODE_DEBUG=high
 LONG_CONTEXT_MAX_TOKENS=120000
 MAX_CONCURRENT_LLM=4
 EMBEDDINGS=none
-CORS_ORIGINS=http://localhost:5173,http://localhost:8080
+CORS_ORIGINS=http://localhost:5173,http://localhost:8080,http://localhost:8081
 DATABASE_URL=sqlite:///./eduai.db
 UPLOADS_DIR=uploads
 ```

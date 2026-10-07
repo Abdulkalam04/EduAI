@@ -30,7 +30,8 @@ class Settings(BaseSettings):
     max_concurrent_llm: int = 4
     embeddings: str = "none"
     cors_origins: str = (
-        "http://localhost:5173,http://localhost:8080,http://localhost:3000"
+        "http://localhost:5173,http://localhost:8080,http://localhost:3000,"
+        "http://localhost:8081"
     )
     database_url: str = f"sqlite:///{(BACKEND_DIR / 'eduai.db').as_posix()}"
     uploads_dir: str = str(BACKEND_DIR / "uploads")
