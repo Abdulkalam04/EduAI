@@ -9,7 +9,7 @@ export const Route = createFileRoute("/study")({
   component: StudyPage,
 });
 
-function StudyPage() {
+export function StudyPage() {
   return (
     <div className="space-y-6 px-4 py-6 md:px-8">
       <PageHeader

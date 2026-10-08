@@ -194,3 +194,12 @@ From the repository root:
 ```powershell
 python -m pytest backend/tests -q
 ```
+
+To manually check the configured model roles against OmniRoute, run this from
+`backend/`:
+
+```powershell
+python -m scripts.check_models
+```
+
+Roles without a configured model ID are skipped.

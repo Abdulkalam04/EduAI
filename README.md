@@ -12,7 +12,7 @@ multimodal, and JSON roles; optional roles fall back to the teacher model.
 
 ## Requirements
 
-- Node.js and Bun (the repository uses `bun.lock`)
+- Node.js 20 or newer
 - Python 3.11 or newer
 - A running OmniRoute gateway and configured provider/model IDs for AI features
 
@@ -34,14 +34,14 @@ and the full configuration list. Never commit `.env`.
 
 ## Run the app
 
-Start each service in its own terminal. Run `bun install` from the project root
-once first if the frontend dependencies are not installed.
+Start each service in its own terminal. Install the frontend dependencies from
+the project root with `npm install --legacy-peer-deps` if needed.
 
-| Terminal | Folder | Command |
-| --- | --- | --- |
-| OmniRoute | Any | `docker start omniroute` (skip this if `docker ps` already shows `omniroute` as `Up`) |
-| Backend | `EduAI\backend` | `python -m uvicorn app.main:app --reload` (with the backend virtual environment activated) |
-| Frontend | `EduAI` | `npm run dev` |
+| Terminal  | Folder          | Command                                                                                    |
+| --------- | --------------- | ------------------------------------------------------------------------------------------ |
+| OmniRoute | Any             | `docker start omniroute` (skip this if `docker ps` already shows `omniroute` as `Up`)      |
+| Backend   | `EduAI\backend` | `python -m uvicorn app.main:app --reload` (with the backend virtual environment activated) |
+| Frontend  | `EduAI`         | `npm run dev`                                                                              |
 
 In the backend terminal, from `backend/`, activate the virtual environment and
 start the server:
@@ -86,8 +86,9 @@ your private network.
 ## Checks
 
 ```powershell
-bun run build
-bunx tsc --noEmit
+npm run build
+npx tsc --noEmit
+npx vitest run
 cd backend
 python -m pytest -q
 ```

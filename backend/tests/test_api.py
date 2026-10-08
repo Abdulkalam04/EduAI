@@ -1,14 +1,41 @@
 import uuid
 
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 
+from app.database import Base, get_db
 from app.main import app
 from app.services.llm import OmniRouteError
 
-client = TestClient(app)
+
+@pytest.fixture
+def client():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    test_session = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
+    def override_db():
+        session = test_session()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_db] = override_db
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.pop(get_db, None)
+    engine.dispose()
 
 
-def test_health_works_when_omniroute_is_offline(monkeypatch):
+def test_health_works_when_omniroute_is_offline(client, monkeypatch):
     async def offline():
         return False, 0
 
@@ -22,7 +49,7 @@ def test_health_works_when_omniroute_is_offline(monkeypatch):
     }
 
 
-def test_cors_allows_local_frontend_on_port_8081():
+def test_cors_allows_local_frontend_on_port_8081(client):
     response = client.options(
         "/health",
         headers={
@@ -35,7 +62,7 @@ def test_cors_allows_local_frontend_on_port_8081():
     assert response.headers["access-control-allow-origin"] == "http://localhost:8081"
 
 
-def test_cors_allows_private_lan_frontend():
+def test_cors_allows_private_lan_frontend(client):
     response = client.options(
         "/health",
         headers={
@@ -48,7 +75,7 @@ def test_cors_allows_private_lan_frontend():
     assert response.headers["access-control-allow-origin"] == "http://192.168.1.42:5173"
 
 
-def test_chat_sse_contract(monkeypatch):
+def test_chat_sse_contract(client, monkeypatch):
     async def fake_stream(messages, task="teacher", temperature=0.4):
         yield "A useful "
         yield "answer."
@@ -71,7 +98,7 @@ def test_chat_sse_contract(monkeypatch):
     assert response.text.rstrip().endswith("data: [DONE]")
 
 
-def test_chat_prompts_for_class_when_level_is_missing():
+def test_chat_prompts_for_class_when_level_is_missing(client):
     response = client.post("/api/chat", json={"question": "What is gravity?"})
 
     assert response.status_code == 200
@@ -79,7 +106,7 @@ def test_chat_prompts_for_class_when_level_is_missing():
     assert response.text.rstrip().endswith("data: [DONE]")
 
 
-def test_chat_returns_clear_json_error_when_omniroute_is_offline(monkeypatch):
+def test_chat_returns_clear_json_error_when_omniroute_is_offline(client, monkeypatch):
     async def offline_stream(messages, task="teacher", temperature=0.4):
         raise OmniRouteError("OmniRoute is not running or the API key is invalid")
         yield ""
