@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   ArrowUp,
   BookOpen,
-  Brain,
   Copy,
   Download,
   FileDown,
@@ -19,7 +18,6 @@ import {
   PanelLeftOpen,
   Presentation,
   RefreshCw,
-  Sparkles,
   Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -98,9 +96,9 @@ const TABS: { id: Tab; label: string; icon: typeof MessageSquare }[] = [
   { id: "flashcards", label: "Flashcards", icon: Layers },
   { id: "questions", label: "Questions", icon: Star },
 ];
-const ACTIONS: { task: DocTask | "ppt"; label: string; icon: typeof Brain; tab: Tab }[] = [
-  { task: "explain", label: "Explain", icon: Brain, tab: "notes" },
-  { task: "summary", label: "Summarize", icon: Sparkles, tab: "notes" },
+const ACTIONS: { task: DocTask | "ppt"; label: string; icon: typeof BookOpen; tab: Tab }[] = [
+  { task: "explain", label: "Explain", icon: BookOpen, tab: "notes" },
+  { task: "summary", label: "Summarize", icon: BookOpen, tab: "notes" },
   { task: "notes", label: "Make Notes", icon: NotebookPen, tab: "notes" },
   { task: "mcqs", label: "Generate MCQs", icon: ListChecks, tab: "mcqs" },
   { task: "flashcards", label: "Flashcards", icon: Layers, tab: "flashcards" },
@@ -258,9 +256,7 @@ function Workspace() {
             >
               <SoftCard className="w-60 p-3">
                 <div className="mb-2 flex items-center justify-between px-1">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Sections
-                  </p>
+                  <p className="text-xs font-semibold text-muted-foreground">Sections</p>
                   <button
                     aria-label="Collapse sections"
                     onClick={() => setPanel(false)}
@@ -559,7 +555,7 @@ function Workspace() {
                   <SoftCard className="divide-y">
                     {results.questions.map((q, i) => (
                       <div key={i} className="flex flex-wrap items-center gap-3 p-4">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
                           {i + 1}
                         </span>
                         <p className="min-w-0 flex-1 text-sm">{q.q}</p>

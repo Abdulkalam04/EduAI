@@ -13,7 +13,6 @@ import {
   MicOff,
   Pause,
   RotateCcw,
-  Sparkles,
   Volume2,
   X,
 } from "lucide-react";
@@ -311,7 +310,7 @@ function VivaMode() {
             <SoftCard className="mx-auto max-w-2xl p-5 sm:p-7">
               <div className="mb-6 flex items-center gap-3">
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-viva-soft text-viva">
-                  <Sparkles className="h-6 w-6" />
+                  <Mic className="h-6 w-6" />
                 </span>
                 <div>
                   <h2 className="text-xl font-semibold">Set up your viva</h2>
@@ -410,7 +409,7 @@ function VivaMode() {
                   {busy ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Sparkles className="h-4 w-4" />
+                    <Mic className="h-4 w-4" />
                   )}
                   Start viva
                 </GradientButton>
@@ -442,7 +441,7 @@ function VivaMode() {
                     aria-live="polite"
                     className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 font-mono text-xs ${questionSeconds <= 10 ? "bg-warning/15 text-warning" : "bg-muted text-muted-foreground"}`}
                   >
-                    <Clock3 className="h-3.5 w-3.5" />
+                    <Clock3 className="h-4 w-4" />
                     {questionSeconds > 0
                       ? `0:${String(questionSeconds).padStart(2, "0")}`
                       : "Time's up"}
@@ -483,9 +482,7 @@ function VivaMode() {
                     <AvatarFallback className="bg-viva-soft text-xl text-viva">AI</AvatarFallback>
                   </Avatar>
                 </motion.div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  Your examiner
-                </p>
+                <p className="text-xs font-semibold text-muted-foreground">Your examiner</p>
                 <h2 className="mt-4 text-2xl font-semibold leading-relaxed sm:text-3xl">
                   {currentQuestion.question}
                 </h2>
@@ -621,15 +618,15 @@ function VivaMode() {
               {percent > 80 && (
                 <motion.div
                   aria-hidden
-                  className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent"
+                  className="pointer-events-none absolute inset-0 bg-muted/30"
                   animate={{ x: ["-100%", "100%"] }}
                   transition={{ duration: 2.4, repeat: Infinity, repeatDelay: 1.2 }}
                 />
               )}
               <span className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-success/15 text-success">
-                <CheckCircle2 className="h-7 w-7" />
+                <CheckCircle2 className="h-6 w-6" />
               </span>
-              <p className="relative mt-4 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+              <p className="relative mt-4 text-sm font-semibold text-muted-foreground">
                 Viva complete
               </p>
               <h2 className="relative mt-2 text-4xl font-bold tabular-nums">
@@ -651,7 +648,7 @@ function VivaMode() {
                   }
                 >
                   <GradientButton>
-                    <Sparkles className="h-4 w-4" />
+                    <Mic className="h-4 w-4" />
                     Practise weak topics
                   </GradientButton>
                 </Link>

@@ -148,7 +148,7 @@ export function McqQuiz({ questions }: { questions: Mcq[] }) {
                 >
                   <span
                     className={cn(
-                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border text-xs font-semibold",
+                      "flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-xs font-semibold",
                       isCorrect && "border-success bg-success text-primary-foreground",
                       isWrong && "border-destructive bg-destructive text-primary-foreground",
                     )}

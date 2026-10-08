@@ -2,18 +2,15 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "@tanstack/react-router";
 import { Check, ArrowLeft, ArrowRight } from "lucide-react";
-import confetti from "canvas-confetti";
 import { LEVELS, SUBJECTS, useUserStore, type LevelId } from "@/store/useUserStore";
 import { GradientButton, Chip } from "@/components/ui-custom";
 import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
 import { initials } from "./profile-utils";
-import { useUiStore } from "@/store/useUiStore";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 export function Onboarding() {
   const store = useUserStore();
-  const reduceMotion = useUiStore((state) => state.reduceMotion);
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [name, setName] = useState(store.name);
@@ -28,14 +25,6 @@ export function Onboarding() {
       subject: subjects[0] ?? "Maths",
       onboarded: true,
     });
-    if (!reduceMotion && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      confetti({
-        particleCount: 90,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ["#6366F1", "#8B5CF6", "#A78BFA"],
-      });
-    }
     navigate({ to: "/" });
   };
   const next = () => {
@@ -49,7 +38,7 @@ export function Onboarding() {
   return (
     <Dialog open>
       <DialogContent
-        className="max-h-[calc(100dvh-2rem)] max-w-2xl overflow-y-auto rounded-3xl border bg-card p-6 shadow-lift sm:p-10 [&>button]:hidden"
+        className="max-h-[calc(100dvh-2rem)] max-w-2xl overflow-y-auto rounded-2xl border bg-card p-6 sm:p-10 [&>button]:hidden"
         onEscapeKeyDown={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
       >
@@ -57,14 +46,6 @@ export function Onboarding() {
         <DialogDescription className="sr-only">
           Set up your profile, learning level, and subjects.
         </DialogDescription>
-        <div
-          aria-hidden
-          className="pointer-events-none absolute left-1/4 top-1/4 h-72 w-72 rounded-full bg-primary/20 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute bottom-1/4 right-1/4 h-72 w-72 rounded-full bg-primary-2/20 blur-3xl"
-        />
         <motion.div
           initial={{ opacity: 0, y: 12, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -77,7 +58,7 @@ export function Onboarding() {
                 <motion.span
                   key={i}
                   animate={{ width: i === step ? 28 : 8 }}
-                  className={cn("h-2 rounded-full", i <= step ? "bg-gradient-primary" : "bg-muted")}
+                  className={cn("h-1.5 rounded-full", i <= step ? "bg-primary" : "bg-muted")}
                 />
               ))}
             </div>
@@ -121,7 +102,7 @@ export function Onboarding() {
                 <div>
                   <h2 className="text-2xl font-bold sm:text-3xl">Pick your level</h2>
                   <p className="mt-2 text-muted-foreground">
-                    This shapes how the AI explains things. You can change it anytime.
+                    This helps tailor explanations. You can change it anytime.
                   </p>
                   <div className="mt-6 grid gap-3 sm:grid-cols-2">
                     {LEVELS.map((l) => {
@@ -133,7 +114,7 @@ export function Onboarding() {
                           aria-pressed={sel}
                           className={cn(
                             "relative flex items-start gap-3 rounded-2xl border p-4 text-left transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                            sel ? "border-primary bg-accent" : "hover:bg-muted",
+                            sel ? "border-primary bg-accent-soft text-primary" : "hover:bg-muted",
                             l.id === "grad" && "sm:col-span-2",
                           )}
                         >
@@ -149,7 +130,7 @@ export function Onboarding() {
                                 exit={{ scale: 0 }}
                                 className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground"
                               >
-                                <Check className="h-3.5 w-3.5" />
+                                <Check className="h-4 w-4" />
                               </motion.span>
                             )}
                           </AnimatePresence>
@@ -166,7 +147,7 @@ export function Onboarding() {
                   <div className="mt-8 flex flex-wrap gap-2.5">
                     {SUBJECTS.map((s) => (
                       <Chip key={s} selected={subjects.includes(s)} onClick={() => toggle(s)}>
-                        {subjects.includes(s) && <Check className="h-3.5 w-3.5" />}
+                        {subjects.includes(s) && <Check className="h-4 w-4" />}
                         {s}
                       </Chip>
                     ))}

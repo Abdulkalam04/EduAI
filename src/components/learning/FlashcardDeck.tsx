@@ -138,9 +138,7 @@ export function FlashcardDeck({ cards }: { cards: Flashcard[] }) {
               )}
             >
               <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl border bg-card p-6 text-center shadow-lift [backface-visibility:hidden]">
-                <span className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
-                  Term
-                </span>
+                <span className="mb-2 text-xs text-muted-foreground">Term</span>
                 <p className="text-xl font-semibold">{card.front}</p>
                 <span className="mt-4 text-xs text-muted-foreground">
                   Click or press Space to flip
@@ -150,9 +148,7 @@ export function FlashcardDeck({ cards }: { cards: Flashcard[] }) {
                 className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl border p-6 text-center shadow-lift [backface-visibility:hidden] [transform:rotateY(180deg)]"
                 style={{ background: "var(--book-soft)" }}
               >
-                <span className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
-                  Answer
-                </span>
+                <span className="mb-2 text-xs text-muted-foreground">Answer</span>
                 <div className="text-lg">
                   <Markdown content={card.back} />
                 </div>

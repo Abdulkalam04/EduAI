@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Home, Bot, BookOpen, TrendingUp } from "lucide-react";
+import { Home, MessageCircle, BookOpen, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePracticeStore } from "@/store/usePracticeStore";
 
 const TABS = [
   { to: "/", label: "Home", icon: Home },
-  { to: "/tutor", label: "Ask", icon: Bot },
+  { to: "/tutor", label: "Ask", icon: MessageCircle },
   { to: "/study", label: "Study", icon: BookOpen },
   { to: "/progress", label: "Progress", icon: TrendingUp },
 ];

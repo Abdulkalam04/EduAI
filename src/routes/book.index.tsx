@@ -122,12 +122,12 @@ function Library() {
         <div className="w-full space-y-2 text-left">
           <p className="truncate text-sm font-medium">{uploading.name}</p>
           <p className="flex items-center gap-2 text-xs text-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
             Uploading and processing document
           </p>
           <div className="h-1.5 overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full bg-gradient-primary transition-all duration-300"
+              className="h-full bg-primary transition-all duration-300"
               style={{ width: `${uploading.progress}%` }}
             />
           </div>

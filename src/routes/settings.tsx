@@ -54,10 +54,10 @@ const THEMES: { label: string; value: Theme; icon: typeof Sun }[] = [
   { label: "System", value: "system", icon: Monitor },
 ];
 const ACCENTS: { label: string; value: AccentColor; color: string }[] = [
-  { label: "Indigo", value: "indigo", color: "#6656e8" },
-  { label: "Teal", value: "teal", color: "#128b88" },
-  { label: "Rose", value: "rose", color: "#d34b6a" },
-  { label: "Amber", value: "amber", color: "#bd7a16" },
+  { label: "Blue", value: "blue", color: "var(--subject-english)" },
+  { label: "Teal", value: "teal", color: "var(--primary)" },
+  { label: "Coral", value: "coral", color: "var(--destructive)" },
+  { label: "Amber", value: "amber", color: "var(--subject-maths)" },
 ];
 
 function SettingsPage() {
@@ -155,7 +155,7 @@ function SettingsPage() {
     <div className="space-y-5">
       <PageHeader
         title="Settings"
-        description="Make EduAI feel like yours."
+        description="Set your profile, study preferences, and display options."
         icon={Palette}
         accent="progress"
         action={

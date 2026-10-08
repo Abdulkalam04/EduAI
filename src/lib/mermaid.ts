@@ -7,7 +7,7 @@ export async function renderMermaidSvg(
   mermaid.initialize({
     startOnLoad: false,
     theme: theme === "dark" ? "dark" : "neutral",
-    fontFamily: "Inter",
+    fontFamily: "Public Sans",
   });
   const rendered = await mermaid.render(id.replace(/[^a-zA-Z0-9_-]/g, ""), code);
   return rendered.svg;

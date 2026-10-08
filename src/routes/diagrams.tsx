@@ -15,9 +15,9 @@ import {
   Network,
   Plus,
   Save,
-  Sparkles,
   Trash2,
   X,
+  Workflow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GradientButton, PageHeader, SoftCard } from "@/components/ui-custom";
@@ -325,7 +325,7 @@ function DiagramMaker() {
       onPointerUp={() => setPan(null)}
       onPointerCancel={() => setPan(null)}
       onWheel={handleWheel}
-      className="relative flex min-h-[340px] flex-1 touch-none items-center justify-center overflow-hidden rounded-xl border bg-[radial-gradient(var(--border)_1px,transparent_1px)] [background-size:18px_18px] sm:min-h-[460px]"
+      className="relative flex min-h-[340px] flex-1 touch-none items-center justify-center overflow-hidden rounded-xl border bg-muted/30 sm:min-h-[460px]"
       aria-label="Diagram preview canvas; drag to pan and use Control plus scroll to zoom"
     >
       {previewSvg ? (
@@ -344,7 +344,7 @@ function DiagramMaker() {
           <p className="font-semibold text-destructive">Couldn't render this Mermaid code</p>
           <p className="break-words text-sm text-muted-foreground">{renderError}</p>
           <GradientButton onClick={() => void fixWithAi()} disabled={refining}>
-            <Sparkles className="h-4 w-4" />
+            <Workflow className="h-4 w-4" />
             Fix with AI
           </GradientButton>
         </div>
@@ -471,7 +471,7 @@ function DiagramMaker() {
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Sparkles className="h-4 w-4" />
+                  <Workflow className="h-4 w-4" />
                 )}
                 {loading ? "Generating…" : "Generate diagram"}
               </GradientButton>
@@ -512,7 +512,7 @@ function DiagramMaker() {
                             onClick={() => setRemoveId(diagram.id)}
                             className="min-h-11 min-w-11 rounded-md p-2 text-muted-foreground hover:text-destructive"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </li>
                       );
@@ -649,7 +649,7 @@ function DiagramMaker() {
                     {refining ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <Sparkles className="h-4 w-4" />
+                      <Workflow className="h-4 w-4" />
                     )}
                     Refine
                   </GradientButton>
@@ -665,7 +665,7 @@ function DiagramMaker() {
                 >
                   <span className="min-w-0 flex-1">Mermaid syntax error: {renderError}</span>
                   <GradientButton size="sm" onClick={() => void fixWithAi()} disabled={refining}>
-                    <Sparkles className="h-4 w-4" />
+                    <Workflow className="h-4 w-4" />
                     Fix with AI
                   </GradientButton>
                 </div>

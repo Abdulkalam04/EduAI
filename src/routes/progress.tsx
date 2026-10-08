@@ -14,10 +14,9 @@ import {
   Loader2,
   LockKeyhole,
   RefreshCw,
-  Sparkles,
   Target,
+  TrendingUp,
   Trophy,
-  Zap,
 } from "lucide-react";
 import {
   ProgressBar,
@@ -140,7 +139,7 @@ function ProgressPage() {
           title="Progress"
           icon={Activity}
           accent="progress"
-          description="Your learning journey, one small step at a time."
+          description="Review your study activity, scores, and topics to practice."
         />
         <EmptyState
           icon={RefreshCw}
@@ -170,7 +169,7 @@ function ProgressPage() {
           title="Progress"
           icon={Activity}
           accent="progress"
-          description="Your learning journey, one small step at a time."
+          description="Review your study activity, scores, and topics to practice."
         />
         <div className="grid animate-pulse gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {Array.from({ length: 5 }, (_, i) => (
@@ -191,7 +190,7 @@ function ProgressPage() {
         title="Progress"
         icon={Activity}
         accent="progress"
-        description="Your learning journey, one small step at a time."
+        description="Review your study activity, scores, and topics to practice."
         action={
           <div className="flex w-full min-w-0 gap-2 sm:w-auto">
             <Select value={subject} onValueChange={setSubject}>
@@ -249,7 +248,7 @@ function ProgressPage() {
             <Link to="/practice">
               <GradientButton className="hidden md:inline-flex">
                 Start practising
-                <Sparkles className="h-4 w-4" />
+                <TrendingUp className="h-4 w-4" />
               </GradientButton>
             </Link>
           }
@@ -286,7 +285,7 @@ function ProgressPage() {
                   <AnimatedNumber value={progress.longestStreak} /> days
                 </>
               }
-              icon={Zap}
+              icon={TrendingUp}
               accent="solver"
               sub="Your personal best"
             />
@@ -360,7 +359,7 @@ function ProgressPage() {
                       >
                         <button className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition hover:bg-muted">
                           Practise
-                          <ChevronRight className="h-3.5 w-3.5" />
+                          <ChevronRight className="h-4 w-4" />
                         </button>
                       </Link>
                     </div>
@@ -393,7 +392,7 @@ function ProgressPage() {
                 {plan.slice(0, 4).map((item) => (
                   <li key={item.day} className="flex items-start gap-2 text-sm">
                     <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                      <CalendarDays className="h-3 w-3" />
+                      <CalendarDays className="h-4 w-4" />
                     </span>
                     <span>
                       <strong>{item.subject}:</strong> {item.task}

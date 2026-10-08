@@ -1,6 +1,6 @@
 import {
   LayoutDashboard,
-  Bot,
+  MessageCircle,
   BookOpen,
   FileQuestion,
   ClipboardList,
@@ -37,7 +37,7 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       {
         title: "Ask",
         to: "/tutor",
-        icon: Bot,
+        icon: MessageCircle,
         accent: "tutor",
         description: "Ask a question and get a clear explanation",
       },

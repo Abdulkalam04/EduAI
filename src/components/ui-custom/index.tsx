@@ -22,9 +22,8 @@ export function GradientButton({
         size === "sm" && "h-11 px-3 text-base md:h-9 md:text-sm",
         size === "md" && "h-11 px-4 text-base md:h-10 md:text-sm",
         size === "lg" && "h-12 px-6 text-base",
-        variant === "primary" &&
-          "bg-primary text-primary-foreground shadow-soft hover:bg-primary/90",
-        variant === "secondary" && "border bg-card text-foreground shadow-soft hover:bg-muted",
+        variant === "primary" && "bg-primary text-primary-foreground hover:bg-primary-hover",
+        variant === "secondary" && "border bg-card text-foreground hover:bg-muted",
         variant === "ghost" && "text-muted-foreground hover:bg-muted hover:text-foreground",
         className,
       )}
@@ -44,11 +43,10 @@ export function SoftCard({
   return (
     <motion.div
       {...props}
-      {...(interactive ? { whileHover: { boxShadow: "var(--shadow-lift)" } } : {})}
       transition={{ duration: 0.15 }}
       className={cn(
-        "rounded-2xl border bg-card text-card-foreground shadow-soft transition-shadow duration-200",
-        interactive && "hover:shadow-lift",
+        "rounded-2xl border bg-card text-card-foreground transition-colors duration-200",
+        interactive && "hover:bg-muted/50",
         className,
       )}
     >
@@ -69,11 +67,15 @@ export function FeatureIcon({
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
-  const dims = size === "sm" ? "h-8 w-8" : size === "lg" ? "h-14 w-14" : "h-11 w-11";
-  const ic = size === "sm" ? "h-4 w-4" : size === "lg" ? "h-7 w-7" : "h-5 w-5";
+  const dims = size === "sm" ? "h-8 w-8" : size === "lg" ? "h-12 w-12" : "h-10 w-10";
+  const ic = size === "sm" ? "h-4 w-4" : size === "lg" ? "h-6 w-6" : "h-5 w-5";
   return (
     <span
-      className={cn("inline-flex shrink-0 items-center justify-center rounded-xl", dims, className)}
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center rounded-full",
+        dims,
+        className,
+      )}
       style={{ background: `var(--${accent}-soft)`, color: `var(--${accent})` }}
     >
       <Icon className={ic} />
@@ -159,22 +161,13 @@ export function EmptyState({
   accent?: Accent;
 }) {
   return (
-    <SoftCard className="relative flex flex-col items-center overflow-hidden px-6 py-16 text-center">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-24 h-56 w-56 rounded-full opacity-60 blur-3xl"
-        style={{ background: `var(--${accent}-soft)` }}
-      />
-      <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 260, damping: 20 }}
-      >
+    <SoftCard className="flex flex-col items-start gap-3 rounded-2xl bg-muted p-6">
+      <div>
         <FeatureIcon icon={Icon} accent={accent} size="lg" />
-      </motion.div>
-      <h3 className="relative mt-5 text-xl font-semibold">{title}</h3>
-      {description && <p className="relative mt-2 max-w-md text-muted-foreground">{description}</p>}
-      {action && <div className="relative mt-6">{action}</div>}
+      </div>
+      <h3 className="text-xl font-semibold">{title}</h3>
+      {description && <p className="max-w-md text-muted-foreground">{description}</p>}
+      {action && <div className="mt-2">{action}</div>}
     </SoftCard>
   );
 }
@@ -193,19 +186,12 @@ export function ProgressRing({
 }) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const id = useRef(`ring-${Math.random().toString(36).slice(2)}`).current;
   return (
     <div
       className="relative inline-flex items-center justify-center"
       style={{ width: size, height: size }}
     >
       <svg width={size} height={size} className="-rotate-90">
-        <defs>
-          <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="var(--primary)" />
-            <stop offset="100%" stopColor="var(--primary-2)" />
-          </linearGradient>
-        </defs>
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -220,7 +206,7 @@ export function ProgressRing({
           r={r}
           strokeWidth={stroke}
           fill="none"
-          stroke={`url(#${id})`}
+          stroke="var(--primary)"
           strokeLinecap="round"
           strokeDasharray={c}
           initial={{ strokeDashoffset: c }}
@@ -251,7 +237,7 @@ export function ProgressBar({
 }) {
   return (
     <div
-      className={cn("h-2 w-full overflow-hidden rounded-full bg-muted", className)}
+      className={cn("h-1.5 w-full overflow-hidden rounded-full bg-muted", className)}
       role="progressbar"
       aria-valuenow={value}
       aria-valuemin={0}
@@ -325,7 +311,7 @@ export function SegmentedControl<T extends string>({
           {value === o && (
             <motion.span
               layoutId={`seg-${id}`}
-              className="absolute inset-0 rounded-lg bg-card shadow-soft"
+              className="absolute inset-x-0 bottom-0 h-0.5 bg-primary"
               transition={{ type: "spring", stiffness: 400, damping: 32 }}
             />
           )}
@@ -354,7 +340,7 @@ export function Chip({
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         selected
-          ? "border-primary bg-primary text-primary-foreground"
+          ? "border-primary border-b-2 bg-transparent text-primary"
           : "bg-card text-foreground hover:bg-muted",
       )}
     >
@@ -369,7 +355,7 @@ export function Shimmer({ className }: { className?: string }) {
 }
 export function CardSkeleton({ className, lines = 3 }: { className?: string; lines?: number }) {
   return (
-    <div className={cn("rounded-2xl border bg-card p-6 shadow-soft", className)}>
+    <div className={cn("rounded-2xl border bg-card p-6", className)}>
       <Shimmer className="h-10 w-10 rounded-xl" />
       <div className="mt-4 space-y-2">
         {Array.from({ length: lines }).map((_, i) => (

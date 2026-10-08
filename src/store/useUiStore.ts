@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
 export type Theme = "light" | "dark" | "system";
-export type AccentColor = "indigo" | "teal" | "rose" | "amber";
+export type AccentColor = "teal" | "blue" | "coral" | "amber";
 
 interface UiState {
   collapsed: boolean;
@@ -31,7 +31,7 @@ export const useUiStore = create<UiState>()(
       theme: "system",
       paletteOpen: false,
       hydrated: false,
-      accent: "indigo",
+      accent: "teal",
       reduceMotion: false,
       fontSize: 16,
       answerStyle: "Simple",
@@ -54,7 +54,18 @@ export const useUiStore = create<UiState>()(
         const { useMock: _legacyUseMock, ...preferences } = persistedState as Partial<UiState> & {
           useMock?: boolean;
         };
-        return { ...currentState, ...preferences };
+        const previousAccent = (persistedState as { accent?: string }).accent;
+        const accent =
+          previousAccent === "indigo" || previousAccent === "teal"
+            ? "teal"
+            : previousAccent === "rose"
+              ? "coral"
+              : previousAccent === "blue" ||
+                  previousAccent === "coral" ||
+                  previousAccent === "amber"
+                ? previousAccent
+                : currentState.accent;
+        return { ...currentState, ...preferences, accent };
       },
       partialize: (s) => ({
         collapsed: s.collapsed,
@@ -80,17 +91,17 @@ export function applyTheme(t: Theme) {
 }
 
 const ACCENT_VALUES: Record<AccentColor, [string, string]> = {
-  indigo: ["oklch(0.585 0.233 277.1)", "oklch(0.606 0.25 292.7)"],
-  teal: ["oklch(0.6 0.14 180)", "oklch(0.65 0.15 200)"],
-  rose: ["oklch(0.62 0.22 15)", "oklch(0.66 0.2 350)"],
-  amber: ["oklch(0.68 0.16 65)", "oklch(0.72 0.17 85)"],
+  teal: ["#0F6B5C", "#0B5A4D"],
+  blue: ["#426A85", "#34566D"],
+  coral: ["#B3392B", "#922C22"],
+  amber: ["#8A5300", "#734600"],
 };
 
 const DARK_ACCENT_VALUES: Record<AccentColor, [string, string]> = {
-  indigo: ["oklch(0.72 0.18 277)", "oklch(0.74 0.2 292)"],
-  teal: ["oklch(0.76 0.13 180)", "oklch(0.78 0.14 200)"],
-  rose: ["oklch(0.74 0.18 15)", "oklch(0.76 0.16 350)"],
-  amber: ["oklch(0.8 0.14 65)", "oklch(0.82 0.14 85)"],
+  teal: ["#3FB8A0", "#34A48F"],
+  blue: ["#8FB2C8", "#789DB5"],
+  coral: ["#E77A6D", "#D9685A"],
+  amber: ["#E5A93A", "#D19628"],
 };
 
 export function applyUiPreferences(
@@ -98,9 +109,13 @@ export function applyUiPreferences(
 ) {
   const root = document.documentElement;
   const values = root.classList.contains("dark") ? DARK_ACCENT_VALUES : ACCENT_VALUES;
-  const [primary, secondary] = values[preferences.accent];
+  const [primary, hover] = values[preferences.accent];
   root.style.setProperty("--primary", primary);
-  root.style.setProperty("--primary-2", secondary);
+  root.style.setProperty("--primary-hover", hover);
+  root.style.setProperty(
+    "--primary-foreground",
+    root.classList.contains("dark") ? "#07201B" : "#FFFFFF",
+  );
   root.style.setProperty("--ring", primary);
   root.style.setProperty("font-size", `${preferences.fontSize}px`);
   root.dataset["reduceMotion"] = String(preferences.reduceMotion);

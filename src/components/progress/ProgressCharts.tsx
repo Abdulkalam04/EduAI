@@ -153,7 +153,7 @@ export default function ProgressCharts({ topics, activity, weeklyMinutes, range 
                       ? "No activity"
                       : `${item.date}, ${item.count} questions`
                   }
-                  className={`h-3.5 w-3.5 rounded-[3px] ${activityColor(item.count)}`}
+                  className={`h-4 w-4 rounded-[3px] ${activityColor(item.count)}`}
                 />
               ))}
             </div>

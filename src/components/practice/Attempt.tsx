@@ -173,12 +173,12 @@ export function Attempt({ paper, attempt }: { paper: Paper; attempt: AttemptT })
           <span className="hidden text-xs text-muted-foreground sm:inline-flex sm:items-center sm:gap-1">
             {saved === "saved" ? (
               <>
-                <Check className="h-3.5 w-3.5 text-success" />
+                <Check className="h-4 w-4 text-success" />
                 Saved
               </>
             ) : (
               <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
                 Saving…
               </>
             )}
@@ -490,15 +490,15 @@ function QuestionBlock({
               {q.type === "numerical" &&
                 (photo ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5">
-                    <ImagePlus className="h-3 w-3" />
+                    <ImagePlus className="h-4 w-4" />
                     {photo}
                     <button aria-label="Remove photo" onClick={() => onPhoto(null)}>
-                      <X className="h-3 w-3" />
+                      <X className="h-4 w-4" />
                     </button>
                   </span>
                 ) : (
                   <label className="inline-flex cursor-pointer items-center gap-1 font-medium text-primary hover:underline">
-                    <ImagePlus className="h-3.5 w-3.5" />
+                    <ImagePlus className="h-4 w-4" />
                     Attach a photo of your working
                     <input
                       type="file"

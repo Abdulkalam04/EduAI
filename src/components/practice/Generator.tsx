@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { ArrowRight, ScanSearch, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowRight, ClipboardCheck, ScanSearch, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GradientButton, MobileStickyAction, SoftCard } from "@/components/ui-custom";
 import { AsciiThinking } from "@/components/ui-custom/AsciiThinking";
@@ -259,7 +259,7 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
                     aria-label={`Remove ${w}`}
                     onClick={() => setWeak(weak.filter((x) => x !== w))}
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-4 w-4" />
                   </button>
                 </span>
               ))}
@@ -271,7 +271,7 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
             onClick={() => void generate()}
             disabled={!subject || !chapter.trim() || loading}
           >
-            <Sparkles className="h-4 w-4" />
+            <ClipboardCheck className="h-4 w-4" />
             Generate paper
           </GradientButton>
           <MobileStickyAction>
@@ -281,7 +281,7 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
               onClick={() => void generate()}
               disabled={!subject || !chapter.trim() || loading}
             >
-              <Sparkles className="h-4 w-4" />
+              <ClipboardCheck className="h-4 w-4" />
               Generate paper
             </GradientButton>
           </MobileStickyAction>

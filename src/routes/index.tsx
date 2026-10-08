@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, BookOpen, Bot, Send } from "lucide-react";
+import { ArrowRight, BookOpen, MessageCircle, Send } from "lucide-react";
 import { dashboardQuery } from "@/lib/api";
 import type { Activity, PlanItem } from "@/lib/types";
 import { useUserStore } from "@/store/useUserStore";
@@ -62,7 +62,7 @@ function HomePage() {
       <section aria-labelledby="ask-title">
         <SoftCard className="space-y-4 rounded-2xl p-4 md:p-6">
           <div className="flex items-center gap-3">
-            <FeatureIcon icon={Bot} accent="tutor" />
+            <FeatureIcon icon={MessageCircle} accent="tutor" />
             <div>
               <h1 id="ask-title" className="text-xl font-semibold">
                 {name

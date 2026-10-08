@@ -28,20 +28,18 @@ function NavLink({
       aria-current={active ? "page" : undefined}
       className={cn(
         "relative flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]",
-        active
-          ? "text-primary-foreground"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+        active ? "text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground",
         collapsed && "justify-center px-0",
       )}
     >
       {active && (
         <motion.span
           layoutId="nav-pill"
-          className="absolute inset-0 rounded-xl bg-accent"
+          className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-primary"
           transition={{ type: "spring", stiffness: 420, damping: 34 }}
         />
       )}
-      <Icon className="relative h-[18px] w-[18px] shrink-0" />
+      <Icon className="relative h-5 w-5 shrink-0" />
       {!collapsed && <span className="relative truncate">{title}</span>}
     </Link>
   );
@@ -120,7 +118,7 @@ export function Sidebar() {
               {collapsed ? (
                 <div className="mx-auto mb-2 h-px w-6 bg-border" />
               ) : (
-                <p className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
+                <p className="mb-1.5 px-3 text-xs font-semibold text-muted-foreground/80">
                   {g.label}
                 </p>
               )}
@@ -143,13 +141,11 @@ export function Sidebar() {
 
         <div className="space-y-1 border-t p-3">
           <Fade show={!collapsed}>
-            <div className="mb-2 rounded-xl bg-accent p-3">
-              <p className="flex items-center gap-1.5 text-xs font-semibold text-accent-foreground">
-                <Heart className="h-3.5 w-3.5" /> 100% free & open source
+            <div className="mb-2 rounded-xl bg-muted p-3">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                <Heart className="h-4 w-4" /> Free and open source
               </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Built for every student, forever.
-              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Made for students.</p>
             </div>
           </Fade>
           <div className={cn(collapsed && "flex flex-col items-center gap-1")}>

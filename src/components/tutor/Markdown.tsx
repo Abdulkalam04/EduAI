@@ -27,7 +27,7 @@ export function CopyButton({ text, label = "Copy" }: { text: string; label?: str
       className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       aria-label={label}
     >
-      {done ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+      {done ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
       {done ? "Copied" : label}
     </button>
   );

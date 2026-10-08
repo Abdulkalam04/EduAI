@@ -13,7 +13,7 @@ import {
   RefreshCw,
   RotateCw,
   ScanSearch,
-  Sparkles,
+  ClipboardCheck,
   ThumbsUp,
   TrendingUp,
   Upload,
@@ -218,7 +218,7 @@ function CheckPage() {
               setDrag(false);
               addFiles(e.dataTransfer.files);
             }}
-            className={cn("rounded-3xl p-[2px]", drag && "animated-border")}
+            className={cn("rounded-2xl p-[2px]", drag && "animated-border")}
           >
             <div
               className={cn(
@@ -373,14 +373,14 @@ function CheckPage() {
           </SoftCard>
           <div className="hidden justify-end md:flex">
             <GradientButton size="lg" disabled={!canCheck} onClick={run}>
-              <Sparkles className="h-4 w-4" />
+              <ClipboardCheck className="h-4 w-4" />
               Check my answers
             </GradientButton>
           </div>
           <MobileStickyAction>
             {items.length ? (
               <GradientButton className="w-full" size="lg" disabled={!canCheck} onClick={run}>
-                <Sparkles className="h-4 w-4" />
+                <ClipboardCheck className="h-4 w-4" />
                 Check my answers
               </GradientButton>
             ) : (
@@ -561,10 +561,7 @@ function EvalCard({
         </span>
       </div>
       <div className="space-y-2">
-        <label
-          className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-          htmlFor={`ans-${e.id}`}
-        >
+        <label className="text-xs font-semibold text-muted-foreground" htmlFor={`ans-${e.id}`}>
           Your answer (as we read it — fix anything we got wrong)
         </label>
         <Textarea

@@ -176,9 +176,9 @@ export function Composer({
         {file && (
           <div className="mb-2 inline-flex max-w-full items-center gap-2 rounded-lg bg-muted px-2.5 py-1 text-xs">
             {file.type.startsWith("image/") ? (
-              <ImageIcon className="h-3.5 w-3.5" />
+              <ImageIcon className="h-4 w-4" />
             ) : (
-              <FileText className="h-3.5 w-3.5" />
+              <FileText className="h-4 w-4" />
             )}
             <span className="truncate">{file.name}</span>
             <button
@@ -186,7 +186,7 @@ export function Composer({
               aria-label="Remove attachment"
               className="rounded p-0.5 hover:bg-background"
             >
-              <X className="h-3 w-3" />
+              <X className="h-4 w-4" />
             </button>
           </div>
         )}
@@ -245,7 +245,7 @@ export function Composer({
               aria-label="Stop generating (Esc)"
               className="ml-2 flex h-9 w-9 items-center justify-center rounded-xl bg-foreground text-background transition-transform active:scale-[0.98]"
             >
-              <Square className="h-3.5 w-3.5 fill-current" />
+              <Square className="h-4 w-4 fill-current" />
             </button>
           ) : (
             <button

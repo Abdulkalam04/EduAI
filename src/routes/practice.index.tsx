@@ -65,7 +65,7 @@ function PracticePage() {
                 i === stageIdx && "border-primary bg-primary text-primary-foreground",
               )}
             >
-              {i < stageIdx ? <Check className="h-3.5 w-3.5" /> : i + 1}
+              {i < stageIdx ? <Check className="h-4 w-4" /> : i + 1}
             </span>
             <span
               className={cn(i === stageIdx ? "font-medium" : "text-muted-foreground")}

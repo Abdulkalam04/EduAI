@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowDown, PanelLeftClose, PanelLeftOpen, History, Sparkles } from "lucide-react";
+import { ArrowDown, PanelLeftClose, PanelLeftOpen, History, MessageCircle } from "lucide-react";
 import "katex/dist/katex.min.css";
 import { pageHead } from "@/components/ComingSoonPage";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -290,13 +290,13 @@ function TutorPage() {
               }}
               className="absolute bottom-44 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs font-medium shadow-lift hover:bg-muted"
             >
-              <ArrowDown className="h-3.5 w-3.5" />
+              <ArrowDown className="h-4 w-4" />
               Jump to latest
             </motion.button>
           )}
         </AnimatePresence>
 
-        <div className="bg-gradient-to-t from-background via-background to-transparent px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2 md:px-6 md:pb-4">
+        <div className="border-t bg-background px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2 md:px-6 md:pb-4">
           <div className="mx-auto w-full max-w-[760px]">
             <Composer
               streaming={busy}
@@ -321,7 +321,7 @@ function Empty({ loading = false }: { loading?: boolean }) {
         animate={{ scale: 1, opacity: 1 }}
         className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground"
       >
-        <Sparkles className="h-6 w-6" />
+        <MessageCircle className="h-6 w-6" />
       </motion.span>
       <h2 className="mt-5 text-2xl font-bold sm:text-3xl">
         {loading ? "Your tutor is getting ready." : "What would you like to learn today?"}

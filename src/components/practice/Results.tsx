@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import confetti from "canvas-confetti";
-import { Check, Clock, Download, Minus, RotateCcw, Sparkles, X } from "lucide-react";
+import { Check, Clock, ClipboardCheck, Download, Minus, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Chip, GradientButton, ProgressRing, SoftCard } from "@/components/ui-custom";
 import {
@@ -15,7 +14,6 @@ import { Markdown } from "@/components/tutor/Markdown";
 import type { Paper } from "@/lib/types";
 import { downloadPdf } from "@/lib/pdf";
 import { usePracticeStore, type Attempt } from "@/store/usePracticeStore";
-import { useUiStore } from "@/store/useUiStore";
 import { gradeLabel } from "./results-utils";
 
 type Filter = "All" | "Correct" | "Wrong" | "Skipped";
@@ -23,21 +21,10 @@ type Filter = "All" | "Correct" | "Wrong" | "Skipped";
 export function Results({ paper, attempt }: { paper: Paper; attempt: Attempt }) {
   const r = attempt.result!;
   const { setView, startAttempt } = usePracticeStore();
-  const reduceMotion = useUiStore((state) => state.reduceMotion);
   const [filter, setFilter] = useState<Filter>("All");
   const pct = Math.round((r.score / r.total) * 100);
   const grade = gradeLabel(pct);
   const mins = Math.round(r.timeUsedSec / 60);
-
-  useEffect(() => {
-    if (pct > 80 && !reduceMotion && !window.matchMedia("(prefers-reduced-motion: reduce)").matches)
-      confetti({
-        particleCount: 120,
-        spread: 80,
-        origin: { y: 0.4 },
-        colors: ["#6366F1", "#22C55E", "#F59E0B"],
-      });
-  }, [pct, reduceMotion]);
 
   const items = paper.questions
     .map((q, i) => ({ q, i, res: r.perQ.find((x) => x.id === q.id)! }))
@@ -107,10 +94,10 @@ export function Results({ paper, attempt }: { paper: Paper; attempt: Attempt }) 
           <h2 className="text-2xl font-semibold">{grade}</h2>
           <p className="text-muted-foreground">
             {pct >= 80
-              ? "Brilliant work — you really know this chapter."
+              ? "You answered most questions correctly."
               : pct >= 50
-                ? "Solid effort! A little more practice on a few topics and you'll ace it."
-                : "Every paper makes you stronger. Let's work on a few topics together."}
+                ? "Review the topics you missed, then try another paper."
+                : "Review the marked answers and practice those topics again."}
           </p>
           <p className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
             <Clock className="h-4 w-4" />
@@ -134,7 +121,7 @@ export function Results({ paper, attempt }: { paper: Paper; attempt: Attempt }) 
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-muted">
                 <motion.div
-                  className="h-full rounded-full bg-gradient-primary"
+                  className="h-full rounded-full bg-primary"
                   initial={{ width: 0 }}
                   animate={{ width: `${(s.score / s.max) * 100}%` }}
                   transition={{ duration: 0.8, delay: i * 0.1 }}
@@ -158,14 +145,14 @@ export function Results({ paper, attempt }: { paper: Paper; attempt: Attempt }) 
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No weak topics this time — amazing!</p>
+            <p className="text-sm text-muted-foreground">No topics need extra practice.</p>
           )}
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             {r.weakTopics.length > 0 && (
               <GradientButton
                 onClick={() => setView({ stage: "generate", prefillWeak: r.weakTopics })}
               >
-                <Sparkles className="h-4 w-4" />
+                <ClipboardCheck className="h-4 w-4" />
                 Generate another paper on weak topics
               </GradientButton>
             )}
@@ -213,13 +200,13 @@ export function Results({ paper, attempt }: { paper: Paper; attempt: Attempt }) 
                       )}
                     >
                       {res.status === "correct" ? (
-                        <Check className="h-3.5 w-3.5" />
+                        <Check className="h-4 w-4" />
                       ) : res.status === "skipped" ? (
-                        <Minus className="h-3.5 w-3.5" />
+                        <Minus className="h-4 w-4" />
                       ) : res.status === "partial" ? (
                         <span className="text-xs font-bold">½</span>
                       ) : (
-                        <X className="h-3.5 w-3.5" />
+                        <X className="h-4 w-4" />
                       )}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm font-normal">
@@ -232,15 +219,11 @@ export function Results({ paper, attempt }: { paper: Paper; attempt: Attempt }) 
                 </AccordionTrigger>
                 <AccordionContent className="space-y-3 pl-9 text-sm">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Your answer
-                    </p>
+                    <p className="text-xs font-semibold text-muted-foreground">Your answer</p>
                     <p className="whitespace-pre-wrap">{yourAnswer(q)}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Correct answer
-                    </p>
+                    <p className="text-xs font-semibold text-muted-foreground">Correct answer</p>
                     <Markdown
                       content={`${q.type === "mcq" ? `${"ABCD"[q.correct!]}. ${q.options![q.correct!]} — ` : ""}${q.model}`}
                     />

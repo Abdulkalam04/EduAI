@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, BookOpen } from "lucide-react";
+import { ArrowRight, BookOpen, ClipboardCheck, MessageCircle, type LucideIcon } from "lucide-react";
 import { GradientButton } from "@/components/ui-custom";
 
 type NetworkInformation = EventTarget & { saveData?: boolean };
+
+const FEATURES: { icon: LucideIcon; text: string }[] = [
+  { icon: MessageCircle, text: "Ask a question and get a step-by-step explanation." },
+  { icon: ClipboardCheck, text: "Practice with questions based on your subject." },
+  { icon: BookOpen, text: "Review your study notes and recent progress." },
+];
 
 export const Route = createFileRoute("/welcome")({
   head: () => ({
@@ -42,16 +48,26 @@ function WelcomePage() {
   }, []);
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-background px-4 py-8 pb-28 text-foreground md:pb-8">
-      <div className="w-full max-w-lg rounded-3xl border bg-card p-6 text-center shadow-soft sm:p-10">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-          <BookOpen className="h-7 w-7" />
+    <main className="min-h-dvh bg-background px-4 py-8 pb-28 text-foreground md:py-14 md:pb-14">
+      <div className="mx-auto w-full max-w-4xl">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-primary">
+          <BookOpen className="h-5 w-5" />
         </div>
-        <h1 className="mt-5 text-3xl font-bold tracking-tight">Welcome to EduAI</h1>
-        <p className="mt-3 text-muted-foreground">
-          Ask questions, practise for exams, and learn at your own pace.
+        <h1 className="mt-5 text-4xl font-bold tracking-tight sm:text-5xl">
+          Study with a clear plan
+        </h1>
+        <p className="mt-3 max-w-2xl text-muted-foreground">
+          Ask questions from your lessons, practice for exams, and review what you have studied.
         </p>
-        <div className="mt-6 overflow-hidden rounded-2xl bg-muted">
+        <ul className="mt-6 grid gap-3 sm:grid-cols-3">
+          {FEATURES.map(({ icon: Icon, text }) => (
+            <li key={text} className="flex items-start gap-3 text-sm">
+              <Icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <span>{text}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-8 max-w-3xl overflow-hidden rounded-2xl border bg-muted">
           {videoAllowed ? (
             <video
               className="max-h-[min(50vh,28rem)] w-full object-contain"
@@ -71,14 +87,13 @@ function WelcomePage() {
             />
           )}
         </div>
-        <Link
-          to="/"
-          className="fixed inset-x-4 bottom-[env(safe-area-inset-bottom)] z-30 mx-auto inline-flex w-fit md:static md:mx-0"
-        >
-          <GradientButton size="lg">
-            Start learning <ArrowRight className="h-4 w-4" />
-          </GradientButton>
-        </Link>
+        <div className="fixed inset-x-4 bottom-[env(safe-area-inset-bottom)] z-30 md:static md:mt-6">
+          <Link to="/" className="inline-flex">
+            <GradientButton size="lg">
+              Start learning <ArrowRight className="h-4 w-4" />
+            </GradientButton>
+          </Link>
+        </div>
       </div>
     </main>
   );

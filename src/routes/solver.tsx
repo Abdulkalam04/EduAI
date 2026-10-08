@@ -16,9 +16,8 @@ import {
   RefreshCw,
   RotateCcw,
   ScanLine,
-  Sparkles,
   Upload,
-  Wand2,
+  PenLine,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -215,7 +214,7 @@ function SolverPage() {
                 className={cn(
                   "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
                   index === activeStep && "border-primary bg-primary text-primary-foreground",
-                  index < activeStep && "border-success bg-success text-white",
+                  index < activeStep && "border-success bg-success text-success-foreground",
                 )}
               >
                 {index + 1}
@@ -256,7 +255,7 @@ function SolverPage() {
                 choose(e.dataTransfer.files[0]);
               }}
               className={cn(
-                "relative rounded-3xl p-[2px] transition-all",
+                "relative rounded-2xl p-[2px] transition-all",
                 setupStep === 1 && "hidden",
                 drag ? "animated-border" : "",
               )}
@@ -273,7 +272,7 @@ function SolverPage() {
                       className="flex h-14 w-14 items-center justify-center rounded-2xl"
                       style={{ background: "var(--solver-soft)", color: "var(--solver)" }}
                     >
-                      <Upload className="h-7 w-7" />
+                      <Upload className="h-6 w-6" />
                     </span>
                     <div>
                       <p className="text-lg font-semibold">Drop your question paper here</p>
@@ -319,7 +318,7 @@ function SolverPage() {
                       {file && progress < 100 && (
                         <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
                           <div
-                            className="h-full bg-gradient-primary transition-all"
+                            className="h-full bg-primary transition-all"
                             style={{ width: `${progress}%` }}
                           />
                         </div>
@@ -410,7 +409,9 @@ function SolverPage() {
                       aria-pressed={mode === id}
                       className={cn(
                         "flex items-start gap-3 rounded-2xl border bg-card p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        mode === id ? "border-primary bg-accent" : "hover:bg-muted",
+                        mode === id
+                          ? "border-primary bg-accent-soft text-primary"
+                          : "hover:bg-muted",
                       )}
                     >
                       <span
@@ -443,7 +444,7 @@ function SolverPage() {
                     />
                   </div>
                   <GradientButton size="lg" disabled={!file || !subject} onClick={solve}>
-                    <Sparkles className="h-4 w-4" />
+                    <PenLine className="h-4 w-4" />
                     Solve paper
                   </GradientButton>
                 </div>
@@ -590,7 +591,7 @@ function QuestionList({
             onClick={() => onSelect(i)}
             className={cn(
               "w-full rounded-xl border bg-card p-3 text-left transition-all",
-              i === active ? "border-primary bg-accent" : "hover:bg-muted",
+              i === active ? "border-primary bg-accent-soft text-primary" : "hover:bg-muted",
             )}
           >
             <div className="flex items-center justify-between gap-2 text-xs">
@@ -665,9 +666,7 @@ function SolutionPanel({
       {s.blocks ? (
         s.blocks.map((b) => (
           <div key={b.label}>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {b.label}
-            </p>
+            <p className="mb-1 text-xs font-semibold text-muted-foreground">{b.label}</p>
             <Markdown content={b.content} />
           </div>
         ))
@@ -675,16 +674,12 @@ function SolutionPanel({
         <>
           {s.given.length > 0 && (
             <div>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Given
-              </p>
+              <p className="mb-1 text-xs font-semibold text-muted-foreground">Given</p>
               <Markdown content={s.given.map((g) => `- ${g}`).join("\n")} />
             </div>
           )}
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Steps
-            </p>
+            <p className="mb-2 text-xs font-semibold text-muted-foreground">Steps</p>
             <ol className="space-y-2">
               {s.steps.map((st, i) => (
                 <motion.li
@@ -705,15 +700,13 @@ function SolutionPanel({
             </ol>
           </div>
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Therefore
-            </p>
+            <p className="mb-1 text-xs font-semibold text-muted-foreground">Therefore</p>
             <Markdown content={s.therefore} />
           </div>
         </>
       )}
       <div className="rounded-xl border border-primary/30 bg-card px-4 py-3">
-        <p className="text-xs font-semibold uppercase tracking-wider text-primary">Answer</p>
+        <p className="text-xs font-semibold text-primary">Answer</p>
         <div className="[&_p]:m-0">
           <Markdown content={s.answer} />
         </div>
@@ -759,7 +752,7 @@ function SolutionPanel({
                   {i < 2 ? (
                     <Lightbulb className="h-4 w-4 text-warning" />
                   ) : (
-                    <Wand2 className="h-4 w-4 text-primary" />
+                    <PenLine className="h-4 w-4 text-primary" />
                   )}
                   {label}
                 </span>

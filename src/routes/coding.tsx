@@ -11,9 +11,7 @@ import {
   Lightbulb,
   Loader2,
   Play,
-  Sparkles,
   Timer,
-  WandSparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GradientButton, PageHeader, SoftCard } from "@/components/ui-custom";
@@ -59,8 +57,8 @@ const MonacoEditor = lazy(async () => {
 });
 type ActionTab = "Output" | "AI Feedback" | "Test Cases" | "Hints";
 type MobileTab = "Problem" | "Code" | "Output";
-const ACTIONS: { id: CodeActionKind; icon: typeof Sparkles; label: string }[] = [
-  { id: "Explain", icon: Sparkles, label: "Explain" },
+const ACTIONS: { id: CodeActionKind; icon: typeof Code2; label: string }[] = [
+  { id: "Explain", icon: Code2, label: "Explain" },
   { id: "Debug", icon: Bug, label: "Debug" },
   { id: "Predict Output", icon: Eye, label: "Predict Output" },
   { id: "Give Hint", icon: Lightbulb, label: "Give Hint" },
@@ -213,7 +211,7 @@ function CodingPractice() {
         </TabsList>
         <TabsContent
           value="Output"
-          className="min-h-0 flex-1 overflow-auto rounded-xl border bg-[#111827] p-4 font-mono text-xs text-emerald-300"
+          className="min-h-0 flex-1 overflow-auto rounded-xl border bg-code-background p-4 font-mono text-xs text-code-foreground"
         >
           <p className="mb-3 text-gray-400">
             $ {language === "Python" ? "python main.py" : `${language} · execution unavailable`}
@@ -307,7 +305,7 @@ function CodingPractice() {
         <TabsContent value="Hints" className="min-h-0 flex-1 overflow-y-auto rounded-xl border p-4">
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Hints unlock one at a time. Try each idea before revealing the next.
+              Reveal one hint at a time. Try each idea before asking for another.
             </p>
             {availableHints.slice(0, hintsRevealed).map((hint, index) => (
               <div key={hint} className="flex gap-3 rounded-xl bg-muted/70 p-3 text-sm">
@@ -338,12 +336,12 @@ function CodingPractice() {
   );
 
   const editor = (
-    <div className="flex h-[48vh] min-h-[320px] flex-col overflow-hidden rounded-xl border bg-[#111827] lg:h-[62vh]">
+    <div className="flex h-[48vh] min-h-[320px] flex-col overflow-hidden rounded-xl border bg-code-background lg:h-[62vh]">
       <div className="flex items-center justify-between border-b border-white/10 px-3 py-2 text-xs text-gray-300">
         <span className="font-mono">
           main.{language === "Python" ? "py" : language.toLowerCase()}
         </span>
-        <span className="text-gray-500">JetBrains Mono</span>
+        <span className="text-muted-foreground">Monospace</span>
       </div>
       <Suspense
         fallback={
@@ -358,7 +356,7 @@ function CodingPractice() {
           onChange={(value) => setCode(value ?? "")}
           options={{
             minimap: { enabled: false },
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: "monospace",
             fontSize: 14,
             lineNumbers: "on",
             scrollBeyondLastLine: false,
@@ -378,7 +376,7 @@ function CodingPractice() {
       onChange={(event) => setCode(event.target.value)}
       aria-label="Code editor"
       spellCheck={false}
-      className="min-h-[55dvh] resize-y rounded-xl bg-[#111827] font-mono text-base text-emerald-300"
+      className="min-h-[55dvh] resize-y rounded-xl bg-code-background font-mono text-base text-code-foreground"
       placeholder="Write your code here…"
     />
   );
@@ -406,7 +404,7 @@ function CodingPractice() {
             </SelectContent>
           </Select>
           <GradientButton variant="secondary" size="sm" onClick={() => setGenerateOpen(true)}>
-            <WandSparkles className="h-4 w-4" />
+            <Code2 className="h-4 w-4" />
             New exercise
           </GradientButton>
           <div className="ml-auto flex items-center gap-2">
@@ -424,7 +422,7 @@ function CodingPractice() {
             </label>
             {interviewPractice && (
               <span className="inline-flex items-center gap-1 rounded-lg bg-muted px-2 py-1 font-mono text-xs">
-                <Timer className="h-3.5 w-3.5" />
+                <Timer className="h-4 w-4" />
                 {Math.floor(interviewSeconds / 60)}:{String(interviewSeconds % 60).padStart(2, "0")}
               </span>
             )}
@@ -490,9 +488,7 @@ function CodingPractice() {
               <Code2 className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Interview practice
-              </p>
+              <p className="text-xs font-semibold text-muted-foreground">Interview practice</p>
               <p className="text-sm">
                 When you are ready, request Interview feedback to review your approach.
               </p>
@@ -632,7 +628,7 @@ function CodingPractice() {
                 {busy ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Sparkles className="h-4 w-4" />
+                  <Code2 className="h-4 w-4" />
                 )}
                 Generate exercise
               </GradientButton>

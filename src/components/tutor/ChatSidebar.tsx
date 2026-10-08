@@ -66,7 +66,7 @@ function Item({ chat, active, onPick }: { chat: Chat; active: boolean; onPick: (
     <div
       className={cn(
         "group relative flex items-center rounded-lg transition-colors",
-        active ? "bg-accent text-accent-foreground" : "hover:bg-muted",
+        active ? "bg-accent-soft text-primary" : "hover:bg-muted",
       )}
     >
       <button onClick={onPick} className="flex-1 truncate px-2.5 py-2 text-left text-sm">
@@ -155,9 +155,7 @@ export function ChatSidebar({ onNavigate }: { onNavigate?: () => void }) {
         ) : (
           groupChats(filtered).map(([label, list]) => (
             <div key={label} className="mb-3">
-              <p className="mb-1 px-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
-                {label}
-              </p>
+              <p className="mb-1 px-2.5 text-xs font-semibold text-muted-foreground/80">{label}</p>
               <div className="space-y-0.5">
                 {list.map((c) => (
                   <Item

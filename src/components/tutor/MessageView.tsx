@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { motion } from "framer-motion";
-import { Sparkles, RotateCcw, ThumbsUp, ThumbsDown, AlertCircle, FileText } from "lucide-react";
+import { BookOpen, RotateCcw, ThumbsUp, ThumbsDown, AlertCircle, FileText } from "lucide-react";
 import type { ChatMessage } from "@/store/useChatStore";
 import { cn } from "@/lib/utils";
 import { AsciiThinking } from "@/components/ui-custom/AsciiThinking";
@@ -21,8 +21,8 @@ const CHIPS = ["Explain simpler", "Give an example", "Quiz me on this"];
 
 function Avatar() {
   return (
-    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-      <Sparkles className="h-3.5 w-3.5" />
+    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+      <BookOpen className="h-4 w-4" />
     </span>
   );
 }
@@ -65,7 +65,7 @@ export function MessageView({
       >
         {m.attachment && (
           <span className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-2.5 py-1 text-xs text-muted-foreground">
-            <FileText className="h-3.5 w-3.5" />
+            <FileText className="h-4 w-4" />
             {m.attachment.name}
           </span>
         )}
@@ -91,7 +91,7 @@ export function MessageView({
             disabled={busy}
             className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
           >
-            <RotateCcw className="h-3.5 w-3.5" />
+            <RotateCcw className="h-4 w-4" />
             Retry
           </button>
         </div>
@@ -145,7 +145,7 @@ export function MessageView({
                 aria-label="Regenerate"
                 className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
+                <RotateCcw className="h-4 w-4" />
               </button>
               <button
                 onClick={() => onFeedback("up")}
@@ -158,7 +158,7 @@ export function MessageView({
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <ThumbsUp className="h-3.5 w-3.5" />
+                <ThumbsUp className="h-4 w-4" />
               </button>
               <button
                 onClick={() => onFeedback("down")}
@@ -171,7 +171,7 @@ export function MessageView({
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <ThumbsDown className="h-3.5 w-3.5" />
+                <ThumbsDown className="h-4 w-4" />
               </button>
             </div>
             {isLast && (
@@ -181,7 +181,7 @@ export function MessageView({
                     key={c}
                     onClick={() => onChip(c)}
                     disabled={busy}
-                    className="rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-soft transition-all hover:bg-accent hover:text-accent-foreground active:scale-[0.98] disabled:opacity-50"
+                    className="rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground transition-all hover:bg-accent-soft hover:text-foreground active:scale-[0.98] disabled:opacity-50"
                   >
                     {c}
                   </button>

@@ -17,7 +17,6 @@ import {
   Mic2,
   Presentation,
   RefreshCw,
-  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -79,10 +78,10 @@ export const Route = createFileRoute("/ppt")({
 });
 
 const THEMES: { id: PptTheme; colors: string[]; description: string }[] = [
-  { id: "Indigo Modern", colors: ["#3730A3", "#6366F1", "#E0E7FF"], description: "Indigo" },
-  { id: "Clean White", colors: ["#FFFFFF", "#E5E7EB", "#111827"], description: "White" },
-  { id: "Dark Elegant", colors: ["#111827", "#374151", "#A78BFA"], description: "Dark" },
-  { id: "Playful", colors: ["#F97316", "#FDE68A", "#0F766E"], description: "Playful" },
+  { id: "Indigo Modern", colors: ["#174F63", "#88C9B8", "#E0F1EC"], description: "Teal" },
+  { id: "Clean White", colors: ["#FFFFFF", "#E6E0D4", "#1B2430"], description: "White" },
+  { id: "Dark Elegant", colors: ["#101519", "#2A353D", "#3FB8A0"], description: "Dark" },
+  { id: "Playful", colors: ["#D98E04", "#FBF1DA", "#0F6B5C"], description: "Amber" },
 ];
 const STEPS = [
   { title: "Research", icon: FileText },
@@ -96,28 +95,28 @@ const themeColors: Record<
   { background: string; foreground: string; accent: string; secondary: string }
 > = {
   "Indigo Modern": {
-    background: "linear-gradient(135deg, #312e81, #6366f1)",
-    foreground: "#ffffff",
-    accent: "#a5b4fc",
-    secondary: "#eef2ff",
+    background: "#174F63",
+    foreground: "#FFFFFF",
+    accent: "#88C9B8",
+    secondary: "#E0F1EC",
   },
   "Clean White": {
-    background: "#ffffff",
-    foreground: "#172033",
-    accent: "#4f46e5",
-    secondary: "#f1f5f9",
+    background: "#FFFFFF",
+    foreground: "#1B2430",
+    accent: "#0F6B5C",
+    secondary: "#F2EEE6",
   },
   "Dark Elegant": {
-    background: "#111827",
-    foreground: "#f9fafb",
-    accent: "#a78bfa",
-    secondary: "#1f2937",
+    background: "#101519",
+    foreground: "#E8ECEF",
+    accent: "#3FB8A0",
+    secondary: "#1D262C",
   },
   Playful: {
-    background: "linear-gradient(135deg, #fff7ed, #fef3c7)",
-    foreground: "#153b39",
-    accent: "#ea580c",
-    secondary: "#ffedd5",
+    background: "#FBF1DA",
+    foreground: "#1B2430",
+    accent: "#D98E04",
+    secondary: "#F2EEE6",
   },
 };
 
@@ -526,7 +525,11 @@ function PptMaker() {
             onClick={() => void generate()}
             disabled={busy || !topic.trim()}
           >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Presentation className="h-4 w-4" />
+            )}
             Create PPT
           </GradientButton>
           <MobileStickyAction>
@@ -539,7 +542,7 @@ function PptMaker() {
               {busy ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Sparkles className="h-4 w-4" />
+                <Presentation className="h-4 w-4" />
               )}
               Create PPT
             </GradientButton>
@@ -551,7 +554,7 @@ function PptMaker() {
                 onClick={() => void generate()}
                 className="mt-2 inline-flex items-center gap-1 font-semibold underline"
               >
-                <RefreshCw className="h-3.5 w-3.5" />
+                <RefreshCw className="h-4 w-4" />
                 Retry
               </button>
             </div>
@@ -584,7 +587,7 @@ function PptMaker() {
                       onClick={() => setDeleteDeckId(item.id)}
                       className="min-h-11 min-w-11 rounded-md p-2 text-muted-foreground hover:text-destructive"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </li>
                 ))}
@@ -640,7 +643,7 @@ function PptMaker() {
                       setError("");
                     }}
                   >
-                    <Sparkles className="h-4 w-4" />
+                    <Presentation className="h-4 w-4" />
                     Create another
                   </GradientButton>
                 </div>
@@ -769,7 +772,7 @@ function PptMaker() {
           role="dialog"
           aria-modal="true"
           aria-label="Presentation mode"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black p-3 sm:p-8"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background p-3 sm:p-8"
         >
           <div
             className="relative aspect-video w-full max-w-7xl overflow-hidden rounded-xl p-8 shadow-lift sm:p-16"
@@ -857,7 +860,7 @@ function GenerationProgress({ step, busy }: { step: number; busy: boolean }) {
         aria-valuenow={Math.min(step, 5) * 20}
       >
         <motion.div
-          className="h-full rounded-full bg-gradient-primary"
+          className="h-full rounded-full bg-primary"
           animate={{ width: `${Math.min(step, 5) * 20}%` }}
         />
       </div>
@@ -877,11 +880,11 @@ function GenerationProgress({ step, busy }: { step: number; busy: boolean }) {
             <Icon className="h-4 w-4 shrink-0" />
             <span className="min-w-0 flex-1 truncate">{title}</span>
             {index < step ? (
-              <Check className="h-3.5 w-3.5 shrink-0" />
+              <Check className="h-4 w-4 shrink-0" />
             ) : index === step && busy ? (
-              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
             ) : (
-              <Circle className="h-3 w-3 shrink-0" />
+              <Circle className="h-4 w-4 shrink-0" />
             )}
           </li>
         ))}
@@ -940,7 +943,7 @@ function SlideCanvas({
         ))}
       </ul>
       {slide.diagram && (
-        <div className="mt-3 max-h-[42%] overflow-hidden rounded-xl bg-white/80 p-2">
+        <div className="mt-3 max-h-[42%] overflow-hidden rounded-xl bg-background/90 p-2">
           <Mermaid code={slide.diagram} className="my-0 [&_svg]:max-h-36" />
         </div>
       )}
