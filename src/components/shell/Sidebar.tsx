@@ -80,7 +80,7 @@ export function Sidebar() {
       <motion.aside
         animate={{ width: collapsed ? 72 : 264 }}
         transition={{ type: "spring", stiffness: 300, damping: 34 }}
-        className="sticky top-0 hidden h-screen shrink-0 flex-col border-r bg-sidebar md:flex"
+        className="sticky top-0 hidden h-dvh shrink-0 flex-col border-r bg-sidebar md:flex"
       >
         <div
           className={cn(

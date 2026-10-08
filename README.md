@@ -65,6 +65,24 @@ backend at `http://localhost:8000`. Configure a different backend URL in
 Settings if needed. AI-powered features require the backend and a configured
 OmniRoute gateway; EduAI does not provide local demo responses.
 
+## Use on your phone
+
+Connect your phone and computer to the same Wi-Fi network. Start the backend
+and frontend so they listen on the local network:
+
+```powershell
+# From the backend directory, with its virtual environment activated
+python -m uvicorn app.main:app --reload --host 0.0.0.0
+
+# From the project root, in a separate terminal
+npm run dev -- --host 0.0.0.0
+```
+
+Open `http://<computer-ip>:5173` on your phone (for example,
+`http://192.168.1.20:5173`). The app will connect to the backend at the same
+computer's address on port `8000`. If Windows Firewall asks, allow access on
+your private network.
+
 ## Checks
 
 ```powershell

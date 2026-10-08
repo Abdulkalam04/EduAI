@@ -33,6 +33,10 @@ class Settings(BaseSettings):
         "http://localhost:5173,http://localhost:8080,http://localhost:3000,"
         "http://localhost:8081"
     )
+    cors_origin_regex: str = (
+        r"^http://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|"
+        r"10\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$"
+    )
     database_url: str = f"sqlite:///{(BACKEND_DIR / 'eduai.db').as_posix()}"
     uploads_dir: str = str(BACKEND_DIR / "uploads")
 

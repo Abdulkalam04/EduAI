@@ -33,7 +33,14 @@ import type { LevelId } from "@/store/useUserStore";
 export function getApiUrl(): string {
   if (typeof window !== "undefined") {
     const stored = window.localStorage.getItem("apiUrl");
-    if (stored) return stored;
+    if (stored?.trim()) return stored;
+    const configured = import.meta.env["VITE_API_URL"] as string | undefined;
+    if (configured) return configured;
+
+    const { hostname, protocol } = window.location;
+    if (hostname !== "localhost" && hostname !== "127.0.0.1") {
+      return `${protocol}//${hostname}:8000`;
+    }
   }
   return (import.meta.env["VITE_API_URL"] as string | undefined) ?? "http://localhost:8000";
 }

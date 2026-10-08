@@ -35,6 +35,19 @@ def test_cors_allows_local_frontend_on_port_8081():
     assert response.headers["access-control-allow-origin"] == "http://localhost:8081"
 
 
+def test_cors_allows_private_lan_frontend():
+    response = client.options(
+        "/health",
+        headers={
+            "Origin": "http://192.168.1.42:5173",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://192.168.1.42:5173"
+
+
 def test_chat_sse_contract(monkeypatch):
     async def fake_stream(messages, task="teacher", temperature=0.4):
         yield "A useful "

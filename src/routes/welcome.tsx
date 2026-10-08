@@ -135,10 +135,11 @@ function WelcomePage() {
     const connection = (navigator as Navigator & { connection?: { saveData?: boolean } })
       .connection;
     const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const mobileViewport = window.matchMedia("(max-width: 767px)");
     let frame = 0;
     const updateVideoPreference = () => {
       window.cancelAnimationFrame(frame);
-      if (motionPreference.matches || connection?.saveData) {
+      if (mobileViewport.matches || motionPreference.matches || connection?.saveData) {
         setVideoEnabled(false);
         return;
       }
@@ -147,9 +148,11 @@ function WelcomePage() {
 
     updateVideoPreference();
     motionPreference.addEventListener("change", updateVideoPreference);
+    mobileViewport.addEventListener("change", updateVideoPreference);
     return () => {
       window.cancelAnimationFrame(frame);
       motionPreference.removeEventListener("change", updateVideoPreference);
+      mobileViewport.removeEventListener("change", updateVideoPreference);
     };
   }, []);
 
@@ -163,12 +166,12 @@ function WelcomePage() {
   };
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-background text-foreground">
-      <section className="relative isolate flex min-h-[100svh] items-center overflow-hidden bg-black text-white">
+    <main className="min-h-dvh overflow-x-hidden bg-background text-foreground">
+      <section className="relative isolate flex min-h-dvh items-center overflow-hidden bg-black text-white">
         <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
           {(!videoEnabled || videoFailed) && (
             <img
-              src="/media/hero-ascii-poster.jpg"
+              src="/media/hero-ascii-poster.svg"
               alt=""
               width={566}
               height={850}
@@ -182,8 +185,8 @@ function WelcomePage() {
               muted
               loop
               playsInline
-              preload="metadata"
-              poster="/media/hero-ascii-poster.jpg"
+              preload="none"
+              poster="/media/hero-ascii-poster.svg"
               aria-hidden="true"
               tabIndex={-1}
               onError={() => setVideoFailed(true)}
@@ -197,7 +200,7 @@ function WelcomePage() {
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/20 md:hidden" />
         </div>
 
-        <div className="mx-auto flex min-h-[100svh] w-full max-w-7xl items-center px-4 py-14 sm:px-8 sm:py-20 lg:px-12">
+        <div className="mx-auto flex min-h-dvh w-full max-w-7xl items-center px-4 py-14 sm:px-8 sm:py-20 lg:px-12">
           <div className="relative z-10 max-w-2xl">
             <p className="mb-4 font-mono text-[11px] font-semibold tracking-[0.16em] text-white/70 sm:mb-5 sm:text-sm sm:tracking-[0.22em]">
               EDU/AI — AI STUDY COMPANION

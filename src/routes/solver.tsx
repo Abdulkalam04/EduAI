@@ -510,7 +510,7 @@ function QuestionList({
           onKeySelect(Math.max(0, active - 1));
         }
       }}
-      className="space-y-2 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:sticky md:top-20 md:max-h-[calc(100vh-7rem)] md:overflow-y-auto"
+      className="space-y-2 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:sticky md:top-20 md:max-h-[calc(100dvh-7rem)] md:overflow-y-auto"
     >
       {questions.map((q, i) => (
         <li key={q.id} role="option" aria-selected={i === active}>
