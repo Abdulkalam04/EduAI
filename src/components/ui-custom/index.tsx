@@ -23,7 +23,7 @@ export function GradientButton({
         size === "md" && "h-11 px-4 text-base md:h-10 md:text-sm",
         size === "lg" && "h-12 px-6 text-base",
         variant === "primary" &&
-          "bg-gradient-primary text-primary-foreground shadow-glow hover:brightness-110",
+          "bg-primary text-primary-foreground shadow-soft hover:bg-primary/90",
         variant === "secondary" && "border bg-card text-foreground shadow-soft hover:bg-muted",
         variant === "ghost" && "text-muted-foreground hover:bg-muted hover:text-foreground",
         className,
@@ -354,7 +354,7 @@ export function Chip({
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         selected
-          ? "border-transparent bg-gradient-primary text-primary-foreground shadow-glow"
+          ? "border-primary bg-primary text-primary-foreground"
           : "bg-card text-foreground hover:bg-muted",
       )}
     >
@@ -383,9 +383,4 @@ export function CardSkeleton({ className, lines = 3 }: { className?: string; lin
   );
 }
 
-/* ---------- stagger helpers ---------- */
-export const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.04 } } };
-export const rise = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { duration: 0.15 } },
-};
+export { MobileStickyAction } from "./MobileStickyAction";

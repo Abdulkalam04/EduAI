@@ -27,6 +27,7 @@ import {
   PageHeader,
   EmptyState,
   GradientButton,
+  MobileStickyAction,
 } from "@/components/ui-custom";
 import {
   Select,
@@ -146,11 +147,20 @@ function ProgressPage() {
           title="Progress didn't load"
           description={error}
           action={
-            <GradientButton onClick={() => void load()} disabled={loading}>
+            <GradientButton
+              className="hidden md:inline-flex"
+              onClick={() => void load()}
+              disabled={loading}
+            >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}Try again
             </GradientButton>
           }
         />
+        <MobileStickyAction>
+          <GradientButton className="w-full" onClick={() => void load()} disabled={loading}>
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}Try again
+          </GradientButton>
+        </MobileStickyAction>
       </div>
     );
   if (!hydrated || (loading && !loaded))
@@ -183,9 +193,12 @@ function ProgressPage() {
         accent="progress"
         description="Your learning journey, one small step at a time."
         action={
-          <div className="flex gap-2">
+          <div className="flex w-full min-w-0 gap-2 sm:w-auto">
             <Select value={subject} onValueChange={setSubject}>
-              <SelectTrigger aria-label="Filter by subject" className="w-40">
+              <SelectTrigger
+                aria-label="Filter by subject"
+                className="min-w-0 flex-1 sm:w-40 sm:flex-none"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -198,7 +211,10 @@ function ProgressPage() {
               </SelectContent>
             </Select>
             <Select value={range} onValueChange={(value) => setRange(value as Range)}>
-              <SelectTrigger aria-label="Filter by time range" className="w-32">
+              <SelectTrigger
+                aria-label="Filter by time range"
+                className="min-w-0 flex-1 sm:w-32 sm:flex-none"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -231,7 +247,7 @@ function ProgressPage() {
           description="Take a quiz or try a practice paper to see your mastery, streak, and study recommendations here."
           action={
             <Link to="/practice">
-              <GradientButton>
+              <GradientButton className="hidden md:inline-flex">
                 Start practising
                 <Sparkles className="h-4 w-4" />
               </GradientButton>
@@ -415,6 +431,13 @@ function ProgressPage() {
           </SoftCard>
         </>
       )}
+      <MobileStickyAction>
+        <Link to={hasProgress ? "/study" : "/practice"} className="block">
+          <GradientButton className="w-full">
+            {hasProgress ? "Choose what to study" : "Start practising"}
+          </GradientButton>
+        </Link>
+      </MobileStickyAction>
     </div>
   );
 }

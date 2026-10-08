@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import {
   CardSkeleton,
   GradientButton,
+  MobileStickyAction,
   PageHeader,
   ProgressRing,
   SoftCard,
@@ -233,7 +234,11 @@ function CheckPage() {
               </span>
               <p className="font-semibold">Drop photos or PDFs of your answer sheets</p>
               <div className="flex flex-wrap justify-center gap-2">
-                <GradientButton variant="secondary" onClick={() => inputRef.current?.click()}>
+                <GradientButton
+                  variant="secondary"
+                  className="hidden md:inline-flex"
+                  onClick={() => inputRef.current?.click()}
+                >
                   Browse files
                 </GradientButton>
               </div>
@@ -366,12 +371,29 @@ function CheckPage() {
               </label>
             )}
           </SoftCard>
-          <div className="flex justify-end">
+          <div className="hidden justify-end md:flex">
             <GradientButton size="lg" disabled={!canCheck} onClick={run}>
               <Sparkles className="h-4 w-4" />
               Check my answers
             </GradientButton>
           </div>
+          <MobileStickyAction>
+            {items.length ? (
+              <GradientButton className="w-full" size="lg" disabled={!canCheck} onClick={run}>
+                <Sparkles className="h-4 w-4" />
+                Check my answers
+              </GradientButton>
+            ) : (
+              <GradientButton
+                className="w-full"
+                size="lg"
+                onClick={() => inputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4" />
+                Add answer pages
+              </GradientButton>
+            )}
+          </MobileStickyAction>
         </motion.div>
       )}
 

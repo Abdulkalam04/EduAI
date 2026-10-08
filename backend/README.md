@@ -69,11 +69,11 @@ Model role guidance:
 | `MODEL_MULTIMODAL` | Image/PDF scanned-page reading and book answers |
 | `MODEL_JSON` | Structured extraction, generation, validation and repair |
 
-Reasoning effort is configured per task. Formatting and generation tasks use
-`low` by default; maths solving, written-answer grading, and code debugging use
-`high`. Empty task settings use the gateway default. If the gateway explicitly
-rejects `reasoning_effort`, the backend logs the rejection and retries once
-without the parameter.
+Model reasoning strength is configured per task. Formatting and generation
+tasks use `low` by default; maths solving, written-answer grading, and code
+debugging use `high`. Empty task settings use the gateway default. If the
+gateway explicitly rejects `reasoning_effort`, the backend logs the rejection
+and retries once without the parameter.
 
 The model IDs must exactly match IDs exposed by OmniRoute. Empty specialized
 IDs fall back to `MODEL_TEACHER`. `/api/models` reports each resolved mapping

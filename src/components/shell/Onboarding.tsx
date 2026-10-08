@@ -7,7 +7,7 @@ import { LEVELS, SUBJECTS, useUserStore, type LevelId } from "@/store/useUserSto
 import { GradientButton, Chip } from "@/components/ui-custom";
 import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
-import { initials } from "./TopBar";
+import { initials } from "./profile-utils";
 import { useUiStore } from "@/store/useUiStore";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
@@ -101,7 +101,7 @@ export function Onboarding() {
                       key={initials(name)}
                       initial={{ scale: 0.9 }}
                       animate={{ scale: 1 }}
-                      className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-primary text-3xl font-bold text-primary-foreground shadow-glow"
+                      className="flex h-24 w-24 items-center justify-center rounded-full bg-primary text-3xl font-bold text-primary-foreground"
                     >
                       {initials(name)}
                     </motion.div>
@@ -133,7 +133,7 @@ export function Onboarding() {
                           aria-pressed={sel}
                           className={cn(
                             "relative flex items-start gap-3 rounded-2xl border p-4 text-left transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                            sel ? "border-primary bg-accent shadow-glow" : "hover:bg-muted",
+                            sel ? "border-primary bg-accent" : "hover:bg-muted",
                             l.id === "grad" && "sm:col-span-2",
                           )}
                         >
@@ -147,7 +147,7 @@ export function Onboarding() {
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
                                 exit={{ scale: 0 }}
-                                className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-primary text-primary-foreground"
+                                className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground"
                               >
                                 <Check className="h-3.5 w-3.5" />
                               </motion.span>

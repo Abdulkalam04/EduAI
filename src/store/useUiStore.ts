@@ -86,11 +86,19 @@ const ACCENT_VALUES: Record<AccentColor, [string, string]> = {
   amber: ["oklch(0.68 0.16 65)", "oklch(0.72 0.17 85)"],
 };
 
+const DARK_ACCENT_VALUES: Record<AccentColor, [string, string]> = {
+  indigo: ["oklch(0.72 0.18 277)", "oklch(0.74 0.2 292)"],
+  teal: ["oklch(0.76 0.13 180)", "oklch(0.78 0.14 200)"],
+  rose: ["oklch(0.74 0.18 15)", "oklch(0.76 0.16 350)"],
+  amber: ["oklch(0.8 0.14 65)", "oklch(0.82 0.14 85)"],
+};
+
 export function applyUiPreferences(
   preferences: Pick<UiState, "accent" | "reduceMotion" | "fontSize">,
 ) {
   const root = document.documentElement;
-  const [primary, secondary] = ACCENT_VALUES[preferences.accent];
+  const values = root.classList.contains("dark") ? DARK_ACCENT_VALUES : ACCENT_VALUES;
+  const [primary, secondary] = values[preferences.accent];
   root.style.setProperty("--primary", primary);
   root.style.setProperty("--primary-2", secondary);
   root.style.setProperty("--ring", primary);

@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import {
   CardSkeleton,
   GradientButton,
+  MobileStickyAction,
   PageHeader,
   SegmentedControl,
   SoftCard,
@@ -279,7 +280,11 @@ function SolverPage() {
                       <p className="text-sm text-muted-foreground">PDF, JPG or PNG · up to 20 MB</p>
                     </div>
                     <div className="flex flex-wrap justify-center gap-2">
-                      <GradientButton variant="secondary" onClick={() => inputRef.current?.click()}>
+                      <GradientButton
+                        variant="secondary"
+                        className="hidden md:inline-flex"
+                        onClick={() => inputRef.current?.click()}
+                      >
                         Browse files
                       </GradientButton>
                       <GradientButton
@@ -350,11 +355,26 @@ function SolverPage() {
             </div>
 
             {setupStep === 0 ? (
-              file && (
-                <GradientButton size="lg" className="w-full" onClick={() => setSetupStep(1)}>
-                  Continue to options
-                </GradientButton>
-              )
+              <>
+                {file && (
+                  <GradientButton
+                    size="lg"
+                    className="hidden w-full md:inline-flex"
+                    onClick={() => setSetupStep(1)}
+                  >
+                    Continue to options
+                  </GradientButton>
+                )}
+                <MobileStickyAction>
+                  <GradientButton
+                    size="lg"
+                    className="w-full"
+                    onClick={() => (file ? setSetupStep(1) : inputRef.current?.click())}
+                  >
+                    {file ? "Continue to options" : "Choose a question paper"}
+                  </GradientButton>
+                </MobileStickyAction>
+              </>
             ) : (
               <>
                 <div className="space-y-4">
@@ -390,7 +410,7 @@ function SolverPage() {
                       aria-pressed={mode === id}
                       className={cn(
                         "flex items-start gap-3 rounded-2xl border bg-card p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                        mode === id ? "border-primary shadow-glow" : "hover:bg-muted",
+                        mode === id ? "border-primary bg-accent" : "hover:bg-muted",
                       )}
                     >
                       <span
@@ -570,7 +590,7 @@ function QuestionList({
             onClick={() => onSelect(i)}
             className={cn(
               "w-full rounded-xl border bg-card p-3 text-left transition-all",
-              i === active ? "border-primary shadow-glow" : "hover:bg-muted",
+              i === active ? "border-primary bg-accent" : "hover:bg-muted",
             )}
           >
             <div className="flex items-center justify-between gap-2 text-xs">
@@ -692,12 +712,10 @@ function SolutionPanel({
           </div>
         </>
       )}
-      <div className="rounded-xl bg-gradient-primary p-[1.5px]">
-        <div className="rounded-[10px] bg-card px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Answer</p>
-          <div className="[&_p]:m-0">
-            <Markdown content={s.answer} />
-          </div>
+      <div className="rounded-xl border border-primary/30 bg-card px-4 py-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-primary">Answer</p>
+        <div className="[&_p]:m-0">
+          <Markdown content={s.answer} />
         </div>
       </div>
     </div>

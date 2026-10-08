@@ -1,7 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { pageHead } from "@/components/ComingSoonPage";
-import { FeatureIcon, PageHeader, SoftCard } from "@/components/ui-custom";
+import {
+  FeatureIcon,
+  GradientButton,
+  MobileStickyAction,
+  PageHeader,
+  SoftCard,
+} from "@/components/ui-custom";
 import { TOOLS } from "@/lib/nav";
 
 export const Route = createFileRoute("/study")({
@@ -18,7 +24,7 @@ export function StudyPage() {
         icon={BookOpen}
         accent="book"
       />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div id="study-tools" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {TOOLS.map((tool) => (
           <Link
             key={tool.to}
@@ -44,6 +50,14 @@ export function StudyPage() {
           </Link>
         ))}
       </div>
+      <MobileStickyAction>
+        <GradientButton
+          className="w-full"
+          onClick={() => document.getElementById("study-tools")?.scrollIntoView({ block: "start" })}
+        >
+          Choose a study tool
+        </GradientButton>
+      </MobileStickyAction>
     </div>
   );
 }

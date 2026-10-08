@@ -30,6 +30,26 @@ import type {
 } from "./types";
 import type { LevelId } from "@/store/useUserStore";
 
+export function resolveDefaultApiUrl(hostname: string): string {
+  const parts = hostname.split(".");
+  const octets = parts.map(Number);
+  const [firstOctet = 0, secondOctet = 0] = octets;
+  const isIpv4 =
+    parts.length === 4 &&
+    parts.every((part) => /^\d{1,3}$/.test(part)) &&
+    octets.every((octet) => octet >= 0 && octet <= 255);
+  const isPrivateIpv4 =
+    isIpv4 &&
+    (firstOctet === 10 ||
+      (firstOctet === 172 && secondOctet >= 16 && secondOctet <= 31) ||
+      (firstOctet === 192 && secondOctet === 168));
+
+  if (isPrivateIpv4 || hostname.toLowerCase().endsWith(".local")) {
+    return `http://${hostname}:8000`;
+  }
+  return "http://localhost:8000";
+}
+
 export function getApiUrl(): string {
   if (typeof window !== "undefined") {
     const stored = window.localStorage.getItem("apiUrl");
@@ -37,10 +57,7 @@ export function getApiUrl(): string {
     const configured = import.meta.env["VITE_API_URL"] as string | undefined;
     if (configured) return configured;
 
-    const { hostname, protocol } = window.location;
-    if (hostname !== "localhost" && hostname !== "127.0.0.1") {
-      return `${protocol}//${hostname}:8000`;
-    }
+    return resolveDefaultApiUrl(window.location.hostname);
   }
   return (import.meta.env["VITE_API_URL"] as string | undefined) ?? "http://localhost:8000";
 }

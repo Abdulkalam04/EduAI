@@ -1,9 +1,14 @@
+import { lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import { Sparkles, RotateCcw, ThumbsUp, ThumbsDown, AlertCircle, FileText } from "lucide-react";
 import type { ChatMessage } from "@/store/useChatStore";
 import { cn } from "@/lib/utils";
 import { AsciiThinking } from "@/components/ui-custom/AsciiThinking";
-import { Markdown, CopyButton } from "./Markdown";
+
+const Markdown = lazy(() => import("./Markdown").then((module) => ({ default: module.Markdown })));
+const CopyButton = lazy(() =>
+  import("./Markdown").then((module) => ({ default: module.CopyButton })),
+);
 
 export const LEVEL_REPLIES = [
   { label: "Class 5", level: "c1-5" },
@@ -16,7 +21,7 @@ const CHIPS = ["Explain simpler", "Give an example", "Quiz me on this"];
 
 function Avatar() {
   return (
-    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground shadow-glow">
+    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
       <Sparkles className="h-3.5 w-3.5" />
     </span>
   );
@@ -64,7 +69,7 @@ export function MessageView({
             {m.attachment.name}
           </span>
         )}
-        <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-gradient-primary px-4 py-2.5 text-primary-foreground shadow-glow">
+        <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-primary-foreground">
           {m.content}
         </div>
       </motion.div>
@@ -105,7 +110,9 @@ export function MessageView({
       <Avatar />
       <div className="min-w-0 flex-1">
         <div className={cn(streaming && "streaming-cursor")}>
-          <Markdown content={m.content} streaming={streaming} />
+          <Suspense fallback={<p className="whitespace-pre-wrap">{m.content}</p>}>
+            <Markdown content={m.content} streaming={streaming} />
+          </Suspense>
         </div>
         {m.status === "stopped" && (
           <p className="mt-1 text-xs italic text-muted-foreground">Stopped generating.</p>
@@ -129,7 +136,9 @@ export function MessageView({
         {finished && m.kind !== "level-prompt" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-2 space-y-2">
             <div className="flex items-center gap-0.5">
-              <CopyButton text={m.content} />
+              <Suspense fallback={null}>
+                <CopyButton text={m.content} />
+              </Suspense>
               <button
                 onClick={onRegenerate}
                 disabled={busy}

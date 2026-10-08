@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { paperStructure } from "@/lib/types";
-import { gradeLabel } from "@/components/practice/Results";
+import { gradeLabel } from "@/components/practice/results-utils";
 
 describe("practice paper structure", () => {
   it("splits 50 marks into the expected section totals", () => {

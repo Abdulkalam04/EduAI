@@ -91,7 +91,7 @@ function DiagramMaker() {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [pan, setPan] = useState<{ x: number; y: number; ox: number; oy: number } | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
-  const [optionsOpen, setOptionsOpen] = useState(true);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const levelChosen = useRef(false);
   const currentId = current?.id;

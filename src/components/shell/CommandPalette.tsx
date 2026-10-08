@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   MessageCircleQuestion,
@@ -26,17 +25,6 @@ export function CommandPalette() {
   const { paletteOpen, setPaletteOpen, theme, setTheme } = useUiStore();
   const setUser = useUserStore((s) => s.set);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPaletteOpen(!useUiStore.getState().paletteOpen);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [setPaletteOpen]);
 
   const run = (fn: () => void) => {
     setPaletteOpen(false);

@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GradientButton, PageHeader, SoftCard } from "@/components/ui-custom";
+import { GradientButton, MobileStickyAction, PageHeader, SoftCard } from "@/components/ui-custom";
 import { Mermaid } from "@/components/tutor/Markdown";
 import {
   Select,
@@ -143,6 +143,7 @@ function PptMaker() {
   const [savingSlide, setSavingSlide] = useState(false);
   const [deleteDeckId, setDeleteDeckId] = useState<string | null>(null);
   const mainRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef<number | null>(null);
   const levelChosen = useRef(false);
   const slides = deck?.slides ?? [];
   const selectedIndex = Math.max(
@@ -225,17 +226,10 @@ function PptMaker() {
 
   const moveSlide = useCallback(
     (direction: -1 | 1) => {
-      if (!deck || selectedIndex + direction < 0 || selectedIndex + direction >= deck.slides.length)
-        return;
-      const reordered = [...deck.slides];
-      [reordered[selectedIndex], reordered[selectedIndex + direction]] = [
-        reordered[selectedIndex + direction]!,
-        reordered[selectedIndex]!,
-      ];
-      persistSlides(reordered);
-      setSelectedId(reordered[selectedIndex + direction]!.id);
+      const next = deck?.slides[selectedIndex + direction];
+      if (next) setSelectedId(next.id);
     },
-    [deck, persistSlides, selectedIndex],
+    [deck, selectedIndex],
   );
 
   const regenerate = async () => {
@@ -528,13 +522,28 @@ function PptMaker() {
           </label>
           <GradientButton
             size="lg"
-            className="w-full"
+            className="hidden w-full md:inline-flex"
             onClick={() => void generate()}
             disabled={busy || !topic.trim()}
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             Create PPT
           </GradientButton>
+          <MobileStickyAction>
+            <GradientButton
+              size="lg"
+              className="w-full"
+              onClick={() => void generate()}
+              disabled={busy || !topic.trim()}
+            >
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              Create PPT
+            </GradientButton>
+          </MobileStickyAction>
           {error && (
             <div role="alert" className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
               <p>{error}</p>
@@ -644,6 +653,21 @@ function PptMaker() {
                 style={{
                   background: selected.kind === "title" ? colors.background : colors.secondary,
                   color: colors.foreground,
+                  touchAction: "pan-y",
+                }}
+                onTouchStart={(event) => {
+                  touchStartX.current = event.changedTouches[0]?.clientX ?? null;
+                }}
+                onTouchEnd={(event) => {
+                  const startX = touchStartX.current;
+                  const endX = event.changedTouches[0]?.clientX;
+                  touchStartX.current = null;
+                  if (startX !== null && endX !== undefined && Math.abs(endX - startX) > 40) {
+                    moveSlide(endX < startX ? 1 : -1);
+                  }
+                }}
+                onTouchCancel={() => {
+                  touchStartX.current = null;
                 }}
                 onKeyDown={(event) => {
                   if (event.key === "ArrowRight" || event.key === "ArrowDown") {

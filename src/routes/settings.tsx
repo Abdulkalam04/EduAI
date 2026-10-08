@@ -16,7 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { pageHead } from "@/components/ComingSoonPage";
-import { GradientButton, PageHeader, SoftCard } from "@/components/ui-custom";
+import { GradientButton, MobileStickyAction, PageHeader, SoftCard } from "@/components/ui-custom";
 import { useUiStore, type AccentColor, type Theme } from "@/store/useUiStore";
 import { LEVELS, SUBJECTS, useUserStore } from "@/store/useUserStore";
 import { useChatStore } from "@/store/useChatStore";
@@ -168,7 +168,12 @@ function SettingsPage() {
         }
       />
       <Tabs defaultValue="profile" className="space-y-5">
-        <div className="-mx-1 w-full min-w-0 overflow-x-auto px-1 pb-1">
+        <div
+          className="-mx-1 w-full min-w-0 overflow-x-auto px-1 pb-1"
+          role="region"
+          aria-label="Settings sections"
+          tabIndex={0}
+        >
           <TabsList className="grid h-auto min-w-[600px] grid-cols-5">
             {["Profile", "Learning", "Appearance", "Backend", "Data"].map((item) => (
               <TabsTrigger key={item} value={item.toLowerCase()} className="min-h-11">
@@ -386,6 +391,11 @@ function SettingsPage() {
           </SoftCard>
         </TabsContent>
       </Tabs>
+      <MobileStickyAction>
+        <Link to="/" className="block">
+          <GradientButton className="w-full">Done</GradientButton>
+        </Link>
+      </MobileStickyAction>
       <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

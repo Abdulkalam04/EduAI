@@ -80,8 +80,8 @@ npm run dev -- --host 0.0.0.0
 
 Open `http://<computer-ip>:5173` on your phone (for example,
 `http://192.168.1.20:5173`). The app will connect to the backend at the same
-computer's address on port `8000`. If Windows Firewall asks, allow access on
-your private network.
+computer's address on port `8000`. In Windows Firewall, allow/open inbound
+TCP ports `5173` (frontend) and `8000` (backend) on your private network.
 
 ## Checks
 

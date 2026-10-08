@@ -7,11 +7,11 @@ import { cn } from "@/lib/utils";
 import {
   EmptyState,
   GradientButton,
+  MobileStickyAction,
   PageHeader,
   SoftCard,
-  rise,
-  stagger,
 } from "@/components/ui-custom";
+import { rise, stagger } from "@/components/ui-custom/motion-presets";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +43,7 @@ export const Route = createFileRoute("/book/")({
 function Library() {
   const { docs, add, remove, setDocs } = useBookStore();
   const hydrated = useUiStore((state) => state.hydrated);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [loadingDocs, setLoadingDocs] = useState(true);
   const [listError, setListError] = useState("");
   const [uploading, setUploading] = useState<{
@@ -74,7 +75,7 @@ function Library() {
     return () => {
       active = false;
     };
-  }, [hydrated, setDocs]);
+  }, [hydrated, loadAttempt, setDocs]);
 
   const upload = async (f: File | undefined) => {
     if (!f) return;
@@ -164,12 +165,28 @@ function Library() {
         accent="book"
         description="Upload a chapter from your textbook and learn from it with AI."
       />
+      <MobileStickyAction>
+        <GradientButton
+          className="w-full"
+          onClick={() => ref.current?.click()}
+          disabled={!!uploading}
+        >
+          Upload a PDF
+        </GradientButton>
+      </MobileStickyAction>
       {listError && (
         <div
           role="alert"
           className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
         >
           <span>{listError}</span>
+          <button
+            type="button"
+            onClick={() => setLoadAttempt((current) => current + 1)}
+            className="min-h-11 font-semibold underline"
+          >
+            Retry
+          </button>
         </div>
       )}
       {uploadError && (

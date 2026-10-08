@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { ArrowRight, ScanSearch, Sparkles, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GradientButton, SoftCard } from "@/components/ui-custom";
+import { GradientButton, MobileStickyAction, SoftCard } from "@/components/ui-custom";
 import { AsciiThinking } from "@/components/ui-custom/AsciiThinking";
 import {
   Select,
@@ -267,13 +267,24 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
           )}
           <GradientButton
             size="lg"
-            className="w-full"
+            className="hidden w-full md:inline-flex"
             onClick={() => void generate()}
             disabled={!subject || !chapter.trim() || loading}
           >
             <Sparkles className="h-4 w-4" />
             Generate paper
           </GradientButton>
+          <MobileStickyAction>
+            <GradientButton
+              size="lg"
+              className="w-full"
+              onClick={() => void generate()}
+              disabled={!subject || !chapter.trim() || loading}
+            >
+              <Sparkles className="h-4 w-4" />
+              Generate paper
+            </GradientButton>
+          </MobileStickyAction>
         </SoftCard>
 
         <SoftCard className="space-y-5 p-5">

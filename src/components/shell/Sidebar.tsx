@@ -37,7 +37,7 @@ function NavLink({
       {active && (
         <motion.span
           layoutId="nav-pill"
-          className="absolute inset-0 rounded-xl bg-gradient-primary shadow-glow"
+          className="absolute inset-0 rounded-xl bg-accent"
           transition={{ type: "spring", stiffness: 420, damping: 34 }}
         />
       )}

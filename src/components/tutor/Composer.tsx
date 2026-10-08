@@ -252,7 +252,7 @@ export function Composer({
               onClick={submit}
               disabled={!text.trim()}
               aria-label="Send"
-              className="ml-2 flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-primary text-primary-foreground shadow-glow transition-all active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
+              className="ml-2 flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft transition-all active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
             >
               <ArrowUp className="h-4 w-4" />
             </button>

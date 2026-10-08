@@ -136,11 +136,13 @@ export default function ProgressCharts({ topics, activity, weeklyMinutes, range 
           <div className="overflow-x-auto pb-2">
             <div
               className="grid w-max grid-rows-7 grid-flow-col gap-1"
+              role="group"
               aria-label="Daily study activity heatmap"
             >
               {heatmap.map((item, index) => (
                 <span
                   key={`${item.date}-${index}`}
+                  role="img"
                   title={
                     item.date.startsWith("empty-")
                       ? "No activity"

@@ -15,15 +15,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-
-export const initials = (name: string) =>
-  name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "S";
+import { initials } from "./profile-utils";
 
 export function TopBar() {
   const path = useRouterState({ select: (state) => state.location.pathname });

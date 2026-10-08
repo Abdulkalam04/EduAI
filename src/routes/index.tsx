@@ -74,7 +74,10 @@ function HomePage() {
               </p>
             </div>
           </div>
-          <form onSubmit={ask} className="flex gap-2">
+          <form
+            onSubmit={ask}
+            className="fixed inset-x-4 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-[760px] gap-2 rounded-2xl border bg-card p-3 shadow-lift md:static md:max-w-none md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none"
+          >
             <Input
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
@@ -108,7 +111,13 @@ function HomePage() {
             />
           </SoftCard>
         ) : isLoading ? (
-          <div className="h-24 animate-pulse rounded-2xl border bg-muted/40" />
+          <SoftCard
+            role="status"
+            className="flex min-h-24 flex-col justify-center gap-1 rounded-2xl p-4 md:p-6"
+          >
+            <p className="text-lg font-semibold">Continue studying</p>
+            <p className="text-sm text-muted-foreground">Your recent activity will appear here.</p>
+          </SoftCard>
         ) : activity ? (
           <Link
             to={ACTIVITY_PATH[activity.kind]}
@@ -143,7 +152,18 @@ function HomePage() {
           }
         />
         {isLoading ? (
-          <div className="h-32 animate-pulse rounded-2xl border bg-muted/40" />
+          <div
+            role="status"
+            className="flex min-h-14 items-center gap-3 rounded-2xl border bg-card p-4"
+          >
+            <span className="h-5 w-5 shrink-0 rounded-md border bg-muted/40" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium">Preparing your study plan</span>
+              <span className="mt-0.5 block text-sm text-muted-foreground">
+                Your next steps are loading.
+              </span>
+            </span>
+          </div>
         ) : plan.length ? (
           <ul className="space-y-2">
             {plan.map((item) => (

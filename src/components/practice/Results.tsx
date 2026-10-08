@@ -16,12 +16,9 @@ import type { Paper } from "@/lib/types";
 import { downloadPdf } from "@/lib/pdf";
 import { usePracticeStore, type Attempt } from "@/store/usePracticeStore";
 import { useUiStore } from "@/store/useUiStore";
+import { gradeLabel } from "./results-utils";
 
 type Filter = "All" | "Correct" | "Wrong" | "Skipped";
-
-export function gradeLabel(pct: number) {
-  return pct >= 80 ? "Excellent" : pct >= 50 ? "Good" : "Keep practising";
-}
 
 export function Results({ paper, attempt }: { paper: Paper; attempt: Attempt }) {
   const r = attempt.result!;

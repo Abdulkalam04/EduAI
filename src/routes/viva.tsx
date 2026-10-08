@@ -25,7 +25,13 @@ import {
 } from "@/components/ui/accordion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { GradientButton, PageHeader, ProgressBar, SoftCard } from "@/components/ui-custom";
+import {
+  GradientButton,
+  MobileStickyAction,
+  PageHeader,
+  ProgressBar,
+  SoftCard,
+} from "@/components/ui-custom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -394,19 +400,21 @@ function VivaMode() {
                   <Switch checked={timed} onCheckedChange={setTimed} aria-label="Question timer" />
                 </div>
               </div>
-              <GradientButton
-                className="mt-6 w-full"
-                size="lg"
-                disabled={busy || !subject}
-                onClick={() => void begin()}
-              >
-                {busy ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )}
-                Start viva
-              </GradientButton>
+              <MobileStickyAction tabBarHidden>
+                <GradientButton
+                  className="w-full"
+                  size="lg"
+                  disabled={busy || !subject}
+                  onClick={() => void begin()}
+                >
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  Start viva
+                </GradientButton>
+              </MobileStickyAction>
             </SoftCard>
           </motion.div>
         )}

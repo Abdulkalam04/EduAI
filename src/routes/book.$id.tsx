@@ -348,7 +348,7 @@ function Workspace() {
                     {msgs.map((m, i) =>
                       m.role === "user" ? (
                         <div key={i} className="flex justify-end">
-                          <div className="max-w-[85%] rounded-2xl rounded-br-md bg-gradient-primary px-4 py-2.5 text-primary-foreground shadow-glow">
+                          <div className="max-w-[85%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-primary-foreground">
                             {m.text}
                           </div>
                         </div>
@@ -417,7 +417,7 @@ function Workspace() {
                         type="submit"
                         aria-label="Send"
                         disabled={!input.trim()}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-primary text-primary-foreground disabled:opacity-40"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40"
                       >
                         <ArrowUp className="h-4 w-4" />
                       </button>

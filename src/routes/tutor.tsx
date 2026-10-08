@@ -13,7 +13,6 @@ import { useUserStore, type LevelId } from "@/store/useUserStore";
 import { useUiStore } from "@/store/useUiStore";
 import { streamTutor } from "@/lib/api";
 import type { AnswerStyle } from "@/lib/types";
-import { Shimmer } from "@/components/ui-custom";
 
 export const Route = createFileRoute("/tutor")({
   head: pageHead(
@@ -248,11 +247,7 @@ function TutorPage() {
         >
           <div className="mx-auto w-full max-w-[760px] py-4">
             {!hydrated ? (
-              <div className="space-y-6 pt-8">
-                {[0, 1, 2].map((i) => (
-                  <Shimmer key={i} className={i % 2 ? "ml-auto h-10 w-1/2" : "h-24"} />
-                ))}
-              </div>
+              <Empty loading />
             ) : messages.length === 0 ? (
               <Empty />
             ) : (
@@ -318,18 +313,22 @@ function TutorPage() {
   );
 }
 
-function Empty() {
+function Empty({ loading = false }: { loading?: boolean }) {
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center py-8 text-center">
       <motion.span
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-primary text-primary-foreground shadow-glow"
+        className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground"
       >
         <Sparkles className="h-6 w-6" />
       </motion.span>
-      <h2 className="mt-5 text-2xl font-bold sm:text-3xl">What would you like to learn today?</h2>
-      <p className="mt-2 text-muted-foreground">Answers adapt to your learning level.</p>
+      <h2 className="mt-5 text-2xl font-bold sm:text-3xl">
+        {loading ? "Your tutor is getting ready." : "What would you like to learn today?"}
+      </h2>
+      <p className="mt-2 text-muted-foreground">
+        {loading ? "Restoring your conversations…" : "Answers adapt to your learning level."}
+      </p>
     </div>
   );
 }
