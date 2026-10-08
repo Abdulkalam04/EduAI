@@ -155,7 +155,7 @@ export function ChatSidebar({ onNavigate }: { onNavigate?: () => void }) {
         ) : (
           groupChats(filtered).map(([label, list]) => (
             <div key={label} className="mb-3">
-              <p className="mb-1 px-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+              <p className="mb-1 px-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
                 {label}
               </p>
               <div className="space-y-0.5">

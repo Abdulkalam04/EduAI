@@ -58,9 +58,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <main className={path === "/tutor" ? "flex-1 pb-0 pt-0" : "flex-1 pb-24 pt-0 md:pb-8"}>
             <motion.div
               key={path}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.15 }}
               className={`mx-auto w-full ${["/coding", "/diagrams", "/ppt"].includes(path) ? "max-w-[1500px]" : "max-w-[1200px]"}`}
             >
               {children}

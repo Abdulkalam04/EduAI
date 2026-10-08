@@ -713,7 +713,7 @@ function VivaMode() {
                     <AccordionTrigger>
                       <span className="mr-3 flex min-w-0 flex-1 items-center gap-2 text-left">
                         <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] ${item.feedback.label === "Good" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}
+                          className={`rounded-full px-2 py-0.5 text-xs ${item.feedback.label === "Good" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}
                         >
                           {item.feedback.label}
                         </span>

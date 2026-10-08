@@ -498,7 +498,7 @@ function DiagramMaker() {
                             <span className="min-w-0 flex-1 truncate text-sm">{diagram.title}</span>
                             <span
                               title={new Date(diagram.createdAt).toLocaleString()}
-                              className="shrink-0 text-[10px] text-muted-foreground"
+                              className="shrink-0 text-xs text-muted-foreground"
                             >
                               {new Date(diagram.createdAt).toLocaleTimeString(undefined, {
                                 hour: "numeric",

@@ -53,6 +53,10 @@
   --shadow-lift: var(--shadow-lift);
   --shadow-glow: var(--shadow-glow);
 }
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
 
 :root {
   --radius: 0.75rem;
@@ -62,8 +66,8 @@
   --card-foreground: oklch(0.208 0.042 265.8);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.208 0.042 265.8);
-  --primary: oklch(0.585 0.233 277.1);
-  --primary-2: oklch(0.606 0.25 292.7);
+  --primary: oklch(0.55 0.22 277.1);
+  --primary-2: oklch(0.55 0.22 277.1);
   --primary-foreground: oklch(0.99 0 0);
   --secondary: oklch(0.962 0.006 286);
   --secondary-foreground: oklch(0.208 0.042 265.8);
@@ -71,30 +75,30 @@
   --muted-foreground: oklch(0.551 0.023 264);
   --accent: oklch(0.955 0.02 285);
   --accent-foreground: oklch(0.42 0.18 280);
-  --destructive: oklch(0.6 0.22 25);
+  --destructive: oklch(0.55 0.2 25);
   --destructive-foreground: oklch(0.99 0 0);
-  --success: oklch(0.65 0.16 155);
-  --warning: oklch(0.75 0.16 70);
+  --success: oklch(0.49 0.13 155);
+  --warning: oklch(0.5 0.12 70);
   --border: oklch(0.932 0.008 286);
   --input: oklch(0.932 0.008 286);
-  --ring: oklch(0.585 0.233 277.1);
+  --ring: oklch(0.55 0.22 277.1);
   --sidebar: oklch(0.99 0.002 286);
   --sidebar-foreground: oklch(0.208 0.042 265.8);
-  --sidebar-primary: oklch(0.585 0.233 277.1);
+  --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: oklch(0.99 0 0);
   --sidebar-accent: oklch(0.962 0.006 286);
   --sidebar-accent-foreground: oklch(0.208 0.042 265.8);
   --sidebar-border: oklch(0.932 0.008 286);
-  --sidebar-ring: oklch(0.585 0.233 277.1);
+  --sidebar-ring: var(--ring);
   --chart-1: oklch(0.585 0.233 277.1);
   --chart-2: oklch(0.65 0.16 155);
   --chart-3: oklch(0.75 0.16 70);
   --chart-4: oklch(0.63 0.21 15);
   --chart-5: oklch(0.68 0.14 230);
-  --gradient-primary: linear-gradient(135deg, var(--primary), var(--primary-2));
-  --shadow-soft: 0 1px 2px oklch(0.3 0.05 280 / 0.04), 0 4px 16px -4px oklch(0.3 0.05 280 / 0.08);
-  --shadow-lift: 0 2px 4px oklch(0.3 0.05 280 / 0.05), 0 16px 32px -8px oklch(0.4 0.12 280 / 0.16);
-  --shadow-glow: 0 8px 24px -6px color-mix(in oklab, var(--primary) 45%, transparent);
+  --gradient-primary: var(--primary);
+  --shadow-soft: 0 1px 3px oklch(0.3 0.05 280 / 0.08);
+  --shadow-lift: 0 2px 6px oklch(0.3 0.05 280 / 0.1);
+  --shadow-glow: var(--shadow-soft);
   --code-background: oklch(0.96 0.01 285);
   --code-foreground: oklch(0.25 0.03 285);
   --code-comment: oklch(0.48 0.02 260);
@@ -132,8 +136,13 @@
   --card-foreground: oklch(0.967 0.003 265);
   --popover: oklch(0.188 0.022 285);
   --popover-foreground: oklch(0.967 0.003 265);
-  --primary: oklch(0.64 0.2 277);
-  --primary-2: oklch(0.66 0.22 293);
+  --primary: oklch(0.68 0.18 277);
+  --primary-2: oklch(0.68 0.18 277);
+  --primary-foreground: oklch(0.145 0.014 285);
+  --destructive: oklch(0.7 0.18 25);
+  --destructive-foreground: oklch(0.145 0.014 285);
+  --success: oklch(0.75 0.15 155);
+  --warning: oklch(0.88 0.12 80);
   --secondary: oklch(0.23 0.03 285);
   --secondary-foreground: oklch(0.967 0.003 265);
   --muted: oklch(0.23 0.03 285);
@@ -144,11 +153,14 @@
   --input: oklch(0.27 0.04 285);
   --sidebar: oklch(0.165 0.018 285);
   --sidebar-foreground: oklch(0.967 0.003 265);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
   --sidebar-accent: oklch(0.23 0.03 285);
   --sidebar-accent-foreground: oklch(0.967 0.003 265);
   --sidebar-border: oklch(0.27 0.04 285);
-  --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.2), 0 4px 16px -4px oklch(0 0 0 / 0.3);
-  --shadow-lift: 0 2px 4px oklch(0 0 0 / 0.25), 0 16px 32px -8px oklch(0.3 0.1 280 / 0.4);
+  --sidebar-ring: var(--ring);
+  --shadow-soft: 0 1px 3px oklch(0 0 0 / 0.25);
+  --shadow-lift: 0 2px 6px oklch(0 0 0 / 0.3);
   --code-background: oklch(0.2 0.02 285);
   --code-foreground: oklch(0.93 0.01 285);
   --code-comment: oklch(0.68 0.02 260);
@@ -188,13 +200,11 @@ html[data-reduce-motion="true"] *::after {
 }
 
 @utility bg-gradient-primary {
-  background-image: var(--gradient-primary);
+  background-color: var(--primary);
+  background-image: none;
 }
 @utility text-gradient-primary {
-  background-image: var(--gradient-primary);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--primary);
 }
 
 .sidebar-nav-scroll {
@@ -230,6 +240,7 @@ html[data-reduce-motion="true"] *::after {
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-size: 16px;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     transition:

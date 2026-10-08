@@ -220,7 +220,7 @@ export function Results({ paper, attempt }: { paper: Paper; attempt: Attempt }) 
                       ) : res.status === "skipped" ? (
                         <Minus className="h-3.5 w-3.5" />
                       ) : res.status === "partial" ? (
-                        <span className="text-[10px] font-bold">½</span>
+                        <span className="text-xs font-bold">½</span>
                       ) : (
                         <X className="h-3.5 w-3.5" />
                       )}

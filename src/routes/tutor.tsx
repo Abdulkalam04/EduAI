@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowDown, PanelLeftClose, PanelLeftOpen, History, Sparkles } from "lucide-react";
@@ -46,7 +46,7 @@ function TutorPage() {
   const streamChatRef = useRef<string | null>(null);
 
   const chat = chats.find((c) => c.id === activeId) ?? null;
-  const messages = chat?.messages ?? [];
+  const messages = useMemo(() => chat?.messages ?? [], [chat?.messages]);
   const busy = streamingId !== null;
 
   const stop = useCallback(() => abortRef.current?.abort(), []);

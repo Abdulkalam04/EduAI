@@ -19,8 +19,8 @@ export function GradientButton({
       {...props}
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        size === "sm" && "h-9 px-3 text-sm",
-        size === "md" && "h-10 px-4 text-sm",
+        size === "sm" && "h-11 px-3 text-base md:h-9 md:text-sm",
+        size === "md" && "h-11 px-4 text-base md:h-10 md:text-sm",
         size === "lg" && "h-12 px-6 text-base",
         variant === "primary" &&
           "bg-gradient-primary text-primary-foreground shadow-glow hover:brightness-110",
@@ -44,8 +44,8 @@ export function SoftCard({
   return (
     <motion.div
       {...props}
-      {...(interactive ? { whileHover: { y: -2 } } : {})}
-      transition={{ duration: 0.2 }}
+      {...(interactive ? { whileHover: { boxShadow: "var(--shadow-lift)" } } : {})}
+      transition={{ duration: 0.15 }}
       className={cn(
         "rounded-2xl border bg-card text-card-foreground shadow-soft transition-shadow duration-200",
         interactive && "hover:shadow-lift",
@@ -225,7 +225,7 @@ export function ProgressRing({
           strokeDasharray={c}
           initial={{ strokeDashoffset: c }}
           animate={{ strokeDashoffset: c - (c * Math.min(100, value)) / 100 }}
-          transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
         />
       </svg>
       <span className="absolute text-sm font-semibold">
@@ -262,14 +262,14 @@ export function ProgressBar({
         style={{ background: color }}
         initial={{ width: 0 }}
         animate={{ width: `${value}%` }}
-        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
       />
     </div>
   );
 }
 
 /* ---------- AnimatedNumber ---------- */
-export function AnimatedNumber({ value, duration = 0.9 }: { value: number; duration?: number }) {
+export function AnimatedNumber({ value, duration = 0.25 }: { value: number; duration?: number }) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true });
   const reduce = useReducedMotion();
@@ -386,6 +386,6 @@ export function CardSkeleton({ className, lines = 3 }: { className?: string; lin
 /* ---------- stagger helpers ---------- */
 export const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.04 } } };
 export const rise = {
-  hidden: { opacity: 0, y: 8 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.22, 1, 0.36, 1] as const } },
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { duration: 0.15 } },
 };

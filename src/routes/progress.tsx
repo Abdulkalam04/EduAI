@@ -368,7 +368,7 @@ function ProgressPage() {
               <div className="grid grid-cols-7 gap-1.5">
                 {plan.map((item) => (
                   <div key={item.day} className="rounded-lg bg-muted/60 py-2 text-center">
-                    <p className="text-[10px] text-muted-foreground">{item.day}</p>
+                    <p className="text-xs text-muted-foreground">{item.day}</p>
                     <p className="mt-1 text-xs font-semibold">{item.minutes}m</p>
                   </div>
                 ))}
@@ -443,7 +443,7 @@ function Summary({
       <div className="min-w-0 flex-1">
         <p className="text-xs leading-snug text-muted-foreground">{label}</p>
         <p className="mt-0.5 text-xl font-bold tabular-nums">{value}</p>
-        <p className="text-[11px] leading-snug text-muted-foreground">{sub}</p>
+        <p className="text-xs leading-snug text-muted-foreground">{sub}</p>
       </div>
     </SoftCard>
   );

@@ -156,7 +156,7 @@ export default function ProgressCharts({ topics, activity, weeklyMinutes, range 
               ))}
             </div>
           </div>
-          <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground">
+          <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
             <span>
               {activity[0]?.date && !activity[0].date.startsWith("empty-")
                 ? activity[0].date

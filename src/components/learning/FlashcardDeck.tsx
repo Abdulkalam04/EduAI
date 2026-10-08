@@ -133,7 +133,7 @@ export function FlashcardDeck({ cards }: { cards: Flashcard[] }) {
           >
             <div
               className={cn(
-                "relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d]",
+                "relative h-full w-full transition-transform duration-300 [transform-style:preserve-3d]",
                 flipped && "[transform:rotateY(180deg)]",
               )}
             >

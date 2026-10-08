@@ -495,7 +495,7 @@ function PptMaker() {
                       <span key={color} className="h-full flex-1" style={{ background: color }} />
                     ))}
                   </span>
-                  <span className="block truncate text-[10px] font-medium">{item.description}</span>
+                  <span className="block truncate text-xs font-medium">{item.description}</span>
                 </button>
               ))}
             </div>
@@ -698,10 +698,10 @@ function PptMaker() {
                       )}
                     >
                       <button onClick={() => setSelectedId(slide.id)} className="w-full text-left">
-                        <span className="flex aspect-video items-center justify-center overflow-hidden rounded-md bg-muted px-2 text-center text-[9px] font-semibold leading-tight">
+                        <span className="flex aspect-video items-center justify-center overflow-hidden rounded-md bg-muted px-2 text-center text-xs font-semibold leading-tight">
                           {slide.title}
                         </span>
-                        <span className="mt-1 block truncate text-[10px] text-muted-foreground">
+                        <span className="mt-1 block truncate text-xs text-muted-foreground">
                           {index + 1}. {slide.title}
                         </span>
                       </button>
@@ -904,7 +904,7 @@ function SlideCanvas({
         {slide.bullets.slice(0, 5).map((bullet, bulletIndex) => (
           <li
             key={bulletIndex}
-            className="flex items-start gap-3 text-[clamp(0.65rem,1.5vw,1.2rem)] leading-snug"
+            className="flex items-start gap-3 text-[clamp(0.75rem,1.5vw,1.2rem)] leading-snug"
             style={{ color: colors.foreground }}
           >
             <span
@@ -920,7 +920,7 @@ function SlideCanvas({
           <Mermaid code={slide.diagram} className="my-0 [&_svg]:max-h-36" />
         </div>
       )}
-      <p className="absolute bottom-[3%] right-[4%] text-[clamp(0.5rem,0.8vw,0.7rem)] opacity-60">
+      <p className="absolute bottom-[3%] right-[4%] text-[clamp(0.75rem,0.8vw,0.875rem)] opacity-60">
         {index + 1} / {total}
       </p>
     </div>

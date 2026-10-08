@@ -236,7 +236,7 @@ export function Composer({
               <Mic className="h-4 w-4" />
             </button>
           )}
-          <span className="ml-auto hidden text-[11px] text-muted-foreground sm:inline">
+          <span className="ml-auto hidden text-xs text-muted-foreground sm:inline">
             Shift + Enter for a new line
           </span>
           {streaming ? (
