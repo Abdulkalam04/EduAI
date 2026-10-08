@@ -405,39 +405,6 @@ html[data-reduce-motion="true"] *::after {
   }
 }
 
-@keyframes welcome-video-breathe {
-  0%,
-  100% {
-    scale: 1;
-    filter: brightness(1) drop-shadow(0 0 0 transparent);
-  }
-  50% { scale: 1.035; }
-}
-
-.welcome-video-motion {
-  animation: welcome-video-breathe 11s ease-in-out infinite;
-}
-
-.welcome-video-mask {
-  mask-image: radial-gradient(ellipse 90% 90% at 60% 50%, #000 48%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse 90% 90% at 60% 50%, #000 48%, transparent 100%);
-}
-
-@media (min-width: 768px) {
-  .welcome-video-mask {
-    mask-image: linear-gradient(to right, transparent 0%, #000 22%);
-    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 22%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .welcome-video-motion {
-    animation: none;
-    scale: 1;
-    filter: none;
-  }
-}
-
 /* Indicate an active drop target without introducing another accent colour. */
 .animated-border {
   border-color: var(--primary);

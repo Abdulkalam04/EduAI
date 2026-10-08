@@ -27,6 +27,7 @@ vi.mock("@tanstack/react-router", async () => {
 vi.mock("canvas-confetti", () => ({ default: vi.fn() }));
 
 import { MobileNav } from "@/components/shell/MobileNav";
+import { AppShell } from "@/components/shell/AppShell";
 import { Onboarding } from "@/components/shell/Onboarding";
 import { resolveDefaultApiUrl } from "@/lib/api";
 import { StudyPage } from "@/routes/study";
@@ -126,6 +127,67 @@ describe("mobile-first learning flows", () => {
       expect(useUserStore.getState().onboarded).toBe(true);
     });
     expect(navigate).toHaveBeenCalledWith({ to: "/" });
+  });
+
+  it("shows first-run setup on / without redirecting new users", async () => {
+    render(
+      <AppShell>
+        <div>Home page content</div>
+      </AppShell>,
+    );
+
+    expect(screen.queryByText("Home page content")).not.toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Set up EduAI" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Your name" })).toBeInTheDocument();
+    expect(screen.queryByText("Home page content")).not.toBeInTheDocument();
+    expect(routerState.pathname).toBe("/");
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("shows Home after a new user skips setup", async () => {
+    render(
+      <AppShell>
+        <div>Home page content</div>
+      </AppShell>,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Skip for now" }));
+
+    await waitFor(() => {
+      expect(useUserStore.getState().onboarded).toBe(true);
+      expect(screen.queryByRole("dialog", { name: "Set up EduAI" })).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("Home page content")).toBeInTheDocument();
+    expect(routerState.pathname).toBe("/");
+  });
+
+  it("shows Home without setup for returning onboarded users", async () => {
+    window.localStorage.setItem(
+      "eduai-user",
+      JSON.stringify({
+        state: {
+          name: "Asha",
+          level: "c6-8",
+          subject: "Maths",
+          interests: ["Maths"],
+          xp: 0,
+          streak: 0,
+          onboarded: true,
+          levelSet: true,
+        },
+        version: 0,
+      }),
+    );
+
+    render(
+      <AppShell>
+        <div>Home page content</div>
+      </AppShell>,
+    );
+
+    expect(await screen.findByText("Home page content")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Set up EduAI" })).not.toBeInTheDocument();
+    expect(routerState.pathname).toBe("/");
   });
 
   it("hides the tab bar during a practice attempt", () => {

@@ -14,4 +14,12 @@ describe("App routing", () => {
 
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
   });
+
+  it("redirects legacy /welcome requests to /", async () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+
+    await router.navigate({ to: "/welcome" });
+
+    expect(router.state.location.pathname).toBe("/");
+  });
 });

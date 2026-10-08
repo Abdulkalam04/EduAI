@@ -4,7 +4,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   AlertTriangle,
-  ArrowUpRight,
   CheckCircle2,
   Download,
   Loader2,
@@ -158,14 +157,6 @@ function SettingsPage() {
         description="Set your profile, study preferences, and display options."
         icon={Palette}
         accent="progress"
-        action={
-          <Link
-            to="/welcome"
-            className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Welcome page <ArrowUpRight className="h-4 w-4" />
-          </Link>
-        }
       />
       <Tabs defaultValue="profile" className="space-y-5">
         <div

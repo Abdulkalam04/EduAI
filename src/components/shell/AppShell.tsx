@@ -88,7 +88,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               key={path}
               className={`mx-auto w-full ${["/coding", "/diagrams", "/ppt"].includes(path) ? "max-w-[1500px]" : "max-w-[1200px]"}`}
             >
-              {children}
+              {hydrated && onboarded && children}
             </div>
           </main>
         </div>

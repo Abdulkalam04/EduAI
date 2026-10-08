@@ -42,7 +42,7 @@ export function Onboarding() {
         onEscapeKeyDown={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
       >
-        <DialogTitle className="sr-only">Welcome to EduAI</DialogTitle>
+        <DialogTitle className="sr-only">Set up EduAI</DialogTitle>
         <DialogDescription className="sr-only">
           Set up your profile, learning level, and subjects.
         </DialogDescription>
