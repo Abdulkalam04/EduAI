@@ -44,7 +44,7 @@ import {
 import { generateDiagram, refineDiagram } from "@/lib/api";
 import type { DiagramType, GeneratedDiagram } from "@/lib/types";
 import { useCreativeStore } from "@/store/useCreativeStore";
-import { LEVELS, useUserStore, type LevelId } from "@/store/useUserStore";
+import { getLevel, LEVELS, SUBJECTS, useUserStore, type LevelId } from "@/store/useUserStore";
 import { resolvedTheme, useUiStore } from "@/store/useUiStore";
 import { pageHead } from "@/components/ComingSoonPage";
 
@@ -72,12 +72,19 @@ const TYPES: DiagramType[] = [
 
 function DiagramMaker() {
   const level = useUserStore((state) => state.level);
+  const levelSet = useUserStore((state) => state.levelSet);
+  const profileSubject = useUserStore((state) => state.subject).trim() || "Maths";
+  const knownSubject = SUBJECTS.find((item) => item === profileSubject);
+  const defaultLevel: LevelId = "c9-10";
+  const preferredLevel = levelSet ? getLevel(level).id : defaultLevel;
   const theme = useUiStore((state) => state.theme);
   const { diagrams, addDiagram, updateDiagram, removeDiagram } = useCreativeStore();
   const [mode, setMode] = useState<DiagramMode>("General");
   const [prompt, setPrompt] = useState("");
   const [type, setType] = useState<DiagramType>("Flowchart");
-  const [selectedLevel, setSelectedLevel] = useState<LevelId>(level);
+  const [subject, setSubject] = useState(knownSubject ?? "Other");
+  const [otherSubject, setOtherSubject] = useState(knownSubject ? "" : profileSubject);
+  const [selectedLevel, setSelectedLevel] = useState<LevelId>(preferredLevel);
   const [current, setCurrent] = useState<GeneratedDiagram | null>(null);
   const [tab, setTab] = useState<ViewTab>("Preview");
   const [code, setCode] = useState("");
@@ -96,10 +103,11 @@ function DiagramMaker() {
   const levelChosen = useRef(false);
   const currentId = current?.id;
   const dark = resolvedTheme(theme) === "dark";
+  const selectedSubject = subject === "Other" ? otherSubject.trim() || "Other" : subject || "Maths";
 
   useEffect(() => {
-    if (!levelChosen.current && !current) setSelectedLevel(level);
-  }, [level, current]);
+    if (!levelChosen.current && !current) setSelectedLevel(preferredLevel);
+  }, [preferredLevel, current]);
 
   useEffect(() => {
     if (!currentId) return;
@@ -124,7 +132,16 @@ function DiagramMaker() {
     setCode(diagram.code);
     setPrompt(diagram.prompt);
     setType(diagram.type);
-    setSelectedLevel(diagram.level);
+    const diagramSubject = diagram.subject || "Maths";
+    const knownDiagramSubject = SUBJECTS.find((item) => item === diagramSubject);
+    if (knownDiagramSubject) {
+      setSubject(knownDiagramSubject);
+      setOtherSubject("");
+    } else {
+      setSubject("Other");
+      setOtherSubject(diagramSubject);
+    }
+    setSelectedLevel(getLevel(diagram.level).id);
     setTab("Preview");
     setOffset({ x: 0, y: 0 });
     setZoom(1);
@@ -135,6 +152,10 @@ function DiagramMaker() {
       toast.error("Describe the diagram you want to create.");
       return;
     }
+    if (subject === "Other" && !otherSubject.trim()) {
+      toast.error("Enter the subject you want to use.");
+      return;
+    }
     setLoading(true);
     try {
       const requested =
@@ -142,7 +163,8 @@ function DiagramMaker() {
       const result = await generateDiagram({
         prompt: prompt.trim(),
         type: requested,
-        level: selectedLevel,
+        level: getLevel(selectedLevel).id,
+        subject: selectedSubject,
         forceFlowchart: mode === "Flowchart Generator",
         forceMindMap: mode === "Mind Map",
       });
@@ -161,7 +183,11 @@ function DiagramMaker() {
     if (!current) return;
     setRefining(true);
     try {
-      const result = await refineDiagram({ ...current, code }, request, selectedLevel);
+      const result = await refineDiagram(
+        { ...current, code, subject: selectedSubject },
+        request,
+        getLevel(selectedLevel).id,
+      );
       addDiagram(result);
       load(result);
       setInstruction("");
@@ -178,7 +204,8 @@ function DiagramMaker() {
     const saved = {
       ...current,
       code,
-      level: selectedLevel,
+      subject: selectedSubject,
+      level: getLevel(selectedLevel).id,
       explanation: current.explanation,
     };
     updateDiagram(current.id, saved);
@@ -291,10 +318,16 @@ function DiagramMaker() {
       const corrected = await generateDiagram({
         prompt: current.prompt,
         type: current.type,
-        level: selectedLevel,
+        level: getLevel(selectedLevel).id,
+        subject: selectedSubject,
       });
       setCode(corrected.code);
-      setCurrent({ ...current, code: corrected.code, explanation: corrected.explanation });
+      setCurrent({
+        ...current,
+        code: corrected.code,
+        explanation: corrected.explanation,
+        subject: selectedSubject,
+      });
       toast.success("A corrected version is ready to preview");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't fix this diagram.");
@@ -442,9 +475,38 @@ function DiagramMaker() {
                 </div>
               </div>
               <label className="block space-y-1.5 text-sm font-medium">
+                Subject
+                <Select value={subject} onValueChange={setSubject}>
+                  <SelectTrigger aria-label="Subject">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUBJECTS.map((item) => (
+                      <SelectItem key={item} value={item}>
+                        {item}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </label>
+              {subject === "Other" && (
+                <label className="block space-y-1.5 text-sm font-medium" htmlFor="other-subject">
+                  Enter subject
+                  <Textarea
+                    id="other-subject"
+                    value={otherSubject}
+                    onChange={(event) => setOtherSubject(event.target.value)}
+                    rows={2}
+                    maxLength={100}
+                    placeholder="Type your subject"
+                  />
+                </label>
+              )}
+              <label className="block space-y-1.5 text-sm font-medium">
                 Learning level
                 <Select
-                  value={selectedLevel}
+                  value={getLevel(selectedLevel).id}
                   onValueChange={(value) => {
                     levelChosen.current = true;
                     setSelectedLevel(value as LevelId);

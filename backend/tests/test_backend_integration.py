@@ -388,6 +388,7 @@ def test_practice_diagram_and_ppt_contracts(client, monkeypatch, caplog):
     section_calls: dict[str, int] = {}
     section_tasks: set[str] = set()
     section_token_budgets: list[int] = []
+    diagram_prompts: list[str] = []
 
     async def fake_json_call(messages, response_model, task="json", **kwargs):
         if getattr(response_model, "__name__", "").startswith("GeneratedPracticeQuestionSet"):
@@ -421,6 +422,7 @@ def test_practice_diagram_and_ppt_contracts(client, monkeypatch, caplog):
                 ]
             )
         if response_model is diagram.DiagramOutput:
+            diagram_prompts.append(messages[-1]["content"])
             return response_model(
                 title="Even or odd", code="flowchart TD\nA([Start]) --> B[End]", explanation="Follow the steps."
             )
@@ -531,11 +533,18 @@ def test_practice_diagram_and_ppt_contracts(client, monkeypatch, caplog):
     assert rechecked.status_code == 200
     generated_diagram = client.post(
         "/api/diagram",
-        json={"prompt": "Even or odd", "type": "Flowchart", "level": "c9-10"},
+        json={
+            "prompt": "Even or odd",
+            "type": "Flowchart",
+            "level": "c9-10",
+            "subject": "Astronomy",
+        },
     )
     assert generated_diagram.status_code == 200
+    assert generated_diagram.json()["subject"] == "Astronomy"
+    assert "Subject: Astronomy" in diagram_prompts[-1]
     assert set(generated_diagram.json()) == {
-        "id", "prompt", "title", "type", "code", "explanation", "level", "createdAt"
+        "id", "prompt", "title", "type", "subject", "code", "explanation", "level", "createdAt"
     }
     generated_deck = client.post(
         "/api/ppt",

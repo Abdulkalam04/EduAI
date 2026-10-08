@@ -22,7 +22,8 @@ export function GradientButton({
         size === "sm" && "h-11 px-3 text-base md:h-9 md:text-sm",
         size === "md" && "h-11 px-4 text-base md:h-10 md:text-sm",
         size === "lg" && "h-12 px-6 text-base",
-        variant === "primary" && "bg-primary text-primary-foreground hover:bg-primary-hover",
+        variant === "primary" &&
+          "gradient-button-primary bg-primary text-primary-foreground hover:bg-primary-hover",
         variant === "secondary" && "border bg-card text-foreground hover:bg-muted",
         variant === "ghost" && "text-muted-foreground hover:bg-muted hover:text-foreground",
         className,

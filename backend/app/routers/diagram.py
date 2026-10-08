@@ -27,6 +27,7 @@ class Diagram(BaseModel):
     prompt: str
     title: str
     type: DiagramType
+    subject: str = "Maths"
     code: str
     explanation: str
     level: LevelId
@@ -44,6 +45,7 @@ class DiagramRequest(BaseModel):
     prompt: str | None = Field(default=None, max_length=4000)
     type: DiagramType | None = None
     level: LevelId
+    subject: str = Field(default="Maths", max_length=100)
     forceFlowchart: bool = False
     forceMindMap: bool = False
     diagram: Diagram | None = None
@@ -80,12 +82,14 @@ async def generate_or_refine_diagram(payload: DiagramRequest):
         prompt = (
             f"Improve this Mermaid diagram according to the instruction. Keep valid Mermaid "
             f"syntax and preserve its educational meaning.\nType: {payload.diagram.type}\n"
-            f"Level: {payload.level}\nInstruction: {payload.instruction}\n"
+            f"Subject: {payload.diagram.subject}\nLevel: {payload.level}\n"
+            f"Instruction: {payload.instruction}\n"
             f"Current code:\n{payload.diagram.code}"
         )
         diagram_type = payload.diagram.type
         original_prompt = f"{payload.diagram.prompt} — {payload.instruction}"
         previous_title = payload.diagram.title
+        subject = payload.diagram.subject
     else:
         if not payload.prompt or not payload.type:
             raise HTTPException(status_code=422, detail="A prompt and diagram type are required.")
@@ -101,11 +105,12 @@ async def generate_or_refine_diagram(payload: DiagramRequest):
         )
         prompt = (
             f"Create an accurate student-friendly diagram about: {payload.prompt}\n"
-            f"Type: {diagram_type}. Level: {payload.level}. {notation}\n"
+            f"Subject: {payload.subject}. Type: {diagram_type}. Level: {payload.level}. {notation}\n"
             "Return a short title, raw Mermaid source code without fences, and a concise explanation."
         )
         original_prompt = payload.prompt
         previous_title = ""
+        subject = payload.subject
     try:
         output = await json_call(
             [
@@ -131,6 +136,7 @@ async def generate_or_refine_diagram(payload: DiagramRequest):
         prompt=original_prompt,
         title=title,
         type=diagram_type,
+        subject=subject,
         code=code,
         explanation=output.explanation,
         level=payload.level,

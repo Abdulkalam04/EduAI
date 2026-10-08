@@ -29,6 +29,7 @@ vi.mock("canvas-confetti", () => ({ default: vi.fn() }));
 import { MobileNav } from "@/components/shell/MobileNav";
 import { AppShell } from "@/components/shell/AppShell";
 import { Onboarding } from "@/components/shell/Onboarding";
+import { GradientButton } from "@/components/ui-custom";
 import { StickyActionBar } from "@/components/ui-custom/StickyActionBar";
 import { resolveDefaultApiUrl } from "@/lib/api";
 import { StudyPage } from "@/routes/study";
@@ -87,6 +88,13 @@ describe("mobile-first learning flows", () => {
       expect(titleElement).toBeInTheDocument();
       expect(titleElement.closest("a")).toHaveAttribute("href", href);
     }
+
+    const diagramLink = screen.getByRole("link", { name: /Make a diagram/ });
+    const diagramIcon = diagramLink.querySelector("svg")?.parentElement;
+    expect(diagramIcon).toHaveStyle({
+      background: "var(--diagrams-soft)",
+      color: "var(--diagrams)",
+    });
   });
 
   it("completes onboarding in three steps", async () => {
@@ -127,6 +135,7 @@ describe("mobile-first learning flows", () => {
     await waitFor(() => {
       expect(useUserStore.getState().onboarded).toBe(true);
     });
+    expect(useUserStore.getState().level).toBe("c9-10");
     expect(navigate).toHaveBeenCalledWith({ to: "/" });
   });
 
@@ -206,6 +215,14 @@ describe("mobile-first learning flows", () => {
     render(<MobileNav />);
 
     expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();
+  });
+
+  it("keeps disabled primary actions opaque and readable", () => {
+    render(<GradientButton disabled>Create PPT</GradientButton>);
+
+    expect(screen.getByRole("button", { name: "Create PPT" })).toHaveClass(
+      "gradient-button-primary",
+    );
   });
 
   it("positions sticky actions using the shared tab bar offset", async () => {

@@ -100,7 +100,7 @@ export function TopBar() {
               className="max-h-[85dvh] overflow-y-auto rounded-t-3xl pb-[calc(env(safe-area-inset-bottom)+1.5rem)]"
             >
               <SheetHeader className="pr-8 text-left">
-                <SheetTitle>Profile</SheetTitle>
+                <SheetTitle className="text-primary">My Profile</SheetTitle>
                 <SheetDescription>
                   {name || "Student"} · Choose the level and subject you are studying.
                 </SheetDescription>
@@ -114,7 +114,7 @@ export function TopBar() {
                       type="button"
                       aria-pressed={item.id === level}
                       onClick={() => set({ level: item.id })}
-                      className="flex min-h-12 w-full items-center justify-between rounded-xl border px-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${item.id === level ? "border-primary bg-primary/10 text-primary" : "bg-card"}`}
                     >
                       <span>
                         <span className="block font-medium">{item.label}</span>
@@ -135,7 +135,7 @@ export function TopBar() {
                         type="button"
                         aria-pressed={item === subject}
                         onClick={() => set({ subject: item })}
-                        className="flex min-h-11 items-center justify-between rounded-xl border px-3 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className={`flex min-h-11 items-center justify-between rounded-xl border px-3 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${item === subject ? "border-primary bg-primary/10 text-primary" : "bg-card"}`}
                       >
                         {item}
                         {item === subject && <Check className="h-4 w-4 text-primary" />}
@@ -147,7 +147,7 @@ export function TopBar() {
                   <SheetClose asChild>
                     <Link
                       to="/settings"
-                      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border px-4 text-sm font-medium"
+                      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
                     >
                       Profile & settings
                     </Link>

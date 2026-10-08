@@ -192,6 +192,7 @@ export interface GeneratedDiagram {
   prompt: string;
   title: string;
   type: DiagramType;
+  subject?: string;
   code: string;
   explanation: string;
   level: LevelId;

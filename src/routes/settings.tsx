@@ -156,7 +156,7 @@ function SettingsPage() {
         title="Settings"
         description="Set your profile, study preferences, and display options."
         icon={Palette}
-        accent="progress"
+        accent="tutor"
       />
       <Tabs defaultValue="profile" className="space-y-5">
         <div

@@ -402,6 +402,7 @@ export async function generateDiagram(opts: {
   prompt: string;
   type: DiagramType;
   level: LevelId;
+  subject?: string;
   forceFlowchart?: boolean;
   forceMindMap?: boolean;
 }): Promise<GeneratedDiagram> {

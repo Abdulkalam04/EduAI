@@ -122,8 +122,8 @@
   --book-soft: var(--muted);
   --practice: var(--subject-science);
   --practice-soft: var(--muted);
-  --diagrams: var(--subject-other);
-  --diagrams-soft: var(--muted);
+  --diagrams: var(--primary);
+  --diagrams-soft: color-mix(in srgb, var(--primary) 12%, var(--card));
   --ppt: var(--subject-social-studies);
   --ppt-soft: var(--muted);
   --coding: var(--subject-computer);
@@ -138,6 +138,12 @@
 
 .sticky-action-offset {
   bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--action-gap));
+}
+
+.gradient-button-primary:disabled {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  opacity: 1;
 }
 
 .sticky-action-offset-no-tabbar {
@@ -228,8 +234,8 @@
   --book-soft: var(--muted);
   --practice: var(--subject-science);
   --practice-soft: var(--muted);
-  --diagrams: var(--subject-other);
-  --diagrams-soft: var(--muted);
+  --diagrams: var(--primary);
+  --diagrams-soft: color-mix(in srgb, var(--primary) 12%, var(--card));
   --ppt: var(--subject-social-studies);
   --ppt-soft: var(--muted);
   --coding: var(--subject-computer);
