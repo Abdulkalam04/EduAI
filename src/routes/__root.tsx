@@ -23,8 +23,8 @@ function NotFoundComponent() {
       <EmptyState
         icon={Compass}
         accent="diagrams"
-        title="404 · This page wandered off"
-        description="The page you're looking for doesn't exist or has moved. Let's get you back to learning."
+        title="Page not found"
+        description="That page is unavailable. Return home and choose another place to study."
         action={
           <Link to="/">
             <GradientButton>

@@ -103,6 +103,7 @@ function SolverPage() {
   useEffect(() => setMode(defaultSolverMode), [defaultSolverMode]);
   const [questions, setQuestions] = useState<PaperQuestion[]>([]);
   const [active, setActive] = useState(0);
+  const [setupStep, setSetupStep] = useState<0 | 1>(0);
   const [drag, setDrag] = useState(false);
   const [mobileTab, setMobileTab] = useState<"q" | "s">("q");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -116,6 +117,7 @@ function SolverPage() {
     }
     setFile(f);
     setProgress(0);
+    setSetupStep(0);
   };
 
   const solve = async () => {
@@ -147,6 +149,7 @@ function SolverPage() {
 
   const reset = () => {
     setPhase("idle");
+    setSetupStep(0);
     setFile(null);
     setQuestions([]);
     setProgress(0);
@@ -197,6 +200,40 @@ function SolverPage() {
         }
       />
 
+      <ol className="flex items-center gap-3 text-sm" aria-label="Paper solver steps">
+        {["Upload", "Choose options", "Solutions"].map((label, index) => {
+          const activeStep =
+            phase === "results"
+              ? 2
+              : phase === "processing" || phase === "error"
+                ? setupStep
+                : setupStep;
+          return (
+            <li key={label} className="flex min-w-0 items-center gap-2">
+              <span
+                className={cn(
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                  index === activeStep && "border-primary bg-primary text-primary-foreground",
+                  index < activeStep && "border-success bg-success text-white",
+                )}
+              >
+                {index + 1}
+              </span>
+              <span className={cn(index === activeStep && "font-medium")}>
+                {index === 1 ? (
+                  <>
+                    <span className="sm:hidden">Options</span>
+                    <span className="hidden sm:inline">{label}</span>
+                  </>
+                ) : (
+                  label
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+
       <AnimatePresence mode="wait">
         {phase === "idle" && (
           <motion.div
@@ -219,6 +256,7 @@ function SolverPage() {
               }}
               className={cn(
                 "relative rounded-3xl p-[2px] transition-all",
+                setupStep === 1 && "hidden",
                 drag ? "animated-border" : "",
               )}
             >
@@ -311,72 +349,86 @@ function SolverPage() {
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-[200px_1fr_1fr]">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Subject</label>
-                <Select value={subject} onValueChange={setSubject}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a subject" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SUBJECTS.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {(
-                [
-                  ["teach", Lightbulb, "Teach Me", "Learn how to solve it, with hints first"],
-                  [
-                    "exam",
-                    PencilLine,
-                    "Give Exam Answer",
-                    "Written exactly as you'd write in the exam",
-                  ],
-                ] as const
-              ).map(([id, Icon, t, d]) => (
-                <button
-                  key={id}
-                  onClick={() => setMode(id)}
-                  aria-pressed={mode === id}
-                  className={cn(
-                    "flex items-start gap-3 rounded-2xl border bg-card p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    mode === id ? "border-primary shadow-glow" : "hover:bg-muted",
-                  )}
-                >
-                  <span
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                    style={{ background: "var(--solver-soft)", color: "var(--solver)" }}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <span>
-                    <span className="block font-semibold">{t}</span>
-                    <span className="text-sm text-muted-foreground">{d}</span>
-                  </span>
-                  {mode === id && <Check className="ml-auto h-5 w-5 text-primary" />}
-                </button>
-              ))}
-            </div>
+            {setupStep === 0 ? (
+              file && (
+                <GradientButton size="lg" className="w-full" onClick={() => setSetupStep(1)}>
+                  Continue to options
+                </GradientButton>
+              )
+            ) : (
+              <>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Subject</label>
+                    <Select value={subject} onValueChange={setSubject}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose a subject" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUBJECTS.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {s}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {(
+                    [
+                      ["teach", Lightbulb, "Teach Me", "Learn how to solve it, with hints first"],
+                      [
+                        "exam",
+                        PencilLine,
+                        "Give Exam Answer",
+                        "Written exactly as you'd write in the exam",
+                      ],
+                    ] as const
+                  ).map(([id, Icon, t, d]) => (
+                    <button
+                      key={id}
+                      onClick={() => setMode(id)}
+                      aria-pressed={mode === id}
+                      className={cn(
+                        "flex items-start gap-3 rounded-2xl border bg-card p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        mode === id ? "border-primary shadow-glow" : "hover:bg-muted",
+                      )}
+                    >
+                      <span
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                        style={{ background: "var(--solver-soft)", color: "var(--solver)" }}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span>
+                        <span className="block font-semibold">{t}</span>
+                        <span className="text-sm text-muted-foreground">{d}</span>
+                      </span>
+                      {mode === id && <Check className="ml-auto h-5 w-5 text-primary" />}
+                    </button>
+                  ))}
+                </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium">Answer style</span>
-                <SegmentedControl
-                  id="solve-style"
-                  options={["Simple", "Exam", "Detailed"] as SolveStyle[]}
-                  value={style}
-                  onChange={setStyle}
-                />
-              </div>
-              <GradientButton size="lg" disabled={!file || !subject} onClick={solve}>
-                <Sparkles className="h-4 w-4" />
-                Solve paper
-              </GradientButton>
-            </div>
+                <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-2 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 px-2 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:px-0">
+                  <GradientButton variant="ghost" onClick={() => setSetupStep(0)}>
+                    <RotateCcw className="h-4 w-4" />
+                    Back to upload
+                  </GradientButton>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium">Answer style</span>
+                    <SegmentedControl
+                      id="solve-style"
+                      options={["Simple", "Exam", "Detailed"] as SolveStyle[]}
+                      value={style}
+                      onChange={setStyle}
+                    />
+                  </div>
+                  <GradientButton size="lg" disabled={!file || !subject} onClick={solve}>
+                    <Sparkles className="h-4 w-4" />
+                    Solve paper
+                  </GradientButton>
+                </div>
+              </>
+            )}
           </motion.div>
         )}
 

@@ -55,9 +55,9 @@ function PracticePage() {
           ) : undefined
         }
       />
-      <ol className="flex items-center gap-2 text-sm" aria-label="Progress">
+      <ol className="flex items-center gap-1 text-xs" aria-label="Practice paper progress">
         {STAGES.map((s, i) => (
-          <li key={s} className="flex items-center gap-2">
+          <li key={s} className="flex items-center gap-1">
             <span
               className={cn(
                 "flex h-6 w-6 items-center justify-center rounded-full border text-xs font-semibold",
@@ -73,7 +73,7 @@ function PracticePage() {
             >
               {s}
             </span>
-            {i < 2 && <span className="h-px w-6 bg-border sm:w-10" />}
+            {i < 2 && <span className="h-px w-2 bg-border sm:w-10" />}
           </li>
         ))}
       </ol>

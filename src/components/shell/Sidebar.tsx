@@ -126,7 +126,7 @@ export function Sidebar() {
               )}
               <div className="space-y-0.5">
                 {g.items.map((it) => (
-                  <div key={it.to} className={cn(it.sub && !collapsed && "ml-5 border-l pl-2")}>
+                  <div key={it.to}>
                     <NavLink
                       to={it.to}
                       icon={it.icon}

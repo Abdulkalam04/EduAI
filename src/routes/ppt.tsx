@@ -417,7 +417,7 @@ function PptMaker() {
     );
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-5 px-4 py-5 md:px-8">
+    <div className="mx-auto w-full max-w-7xl space-y-5 px-4 py-5 md:px-8">
       <PageHeader
         title="PPT Maker"
         icon={Presentation}
@@ -573,7 +573,7 @@ function PptMaker() {
                     <button
                       aria-label={`Delete ${item.topic}`}
                       onClick={() => setDeleteDeckId(item.id)}
-                      className="rounded-md p-1 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100"
+                      className="min-h-11 min-w-11 rounded-md p-2 text-muted-foreground hover:text-destructive"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>

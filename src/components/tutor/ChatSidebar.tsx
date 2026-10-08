@@ -75,7 +75,7 @@ function Item({ chat, active, onPick }: { chat: Chat; active: boolean; onPick: (
       <DropdownMenu>
         <DropdownMenuTrigger
           aria-label="Chat options"
-          className="mr-1 rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-background group-hover:opacity-100 focus:opacity-100 data-[state=open]:opacity-100"
+          className="mr-1 flex min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background"
         >
           <MoreHorizontal className="h-4 w-4" />
         </DropdownMenuTrigger>

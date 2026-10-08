@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "@tanstack/react-router";
-import { Sparkles, Brain, Target, Check, ArrowLeft, ArrowRight } from "lucide-react";
+import { Check, ArrowLeft, ArrowRight } from "lucide-react";
 import confetti from "canvas-confetti";
 import { LEVELS, SUBJECTS, useUserStore, type LevelId } from "@/store/useUserStore";
 import { GradientButton, Chip } from "@/components/ui-custom";
@@ -19,8 +19,6 @@ export function Onboarding() {
   const [name, setName] = useState(store.name);
   const [level, setLevel] = useState<LevelId>(store.level);
   const [subjects, setSubjects] = useState<string[]>(store.interests);
-
-  const canNext = step === 1 ? name.trim().length > 0 : step === 3 ? subjects.length > 0 : true;
 
   const finish = () => {
     store.set({
@@ -41,8 +39,7 @@ export function Onboarding() {
     navigate({ to: "/" });
   };
   const next = () => {
-    if (!canNext) return;
-    if (step === 3) finish();
+    if (step === 2) finish();
     else setStep(step + 1);
   };
 
@@ -75,8 +72,8 @@ export function Onboarding() {
         >
           <div className="mb-8 flex items-center justify-between">
             <Logo />
-            <div className="flex gap-1.5" aria-label={`Step ${step + 1} of 4`}>
-              {[0, 1, 2, 3].map((i) => (
+            <div className="flex gap-1.5" aria-label={`Step ${step + 1} of 3`}>
+              {[0, 1, 2].map((i) => (
                 <motion.span
                   key={i}
                   animate={{ width: i === step ? 28 : 8 }}
@@ -96,53 +93,6 @@ export function Onboarding() {
               className="min-h-[300px]"
             >
               {step === 0 && (
-                <div>
-                  <h2 className="text-3xl font-bold sm:text-4xl">
-                    Learn anything,{" "}
-                    <span className="text-gradient-primary">explained your way.</span>
-                  </h2>
-                  <p className="mt-3 text-muted-foreground">
-                    EduAI is a calm, personal study companion from Class 1 all the way to
-                    graduation.
-                  </p>
-                  <ul className="mt-8 space-y-4">
-                    {[
-                      {
-                        icon: Brain,
-                        t: "Explanations at your level",
-                        d: "Stories for little ones, equations for engineers.",
-                      },
-                      {
-                        icon: Target,
-                        t: "Practice that targets weak spots",
-                        d: "Papers, viva and coding tuned to you.",
-                      },
-                      {
-                        icon: Sparkles,
-                        t: "Create in seconds",
-                        d: "Diagrams, slides and notes from any topic.",
-                      },
-                    ].map((b, i) => (
-                      <motion.li
-                        key={b.t}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 + i * 0.06 }}
-                        className="flex gap-3"
-                      >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                          <b.icon className="h-5 w-5" />
-                        </span>
-                        <span>
-                          <span className="block font-medium">{b.t}</span>
-                          <span className="text-sm text-muted-foreground">{b.d}</span>
-                        </span>
-                      </motion.li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {step === 1 && (
                 <div>
                   <h2 className="text-2xl font-bold sm:text-3xl">What should we call you?</h2>
                   <p className="mt-2 text-muted-foreground">Your tutor will greet you by name.</p>
@@ -167,7 +117,7 @@ export function Onboarding() {
                   </div>
                 </div>
               )}
-              {step === 2 && (
+              {step === 1 && (
                 <div>
                   <h2 className="text-2xl font-bold sm:text-3xl">Pick your level</h2>
                   <p className="mt-2 text-muted-foreground">
@@ -209,7 +159,7 @@ export function Onboarding() {
                   </div>
                 </div>
               )}
-              {step === 3 && (
+              {step === 2 && (
                 <div>
                   <h2 className="text-2xl font-bold sm:text-3xl">What are you studying?</h2>
                   <p className="mt-2 text-muted-foreground">Choose one or more subjects.</p>
@@ -227,16 +177,19 @@ export function Onboarding() {
           </AnimatePresence>
 
           <div className="mt-8 flex items-center justify-between">
-            {step > 0 ? (
-              <GradientButton variant="ghost" onClick={() => setStep(step - 1)}>
-                <ArrowLeft className="h-4 w-4" />
-                Back
+            <div className="flex items-center gap-2">
+              {step > 0 && (
+                <GradientButton variant="ghost" onClick={() => setStep(step - 1)}>
+                  <ArrowLeft className="h-4 w-4" />
+                  Back
+                </GradientButton>
+              )}
+              <GradientButton variant="ghost" onClick={finish}>
+                Skip for now
               </GradientButton>
-            ) : (
-              <span />
-            )}
-            <GradientButton size="lg" onClick={next} disabled={!canNext}>
-              {step === 0 ? "Get started" : step === 3 ? "Finish" : "Next"}
+            </div>
+            <GradientButton size="lg" onClick={next}>
+              {step === 2 ? "Finish" : "Next"}
               <ArrowRight className="h-4 w-4" />
             </GradientButton>
           </div>

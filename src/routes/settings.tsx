@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -19,11 +20,9 @@ import { GradientButton, PageHeader, SoftCard } from "@/components/ui-custom";
 import { useUiStore, type AccentColor, type Theme } from "@/store/useUiStore";
 import { LEVELS, SUBJECTS, useUserStore } from "@/store/useUserStore";
 import { useChatStore } from "@/store/useChatStore";
-import { useBookStore } from "@/store/useBookStore";
 import { usePracticeStore } from "@/store/usePracticeStore";
-import { useCreativeStore } from "@/store/useCreativeStore";
 import { useLearningStore } from "@/store/useLearningStore";
-import { checkApiHealth, getApiUrl } from "@/lib/api";
+import { checkApiHealth, getApiUrl, resetLearningActivity } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -64,10 +63,12 @@ const ACCENTS: { label: string; value: AccentColor; color: string }[] = [
 function SettingsPage() {
   const ui = useUiStore();
   const { name, level, interests, set } = useUserStore();
+  const queryClient = useQueryClient();
   const [apiUrl, setApiUrl] = useState(() => getApiUrl());
   const [testing, setTesting] = useState(false);
   const [connection, setConnection] = useState<boolean | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const updateApiUrl = (value: string) => {
     setApiUrl(value);
@@ -132,22 +133,22 @@ function SettingsPage() {
     }
   };
 
-  const resetEverything = () => {
-    for (const key of Array.from({ length: localStorage.length }, (_, index) =>
-      localStorage.key(index),
-    )) {
-      if (key?.startsWith("eduai")) localStorage.removeItem(key);
+  const resetLearningAndOnboarding = async () => {
+    setResetting(true);
+    try {
+      await resetLearningActivity();
+      useChatStore.getState().clearHistory();
+      usePracticeStore.getState().clearHistory();
+      useLearningStore.getState().clearHistory();
+      useUserStore.getState().reset();
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      setResetOpen(false);
+      toast.success("Learning data cleared. Set up your profile again.");
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Couldn't reset your learning data.");
+    } finally {
+      setResetting(false);
     }
-    localStorage.removeItem("apiUrl");
-    localStorage.removeItem("useMock");
-    useUserStore.persist.clearStorage();
-    useChatStore.persist.clearStorage();
-    useBookStore.persist.clearStorage();
-    usePracticeStore.persist.clearStorage();
-    useCreativeStore.persist.clearStorage();
-    useLearningStore.persist.clearStorage();
-    useUiStore.persist.clearStorage();
-    window.location.reload();
   };
 
   return (
@@ -367,9 +368,11 @@ function SettingsPage() {
               </GradientButton>
             </div>
             <div className="border-t pt-5">
-              <h2 className="font-semibold">Reset everything</h2>
+              <h2 className="font-semibold text-destructive">Danger zone</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Permanently clear your saved EduAI data and preferences from this device.
+                Clear chats, practice results, viva history, and progress on the study server, then
+                start profile setup again. Uploaded documents and created diagrams or presentations
+                are kept. This shared server reset affects everyone who uses it.
               </p>
               <GradientButton
                 className="mt-4"
@@ -377,7 +380,7 @@ function SettingsPage() {
                 onClick={() => setResetOpen(true)}
               >
                 <AlertTriangle className="h-4 w-4 text-destructive" />
-                Reset everything
+                Reset learning data & onboarding
               </GradientButton>
             </div>
           </SoftCard>
@@ -386,22 +389,25 @@ function SettingsPage() {
       <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reset all EduAI data?</AlertDialogTitle>
+            <AlertDialogTitle>Reset learning data and onboarding?</AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently removes your saved profile, learning history, practice papers,
-              documents and created decks from this device. This can’t be undone.
+              This permanently clears chat history, practice results, viva history, and progress on
+              the configured backend, then restarts profile setup. This shared backend reset affects
+              everyone who uses it. Uploaded documents and created diagrams or presentations are
+              kept.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep my data</AlertDialogCancel>
+            <AlertDialogCancel disabled={resetting}>Keep my data</AlertDialogCancel>
             <AlertDialogAction
+              disabled={resetting}
               onClick={(event) => {
                 event.preventDefault();
-                resetEverything();
+                void resetLearningAndOnboarding();
               }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Reset everything
+              {resetting ? "Resetting…" : "Clear learning data"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

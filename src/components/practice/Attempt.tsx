@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Check, Clock, Flag, Grid3x3, ImagePlus, Loader2, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GradientButton } from "@/components/ui-custom";
+import { GradientButton, ProgressBar } from "@/components/ui-custom";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +38,7 @@ export function Attempt({ paper, attempt }: { paper: Paper; attempt: AttemptT })
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [mode, setMode] = useState<"type" | "upload">("type");
   const [files, setFiles] = useState<File[]>([]);
   const dirty = useRef(false);
@@ -125,7 +126,8 @@ export function Attempt({ paper, attempt }: { paper: Paper; attempt: AttemptT })
 
   const jump = (id: string) => {
     setNavOpen(false);
-    document.getElementById(`pq-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const index = paper.questions.findIndex((question) => question.id === id);
+    if (index >= 0) setCurrentQuestionIndex(index);
   };
 
   const navigator = (
@@ -137,9 +139,10 @@ export function Attempt({ paper, attempt }: { paper: Paper; attempt: AttemptT })
           <button
             key={q.id}
             onClick={() => jump(q.id)}
+            aria-current={i === currentQuestionIndex ? "step" : undefined}
             aria-label={`Question ${i + 1}${done ? ", answered" : ""}${fl ? ", flagged" : ""}`}
             className={cn(
-              "relative h-8 rounded-lg border text-xs font-semibold tabular-nums transition-colors",
+              "relative min-h-11 min-w-11 rounded-lg border text-xs font-semibold tabular-nums transition-colors",
               done ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted",
               fl && "ring-2 ring-warning ring-offset-1 ring-offset-background",
             )}
@@ -151,11 +154,7 @@ export function Attempt({ paper, attempt }: { paper: Paper; attempt: AttemptT })
     </div>
   );
 
-  const bySection = useMemo(
-    () => paper.sections.map((s) => ({ s, qs: paper.questions.filter((q) => q.section === s.id) })),
-    [paper],
-  );
-  let qNum = 0;
+  const currentQuestion = paper.questions[currentQuestionIndex];
 
   return (
     <div className="space-y-4">
@@ -285,60 +284,68 @@ export function Attempt({ paper, attempt }: { paper: Paper; attempt: AttemptT })
               {paper.subject} · {paper.chapter} · {getLevel(paper.level).label}
             </p>
             <div className="mt-3 flex justify-between text-sm font-medium">
-              <span>Time allowed: {paper.timeMin} min</span>
+              <span>
+                Question {currentQuestionIndex + 1} of {paper.questions.length}
+              </span>
               <span>Maximum marks: {paper.totalMarks}</span>
             </div>
           </header>
-          <section className="border-b py-4 text-sm">
-            <p className="font-semibold">General instructions</p>
-            <ol className="mt-1 list-decimal space-y-0.5 pl-5 text-muted-foreground">
-              <li>All questions are compulsory.</li>
-              <li>
-                The paper has {paper.sections.length} sections:{" "}
-                {paper.sections.map((s) => s.id).join(", ")}.
-              </li>
-              <li>Show all working for numerical problems.</li>
-              <li>Marks are shown against each question.</li>
-            </ol>
-          </section>
-          {bySection.map(({ s, qs }) => (
-            <section key={s.id} className="pt-6">
-              <h2 className="mb-4 flex items-baseline justify-between border-b pb-1 font-semibold">
-                <span>
-                  SECTION {s.id} — {s.name}
-                </span>
-                <span className="text-sm font-normal text-muted-foreground">{s.marks} marks</span>
-              </h2>
-              <div className="space-y-6">
-                {qs.map((q) => {
-                  qNum++;
-                  return (
-                    <QuestionBlock
-                      key={q.id}
-                      n={qNum}
-                      q={q}
-                      value={answers[q.id] ?? ""}
-                      onChange={(v) => setAns(q.id, v)}
-                      flagged={flagged.includes(q.id)}
-                      onFlag={() => toggleFlag(q.id)}
-                      photo={photos[q.id]}
-                      onPhoto={(name) => {
-                        setPhotos((p) => {
-                          const n = { ...p };
-                          if (name) n[q.id] = name;
-                          else delete n[q.id];
-                          return n;
-                        });
-                        dirty.current = true;
-                        setSaved("saving");
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-          <p className="mt-10 text-center text-xs text-muted-foreground">— End of paper —</p>
+          <div className="py-5">
+            <ProgressBar value={((currentQuestionIndex + 1) / paper.questions.length) * 100} />
+          </div>
+          {currentQuestion ? (
+            <QuestionBlock
+              key={currentQuestion.id}
+              n={currentQuestionIndex + 1}
+              q={currentQuestion}
+              value={answers[currentQuestion.id] ?? ""}
+              onChange={(value) => setAns(currentQuestion.id, value)}
+              flagged={flagged.includes(currentQuestion.id)}
+              onFlag={() => toggleFlag(currentQuestion.id)}
+              photo={photos[currentQuestion.id]}
+              onPhoto={(name) => {
+                setPhotos((current) => {
+                  const next = { ...current };
+                  if (name) next[currentQuestion.id] = name;
+                  else delete next[currentQuestion.id];
+                  return next;
+                });
+                dirty.current = true;
+                setSaved("saving");
+              }}
+            />
+          ) : (
+            <p role="alert" className="py-8 text-center text-sm text-destructive">
+              This paper has no questions. Return to practice and create another paper.
+            </p>
+          )}
+          <div className="sticky bottom-0 z-20 -mx-4 mt-5 flex items-center justify-between gap-3 border-t bg-background/95 px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:pb-0">
+            <GradientButton
+              variant="secondary"
+              onClick={() => setCurrentQuestionIndex((index) => Math.max(0, index - 1))}
+              disabled={currentQuestionIndex === 0}
+            >
+              Previous
+            </GradientButton>
+            <span className="text-sm text-muted-foreground">
+              {answeredCount} of {paper.questions.length} answered
+            </span>
+            {currentQuestionIndex + 1 < paper.questions.length ? (
+              <GradientButton
+                onClick={() =>
+                  setCurrentQuestionIndex((index) =>
+                    Math.min(paper.questions.length - 1, index + 1),
+                  )
+                }
+              >
+                Next
+              </GradientButton>
+            ) : (
+              <GradientButton onClick={() => setConfirm(true)} disabled={submitting}>
+                Submit
+              </GradientButton>
+            )}
+          </div>
         </article>
       )}
 

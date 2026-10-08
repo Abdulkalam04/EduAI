@@ -495,14 +495,14 @@ function VivaMode() {
                   onChange={(event) => setAnswer(event.target.value)}
                   placeholder="Take a breath and explain it in your own words…"
                   disabled={Boolean(feedback) || busy}
-                  className="min-h-32 resize-y"
+                  className="min-h-48 resize-y"
                 />
                 {transcript && (
                   <p className="text-xs text-muted-foreground" aria-live="polite">
                     Live transcript: {transcript}
                   </p>
                 )}
-                <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="sticky bottom-0 z-20 -mx-2 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/95 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur">
                   <div className="flex items-center gap-2">
                     {speechAvailable && (
                       <>

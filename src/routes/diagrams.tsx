@@ -91,6 +91,7 @@ function DiagramMaker() {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [pan, setPan] = useState<{ x: number; y: number; ox: number; oy: number } | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(true);
   const canvasRef = useRef<HTMLDivElement>(null);
   const levelChosen = useRef(false);
   const currentId = current?.id;
@@ -147,6 +148,7 @@ function DiagramMaker() {
       });
       addDiagram(result);
       load(result);
+      setOptionsOpen(false);
       toast.success("Your diagram is ready");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't generate the diagram.");
@@ -364,153 +366,165 @@ function DiagramMaker() {
         description="Turn an idea or a process into a clear, editable diagram."
       />
       <div className="grid min-w-0 gap-5 xl:grid-cols-[400px_minmax(0,1fr)]">
-        <SoftCard className="space-y-4 p-4 sm:p-5">
-          <div
-            className="grid grid-cols-3 rounded-xl bg-muted p-1"
-            role="tablist"
-            aria-label="Diagram mode"
+        <SoftCard className="order-2 space-y-4 p-4 sm:p-5 xl:order-1">
+          <details
+            open={optionsOpen}
+            onToggle={(event) => setOptionsOpen(event.currentTarget.open)}
           >
-            {(["General", "Flowchart Generator", "Mind Map"] as DiagramMode[]).map((item) => (
-              <button
-                key={item}
-                role="tab"
-                aria-selected={mode === item}
-                onClick={() => {
-                  setMode(item);
-                  if (item === "Mind Map") setType(item);
-                  if (item === "Flowchart Generator") setType("Flowchart");
-                }}
-                className={cn(
-                  "rounded-lg px-2 py-2 text-xs font-medium transition-colors",
-                  mode === item
-                    ? "bg-card shadow-soft"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
+            <summary className="min-h-11 cursor-pointer list-none rounded-xl border p-3 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              Diagram options
+            </summary>
+            <div className="mt-4 space-y-4">
+              <div
+                className="grid grid-cols-3 rounded-xl bg-muted p-1"
+                role="tablist"
+                aria-label="Diagram mode"
               >
-                {item}
-              </button>
-            ))}
-          </div>
-          {mode !== "General" && (
-            <p className="rounded-xl bg-muted/70 p-3 text-xs text-muted-foreground">
-              {mode === "Flowchart Generator"
-                ? "Describe a process, e.g. checking whether a number is even or odd. Every result includes clear Start and End shapes."
-                : "Describe a topic and we’ll organise it into a Mermaid mind map with connected branches."}
-            </p>
-          )}
-          <label className="block space-y-1.5 text-sm font-medium" htmlFor="diagram-prompt">
-            What would you like to visualise?
-          </label>
-          <Textarea
-            id="diagram-prompt"
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            rows={4}
-            placeholder="Describe a process, system, or concept…"
-          />
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Diagram type</p>
-            <div className="flex flex-wrap gap-1.5">
-              {TYPES.map((item) => (
-                <button
-                  key={item}
-                  aria-pressed={type === item}
-                  onClick={() => {
-                    setType(item);
-                    setMode(item === "Mind Map" ? "Mind Map" : "General");
-                  }}
-                  className={cn(
-                    "rounded-full border px-2.5 py-1 text-xs transition-colors",
-                    type === item ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted",
-                  )}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-          <label className="block space-y-1.5 text-sm font-medium">
-            Learning level
-            <Select
-              value={selectedLevel}
-              onValueChange={(value) => {
-                levelChosen.current = true;
-                setSelectedLevel(value as LevelId);
-              }}
-            >
-              <SelectTrigger aria-label="Learning level">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LEVELS.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.label}
-                  </SelectItem>
+                {(["General", "Flowchart Generator", "Mind Map"] as DiagramMode[]).map((item) => (
+                  <button
+                    key={item}
+                    role="tab"
+                    aria-selected={mode === item}
+                    onClick={() => {
+                      setMode(item);
+                      if (item === "Mind Map") setType(item);
+                      if (item === "Flowchart Generator") setType("Flowchart");
+                    }}
+                    className={cn(
+                      "rounded-lg px-2 py-2 text-xs font-medium transition-colors",
+                      mode === item
+                        ? "bg-card shadow-soft"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {item}
+                  </button>
                 ))}
-              </SelectContent>
-            </Select>
-          </label>
-          <GradientButton
-            className="w-full"
-            size="lg"
-            onClick={() => void generate()}
-            disabled={loading || !prompt.trim()}
-          >
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
-            {loading ? "Generating…" : "Generate diagram"}
-          </GradientButton>
-          <div className="border-t pt-4">
-            <h2 className="mb-2 text-sm font-semibold">History</h2>
-            {diagrams.length === 0 ? (
-              <p className="rounded-xl border border-dashed p-4 text-center text-xs text-muted-foreground">
-                Your saved diagrams will show up here.
-              </p>
-            ) : (
-              <ul className="max-h-64 space-y-1 overflow-y-auto">
-                {diagrams.map((diagram) => {
-                  const HistoryIcon = diagram.type === "Mind Map" ? Network : GitBranch;
-                  return (
-                    <li
-                      key={diagram.id}
-                      className="group flex items-center gap-2 rounded-xl p-2 hover:bg-muted"
+              </div>
+              {mode !== "General" && (
+                <p className="rounded-xl bg-muted/70 p-3 text-xs text-muted-foreground">
+                  {mode === "Flowchart Generator"
+                    ? "Describe a process, e.g. checking whether a number is even or odd. Every result includes clear Start and End shapes."
+                    : "Describe a topic and we’ll organise it into a Mermaid mind map with connected branches."}
+                </p>
+              )}
+              <label className="block space-y-1.5 text-sm font-medium" htmlFor="diagram-prompt">
+                What would you like to visualise?
+              </label>
+              <Textarea
+                id="diagram-prompt"
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                rows={4}
+                placeholder="Describe a process, system, or concept…"
+              />
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Diagram type</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {TYPES.map((item) => (
+                    <button
+                      key={item}
+                      aria-pressed={type === item}
+                      onClick={() => {
+                        setType(item);
+                        setMode(item === "Mind Map" ? "Mind Map" : "General");
+                      }}
+                      className={cn(
+                        "rounded-full border px-2.5 py-1 text-xs transition-colors",
+                        type === item
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "hover:bg-muted",
+                      )}
                     >
-                      <button
-                        onClick={() => load(diagram)}
-                        className="flex min-w-0 flex-1 items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <HistoryIcon className="h-4 w-4 shrink-0 text-diagrams" />
-                        <span className="min-w-0 flex-1 truncate text-sm">{diagram.title}</span>
-                        <span
-                          title={new Date(diagram.createdAt).toLocaleString()}
-                          className="shrink-0 text-[10px] text-muted-foreground"
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label className="block space-y-1.5 text-sm font-medium">
+                Learning level
+                <Select
+                  value={selectedLevel}
+                  onValueChange={(value) => {
+                    levelChosen.current = true;
+                    setSelectedLevel(value as LevelId);
+                  }}
+                >
+                  <SelectTrigger aria-label="Learning level">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LEVELS.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+              <GradientButton
+                className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 w-full border bg-background/95 shadow-soft backdrop-blur xl:static"
+                size="lg"
+                onClick={() => void generate()}
+                disabled={loading || !prompt.trim()}
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {loading ? "Generating…" : "Generate diagram"}
+              </GradientButton>
+              <div className="border-t pt-4">
+                <h2 className="mb-2 text-sm font-semibold">History</h2>
+                {diagrams.length === 0 ? (
+                  <p className="rounded-xl border border-dashed p-4 text-center text-xs text-muted-foreground">
+                    Your saved diagrams will show up here.
+                  </p>
+                ) : (
+                  <ul className="max-h-64 space-y-1 overflow-y-auto">
+                    {diagrams.map((diagram) => {
+                      const HistoryIcon = diagram.type === "Mind Map" ? Network : GitBranch;
+                      return (
+                        <li
+                          key={diagram.id}
+                          className="group flex items-center gap-2 rounded-xl p-2 hover:bg-muted"
                         >
-                          {new Date(diagram.createdAt).toLocaleTimeString(undefined, {
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                        <span className="sr-only">{diagram.type}</span>
-                      </button>
-                      <button
-                        aria-label={`Delete ${diagram.title}`}
-                        onClick={() => setRemoveId(diagram.id)}
-                        className="rounded-md p-1 text-muted-foreground opacity-0 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+                          <button
+                            onClick={() => load(diagram)}
+                            className="flex min-w-0 flex-1 items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <HistoryIcon className="h-4 w-4 shrink-0 text-diagrams" />
+                            <span className="min-w-0 flex-1 truncate text-sm">{diagram.title}</span>
+                            <span
+                              title={new Date(diagram.createdAt).toLocaleString()}
+                              className="shrink-0 text-[10px] text-muted-foreground"
+                            >
+                              {new Date(diagram.createdAt).toLocaleTimeString(undefined, {
+                                hour: "numeric",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                            <span className="sr-only">{diagram.type}</span>
+                          </button>
+                          <button
+                            aria-label={`Delete ${diagram.title}`}
+                            onClick={() => setRemoveId(diagram.id)}
+                            className="min-h-11 min-w-11 rounded-md p-2 text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </details>
         </SoftCard>
 
-        <SoftCard className="flex min-w-0 flex-col gap-3 p-3 sm:p-4">
+        <SoftCard className="order-1 flex min-w-0 flex-col gap-3 p-3 sm:p-4 xl:order-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div
               className="flex gap-1 rounded-xl bg-muted p-1"

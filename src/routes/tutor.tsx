@@ -38,6 +38,7 @@ function TutorPage() {
     if (hydrated) setStyle(defaultStyle);
   }, [defaultStyle, hydrated]);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [composerFocused, setComposerFocused] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -128,6 +129,13 @@ function TutorPage() {
     [busy, createChat, addMessage, ask],
   );
 
+  useEffect(() => {
+    const pendingQuestion = window.sessionStorage.getItem("eduai-pending-question");
+    if (!pendingQuestion) return;
+    window.sessionStorage.removeItem("eduai-pending-question");
+    send(pendingQuestion);
+  }, [send]);
+
   const questionBefore = (msgId: string) => {
     const i = messages.findIndex((m) => m.id === msgId);
     return [...messages.slice(0, i)].reverse().find((m) => m.role === "user")?.content ?? "";
@@ -182,7 +190,13 @@ function TutorPage() {
   const last = messages[messages.length - 1];
 
   return (
-    <div className="mx-0 flex h-[calc(100dvh-4rem-7rem)] overflow-hidden md:h-[calc(100dvh-4rem-3rem)]">
+    <div
+      className={`mx-0 flex min-h-0 overflow-hidden ${
+        composerFocused
+          ? "h-[calc(100dvh_-_3.5rem_-_env(safe-area-inset-top))] md:h-[calc(100dvh_-_7rem)]"
+          : "h-[calc(100dvh_-_7rem_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom))] md:h-[calc(100dvh_-_7rem)]"
+      }`}
+    >
       {/* Desktop history panel */}
       <motion.aside
         animate={{ width: panelOpen ? 280 : 0, opacity: panelOpen ? 1 : 0 }}
@@ -202,7 +216,7 @@ function TutorPage() {
         </SheetContent>
       </Sheet>
 
-      <section className="relative flex min-w-0 flex-1 flex-col">
+      <section className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-2 px-4 py-2 md:px-6">
           <button
             onClick={() => setPanelOpen((v) => !v)}
@@ -230,7 +244,7 @@ function TutorPage() {
         <div
           ref={scrollRef}
           onScroll={onScroll}
-          className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-6"
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-6"
         >
           <div className="mx-auto w-full max-w-[760px] py-4">
             {!hydrated ? (
@@ -287,7 +301,7 @@ function TutorPage() {
           )}
         </AnimatePresence>
 
-        <div className="bg-gradient-to-t from-background via-background to-transparent px-4 pb-4 pt-2 md:px-6">
+        <div className="bg-gradient-to-t from-background via-background to-transparent px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2 md:px-6 md:pb-4">
           <div className="mx-auto w-full max-w-[760px]">
             <Composer
               streaming={busy}
@@ -295,6 +309,7 @@ function TutorPage() {
               onStop={stop}
               style={style}
               setStyle={setStyle}
+              onFocusChange={setComposerFocused}
             />
           </div>
         </div>

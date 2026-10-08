@@ -55,7 +55,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar />
-          <main className="flex-1 pb-24 pt-0 md:pb-8">
+          <main className={path === "/tutor" ? "flex-1 pb-0 pt-0" : "flex-1 pb-24 pt-0 md:pb-8"}>
             <motion.div
               key={path}
               initial={{ opacity: 0, y: 8 }}

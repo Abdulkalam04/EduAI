@@ -58,7 +58,7 @@ const MonacoEditor = lazy(async () => {
   return { default: monaco.Editor };
 });
 type ActionTab = "Output" | "AI Feedback" | "Test Cases" | "Hints";
-type MobileTab = "Code" | "Output" | "AI";
+type MobileTab = "Problem" | "Code" | "Output";
 const ACTIONS: { id: CodeActionKind; icon: typeof Sparkles; label: string }[] = [
   { id: "Explain", icon: Sparkles, label: "Explain" },
   { id: "Debug", icon: Bug, label: "Debug" },
@@ -90,7 +90,7 @@ function CodingPractice() {
   const [exercise, setExercise] = useState<CodeExercise | null>(null);
   const [code, setCode] = useState("");
   const [tab, setTab] = useState<ActionTab>("Output");
-  const [mobileTab, setMobileTab] = useState<MobileTab>("Code");
+  const [mobileTab, setMobileTab] = useState<MobileTab>("Problem");
   const [result, setResult] = useState<CodeActionResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [lastAction, setLastAction] = useState<CodeActionKind>("Run");
@@ -145,7 +145,7 @@ function CodingPractice() {
                 ? "Output"
                 : "AI Feedback",
         );
-        setMobileTab(action === "Run" || action === "Predict Output" ? "Output" : "AI");
+        setMobileTab("Output");
         if (action === "Interview") setInterviewDone(true);
         toast.success(action === "Run" ? "Code run complete" : `${action} complete`);
       } catch (cause) {
@@ -180,8 +180,7 @@ function CodingPractice() {
   }, [runAction]);
 
   useEffect(() => {
-    if (mobileTab === "AI") setTab("AI Feedback");
-    else if (mobileTab === "Output") setTab("Output");
+    if (mobileTab === "Output") setTab("Output");
   }, [mobileTab]);
 
   const changeLanguage = (next: CodeLanguage) => {
@@ -373,6 +372,17 @@ function CodingPractice() {
     </div>
   );
 
+  const mobileEditor = (
+    <Textarea
+      value={code}
+      onChange={(event) => setCode(event.target.value)}
+      aria-label="Code editor"
+      spellCheck={false}
+      className="min-h-[55dvh] resize-y rounded-xl bg-[#111827] font-mono text-base text-emerald-300"
+      placeholder="Write your code here…"
+    />
+  );
+
   return (
     <TooltipProvider delayDuration={150}>
       <div className="mx-auto w-full max-w-[1500px] space-y-4 px-4 py-5 md:px-8">
@@ -442,7 +452,7 @@ function CodingPractice() {
             <button
               onClick={() => setProblemOpen((open) => !open)}
               aria-expanded={problemOpen}
-              className="flex w-full items-center justify-between rounded-xl border bg-muted/50 px-4 py-2.5 text-left text-sm font-semibold"
+              className="hidden w-full items-center justify-between rounded-xl border bg-muted/50 px-4 py-2.5 text-left text-sm font-semibold lg:flex"
             >
               <span>
                 Problem · {exercise.title}
@@ -470,7 +480,7 @@ function CodingPractice() {
             )}
           </>
         ) : (
-          <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+          <p className="hidden rounded-xl border border-dashed p-4 text-sm text-muted-foreground lg:block">
             Enter your code or generate an exercise to begin.
           </p>
         )}
@@ -510,20 +520,36 @@ function CodingPractice() {
         <div className="space-y-3 lg:hidden">
           <Tabs value={mobileTab} onValueChange={(value) => setMobileTab(value as MobileTab)}>
             <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="Problem">Problem</TabsTrigger>
               <TabsTrigger value="Code">Code</TabsTrigger>
               <TabsTrigger value="Output">Output</TabsTrigger>
-              <TabsTrigger value="AI">AI</TabsTrigger>
             </TabsList>
-            <TabsContent value="Code">{editor}</TabsContent>
+            <TabsContent value="Problem">
+              {exercise ? (
+                <SoftCard className="space-y-3 p-4">
+                  <h2 className="font-semibold">{exercise.title}</h2>
+                  <p className="text-sm">{exercise.statement}</p>
+                  {exercise.examples.map((example) => (
+                    <div key={example.input} className="rounded-xl bg-muted/60 p-3 text-sm">
+                      <p className="font-semibold">Example</p>
+                      <p className="mt-1 font-mono">Input: {example.input}</p>
+                      <p className="font-mono">Output: {example.output}</p>
+                    </div>
+                  ))}
+                </SoftCard>
+              ) : (
+                <SoftCard className="p-4 text-sm text-muted-foreground">
+                  Create an exercise to see the problem here.
+                </SoftCard>
+              )}
+            </TabsContent>
+            <TabsContent value="Code">{mobileEditor}</TabsContent>
             <TabsContent value="Output" className="min-h-[320px]">
               {actionPanel}
             </TabsContent>
-            <TabsContent value="AI" className="min-h-[320px]">
-              <div className="rounded-xl border bg-card p-3">{actionPanel}</div>
-            </TabsContent>
           </Tabs>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-2 flex flex-wrap gap-2 border-t bg-background/95 px-2 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:px-0">
           {ACTIONS.map(({ id, icon: Icon, label }) => (
             <GradientButton
               key={id}

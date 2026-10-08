@@ -18,7 +18,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { ALL_NAV } from "@/lib/nav";
+import { ALL_NAV, TOOLS } from "@/lib/nav";
 import { useUiStore, resolvedTheme } from "@/store/useUiStore";
 import { LEVELS, useUserStore } from "@/store/useUserStore";
 
@@ -68,13 +68,23 @@ export function CommandPalette() {
           </CommandItem>
         </CommandGroup>
         <CommandSeparator />
-        <CommandGroup heading="Go to">
+        <CommandGroup heading="Main pages">
           {ALL_NAV.map((n) => (
             <CommandItem key={n.to} onSelect={() => go(n.to)}>
               <n.icon className="mr-2 h-4 w-4" />
               {n.title}
             </CommandItem>
           ))}
+        </CommandGroup>
+        <CommandGroup heading="Study tools">
+          {TOOLS.map((n) => (
+            <CommandItem key={n.to} onSelect={() => go(n.to)}>
+              <n.icon className="mr-2 h-4 w-4" />
+              {n.title}
+            </CommandItem>
+          ))}
+        </CommandGroup>
+        <CommandGroup heading="Settings">
           <CommandItem onSelect={() => go("/settings")}>
             <Settings className="mr-2 h-4 w-4" />
             Settings

@@ -39,12 +39,14 @@ export function Composer({
   onStop,
   style,
   setStyle,
+  onFocusChange,
 }: {
   streaming: boolean;
   onSend: (text: string, attachment?: { name: string; type: string }) => void;
   onStop: () => void;
   style: AnswerStyle;
   setStyle: (s: AnswerStyle) => void;
+  onFocusChange?: (focused: boolean) => void;
 }) {
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -167,7 +169,10 @@ export function Composer({
         </Popover>
       </div>
 
-      <div className="rounded-2xl border bg-card p-2 shadow-lift transition-colors focus-within:border-primary/60">
+      <div
+        data-tutor-composer
+        className="rounded-2xl border bg-card p-2 shadow-lift transition-colors focus-within:border-primary/60"
+      >
         {file && (
           <div className="mb-2 inline-flex max-w-full items-center gap-2 rounded-lg bg-muted px-2.5 py-1 text-xs">
             {file.type.startsWith("image/") ? (
@@ -187,6 +192,8 @@ export function Composer({
         )}
         <textarea
           ref={ta}
+          onFocus={() => onFocusChange?.(true)}
+          onBlur={() => onFocusChange?.(false)}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {

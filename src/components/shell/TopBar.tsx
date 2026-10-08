@@ -1,34 +1,20 @@
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useRouterState, Link } from "@tanstack/react-router";
-import { Search, ChevronDown, Check, User, Settings, RotateCcw } from "lucide-react";
-import { toast } from "sonner";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Search, Check } from "lucide-react";
 import { LEVELS, SUBJECTS, getLevel, useUserStore } from "@/store/useUserStore";
 import { useUiStore } from "@/store/useUiStore";
 import { titleFor } from "@/lib/nav";
-import { checkApiHealth, resetLearningActivity } from "@/lib/api";
-import { useChatStore } from "@/store/useChatStore";
-import { usePracticeStore } from "@/store/usePracticeStore";
-import { useLearningStore } from "@/store/useLearningStore";
+import { checkApiHealth } from "@/lib/api";
 import { Logo } from "./Logo";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 export const initials = (name: string) =>
   name
@@ -36,21 +22,15 @@ export const initials = (name: string) =>
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
+    .map((part) => part[0]?.toUpperCase())
     .join("") || "S";
 
-const pillBtn =
-  "inline-flex min-h-11 items-center gap-1.5 rounded-xl border bg-card px-3 text-sm font-medium shadow-soft transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]";
-
 export function TopBar() {
-  const path = useRouterState({ select: (s) => s.location.pathname });
-  const { level, subject, name, set, reset } = useUserStore();
-  const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
-  const queryClient = useQueryClient();
+  const path = useRouterState({ select: (state) => state.location.pathname });
+  const { level, subject, name, set } = useUserStore();
+  const setPaletteOpen = useUiStore((state) => state.setPaletteOpen);
   const [backendConnected, setBackendConnected] = useState<boolean | null>(null);
-  const [resetOpen, setResetOpen] = useState(false);
-  const [resetting, setResetting] = useState(false);
-  const lvl = getLevel(level);
+  const currentLevel = getLevel(level);
 
   useEffect(() => {
     let mounted = true;
@@ -70,184 +50,131 @@ export function TopBar() {
     };
   }, []);
 
-  const resetLearningAndOnboarding = async () => {
-    setResetting(true);
-    try {
-      await resetLearningActivity();
-      useChatStore.getState().clearHistory();
-      usePracticeStore.getState().clearHistory();
-      useLearningStore.getState().clearHistory();
-      reset();
-      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      setResetOpen(false);
-      toast.success("Learning activity cleared. Set up your profile again.");
-    } catch (cause) {
-      toast.error(cause instanceof Error ? cause.message : "Couldn't reset learning activity.");
-    } finally {
-      setResetting(false);
-    }
-  };
-
-  const LevelMenu = (
-    <DropdownMenu>
-      <DropdownMenuTrigger className={pillBtn}>
-        <span className="hidden lg:inline">{lvl.label}</span>
-        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64 rounded-xl">
-        <DropdownMenuLabel>Learning level</DropdownMenuLabel>
-        {LEVELS.map((l) => (
-          <DropdownMenuItem
-            key={l.id}
-            onSelect={() => set({ level: l.id })}
-            className="flex items-start gap-2 rounded-lg"
-          >
-            <span className="flex-1">
-              <span className="block font-medium">{l.label}</span>
-              <span className="block text-xs text-muted-foreground">{l.style}</span>
-            </span>
-            {l.id === level && <Check className="mt-0.5 h-4 w-4 text-primary" />}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-
-  const Avatar = (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label="Profile menu"
-        className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-primary text-sm font-semibold text-primary-foreground shadow-glow transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95"
-      >
-        {initials(name)}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56 rounded-xl">
-        <DropdownMenuLabel>
-          {name || "Student"}
-          <span className="block text-xs font-normal text-muted-foreground">{lvl.label}</span>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link to="/progress">
-            <User className="mr-2 h-4 w-4" />
-            My progress
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link to="/settings">
-            <Settings className="mr-2 h-4 w-4" />
-            Settings
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => setResetOpen(true)}>
-          <RotateCcw className="mr-2 h-4 w-4" />
-          Reset learning data & onboarding
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-
   return (
-    <header className="sticky top-0 z-30 border-b bg-background/75 backdrop-blur-xl">
-      <div className="flex h-16 items-center gap-3 px-4 md:px-8">
+    <header className="sticky top-0 z-30 border-b bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+      <div className="flex h-14 items-center gap-3 px-4 md:h-16 md:px-8">
         <div className="md:hidden">
           <Logo />
         </div>
         <p className="hidden truncate text-lg font-semibold md:block">{titleFor(path)}</p>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-3">
           <div
             role="status"
             aria-label={
               backendConnected === null
-                ? "Checking backend connection"
+                ? "Checking study server"
                 : backendConnected
-                  ? "Backend connected"
-                  : "Backend unavailable"
+                  ? "Study server connected"
+                  : "Study server unavailable"
             }
             title={
               backendConnected
-                ? "Backend connected"
+                ? "Study server connected"
                 : backendConnected === null
-                  ? "Checking backend connection"
-                  : "Backend unavailable"
+                  ? "Checking study server"
+                  : "Study server unavailable"
             }
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border bg-card px-2.5 text-xs"
+            className="flex min-h-11 items-center gap-2"
           >
             <span
-              className={`h-2 w-2 rounded-full ${backendConnected ? "bg-success" : backendConnected === false ? "bg-destructive" : "animate-pulse bg-warning"}`}
+              className={`h-2.5 w-2.5 rounded-full ${backendConnected ? "bg-success" : backendConnected === false ? "bg-destructive" : "animate-pulse bg-warning"}`}
             />
-            <span className="hidden sm:inline">
+            <span className="hidden text-xs text-muted-foreground md:inline">
               {backendConnected ? "Connected" : backendConnected === false ? "Offline" : "Checking"}
             </span>
           </div>
           <button
+            type="button"
             onClick={() => setPaletteOpen(true)}
-            className={`${pillBtn} !hidden text-muted-foreground lg:!inline-flex lg:w-56`}
-            aria-label="Search (Ctrl K)"
+            className="hidden min-h-11 items-center gap-2 rounded-xl border bg-card px-3 text-sm text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:inline-flex lg:w-56"
+            aria-label="Search pages and actions"
           >
             <Search className="h-4 w-4" />
-            <span className="flex-1 text-left">Search…</span>
-            <kbd className="rounded-md border bg-muted px-1.5 text-[10px] font-medium">⌘K</kbd>
+            <span className="flex-1 text-left">Search</span>
+            <kbd className="rounded-md border bg-muted px-1.5 text-xs font-medium">Ctrl K</kbd>
           </button>
-          <button
-            onClick={() => setPaletteOpen(true)}
-            className={`${pillBtn} !inline-flex px-2.5 md:!inline-flex lg:!hidden`}
-            aria-label="Search"
-          >
-            <Search className="h-4 w-4" />
-          </button>
-          {LevelMenu}
-          <div className="hidden lg:block">
-            <DropdownMenu>
-              <DropdownMenuTrigger className={pillBtn}>
-                {subject}
-                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52 rounded-xl">
-                <DropdownMenuLabel>Subject</DropdownMenuLabel>
-                {SUBJECTS.map((s) => (
-                  <DropdownMenuItem
-                    key={s}
-                    onSelect={() => set({ subject: s })}
-                    className="rounded-lg"
-                  >
-                    <span className="flex-1">{s}</span>
-                    {s === subject && <Check className="h-4 w-4 text-primary" />}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          {Avatar}
+          <Sheet>
+            <SheetTrigger asChild>
+              <button
+                type="button"
+                aria-label="Open profile"
+                className="flex h-11 w-11 items-center justify-center rounded-full border bg-primary text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {initials(name)}
+              </button>
+            </SheetTrigger>
+            <SheetContent
+              side="bottom"
+              className="max-h-[85dvh] overflow-y-auto rounded-t-3xl pb-[calc(env(safe-area-inset-bottom)+1.5rem)]"
+            >
+              <SheetHeader className="pr-8 text-left">
+                <SheetTitle>Profile</SheetTitle>
+                <SheetDescription>
+                  {name || "Student"} · Choose the level and subject you are studying.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="mt-6 space-y-6">
+                <fieldset className="space-y-2">
+                  <legend className="mb-2 text-sm font-medium">Learning level</legend>
+                  {LEVELS.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      aria-pressed={item.id === level}
+                      onClick={() => set({ level: item.id })}
+                      className="flex min-h-12 w-full items-center justify-between rounded-xl border px-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <span>
+                        <span className="block font-medium">{item.label}</span>
+                        <span className="block text-sm text-muted-foreground">{item.style}</span>
+                      </span>
+                      {item.id === level && <Check className="h-5 w-5 text-primary" />}
+                    </button>
+                  ))}
+                </fieldset>
+                <fieldset className="space-y-2">
+                  <legend className="mb-2 text-sm font-medium">
+                    Subject <span className="font-normal text-muted-foreground">({subject})</span>
+                  </legend>
+                  <div className="grid grid-cols-2 gap-2">
+                    {SUBJECTS.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        aria-pressed={item === subject}
+                        onClick={() => set({ subject: item })}
+                        className="flex min-h-11 items-center justify-between rounded-xl border px-3 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        {item}
+                        {item === subject && <Check className="h-4 w-4 text-primary" />}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+                <div className="flex gap-3 border-t pt-4">
+                  <SheetClose asChild>
+                    <Link
+                      to="/settings"
+                      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border px-4 text-sm font-medium"
+                    >
+                      Profile & settings
+                    </Link>
+                  </SheetClose>
+                  <SheetClose asChild>
+                    <Link
+                      to="/progress"
+                      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border px-4 text-sm font-medium"
+                    >
+                      My progress
+                    </Link>
+                  </SheetClose>
+                </div>
+                <p className="sr-only">Current level: {currentLevel.label}</p>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
-      <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reset learning activity and onboarding?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently clears chat history, practice results, viva history, and progress on
-              the configured backend, then restarts your profile setup. This backend does not
-              separate users, so the reset affects everyone using it. Uploaded documents and created
-              diagrams or presentations are kept.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={resetting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={resetting}
-              onClick={(event) => {
-                event.preventDefault();
-                void resetLearningAndOnboarding();
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {resetting ? "Resetting…" : "Clear activity and restart"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </header>
   );
 }
