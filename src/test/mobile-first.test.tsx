@@ -29,6 +29,7 @@ vi.mock("canvas-confetti", () => ({ default: vi.fn() }));
 import { MobileNav } from "@/components/shell/MobileNav";
 import { AppShell } from "@/components/shell/AppShell";
 import { Onboarding } from "@/components/shell/Onboarding";
+import { StickyActionBar } from "@/components/ui-custom/StickyActionBar";
 import { resolveDefaultApiUrl } from "@/lib/api";
 import { StudyPage } from "@/routes/study";
 import { usePracticeStore } from "@/store/usePracticeStore";
@@ -191,7 +192,7 @@ describe("mobile-first learning flows", () => {
   });
 
   it("hides the tab bar during a practice attempt", () => {
-    routerState.pathname = "/practice";
+    routerState.pathname = "/practice/check";
     usePracticeStore.setState({ view: { stage: "attempt", paperId: "paper-1" } });
 
     render(<MobileNav />);
@@ -199,12 +200,31 @@ describe("mobile-first learning flows", () => {
     expect(screen.queryByRole("navigation", { name: "Primary" })).not.toBeInTheDocument();
   });
 
-  it("hides the tab bar during a viva session", () => {
+  it("shows the tab bar on the viva page", () => {
     routerState.pathname = "/viva";
 
     render(<MobileNav />);
 
-    expect(screen.queryByRole("navigation", { name: "Primary" })).not.toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();
+  });
+
+  it("positions sticky actions using the shared tab bar offset", async () => {
+    render(
+      <StickyActionBar>
+        <button type="button">Start</button>
+      </StickyActionBar>,
+    );
+
+    const actionBar = await screen
+      .findByRole("button", { name: "Start" })
+      .then((button) => button.parentElement?.parentElement);
+
+    expect(actionBar).toHaveClass("sticky-action-offset");
+    expect(actionBar).toHaveClass("left-4", "right-4");
+    expect(actionBar).toHaveStyle({
+      bottom: "calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--action-gap))",
+    });
+    expect(actionBar?.firstElementChild).toHaveClass("sticky-action-surface");
   });
 
   it("hides the tab bar while the tutor composer is focused", async () => {

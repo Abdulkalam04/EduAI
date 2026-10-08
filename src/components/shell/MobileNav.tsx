@@ -34,7 +34,6 @@ export function MobileNav() {
   }, []);
 
   if (
-    path === "/viva" ||
     (path.startsWith("/practice") && stage === "attempt") ||
     (path === "/tutor" && composerFocused)
   ) {
@@ -43,10 +42,10 @@ export function MobileNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 h-[calc(var(--tabbar-h)+env(safe-area-inset-bottom))] border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
       aria-label="Primary"
     >
-      <div className="grid grid-cols-4">
+      <div className="mobile-tabbar-inner grid grid-cols-4">
         {TABS.map((tab) => {
           const active = path === tab.to;
           return (

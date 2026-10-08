@@ -21,7 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GradientButton, MobileStickyAction, PageHeader, SoftCard } from "@/components/ui-custom";
+import { GradientButton, PageHeader, SoftCard, StickyActionBar } from "@/components/ui-custom";
 import { Mermaid } from "@/components/tutor/Markdown";
 import {
   Select,
@@ -410,7 +410,7 @@ function PptMaker() {
     );
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-5 px-4 py-5 md:px-8">
+    <div className="mobile-action-content mx-auto w-full max-w-7xl space-y-5 px-4 py-5 md:px-8">
       <PageHeader
         title="PPT Maker"
         icon={Presentation}
@@ -532,7 +532,7 @@ function PptMaker() {
             )}
             Create PPT
           </GradientButton>
-          <MobileStickyAction>
+          <StickyActionBar>
             <GradientButton
               size="lg"
               className="w-full"
@@ -546,7 +546,7 @@ function PptMaker() {
               )}
               Create PPT
             </GradientButton>
-          </MobileStickyAction>
+          </StickyActionBar>
           {error && (
             <div role="alert" className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
               <p>{error}</p>

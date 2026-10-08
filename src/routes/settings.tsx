@@ -15,7 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { pageHead } from "@/components/ComingSoonPage";
-import { GradientButton, MobileStickyAction, PageHeader, SoftCard } from "@/components/ui-custom";
+import { GradientButton, PageHeader, SoftCard, StickyActionBar } from "@/components/ui-custom";
 import { useUiStore, type AccentColor, type Theme } from "@/store/useUiStore";
 import { LEVELS, SUBJECTS, useUserStore } from "@/store/useUserStore";
 import { useChatStore } from "@/store/useChatStore";
@@ -151,7 +151,7 @@ function SettingsPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="mobile-action-content space-y-5">
       <PageHeader
         title="Settings"
         description="Set your profile, study preferences, and display options."
@@ -382,11 +382,11 @@ function SettingsPage() {
           </SoftCard>
         </TabsContent>
       </Tabs>
-      <MobileStickyAction>
+      <StickyActionBar>
         <Link to="/" className="block">
           <GradientButton className="w-full">Done</GradientButton>
         </Link>
-      </MobileStickyAction>
+      </StickyActionBar>
       <AlertDialog open={resetOpen} onOpenChange={setResetOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

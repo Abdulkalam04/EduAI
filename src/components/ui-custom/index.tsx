@@ -369,4 +369,4 @@ export function CardSkeleton({ className, lines = 3 }: { className?: string; lin
   );
 }
 
-export { MobileStickyAction } from "./MobileStickyAction";
+export { StickyActionBar } from "./StickyActionBar";

@@ -26,7 +26,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   GradientButton,
-  MobileStickyAction,
+  StickyActionBar,
   PageHeader,
   ProgressBar,
   SoftCard,
@@ -275,12 +275,74 @@ function VivaMode() {
     setSpeaking(true);
   };
 
+  const answerActions = (
+    <>
+      <div className="flex items-center gap-2">
+        {speechAvailable && (
+          <>
+            <GradientButton
+              variant="secondary"
+              size="sm"
+              onClick={toggleMic}
+              disabled={Boolean(feedback)}
+              aria-label={speaking ? "Stop voice input" : "Start voice input"}
+            >
+              {speaking && !speechEnabled ? (
+                <MicOff className="h-4 w-4" />
+              ) : (
+                <Mic className="h-4 w-4" />
+              )}
+              {speaking && !speechEnabled ? "Stop mic" : "Speak answer"}
+            </GradientButton>
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Switch
+                checked={speechEnabled}
+                onCheckedChange={setSpeechEnabled}
+                aria-label="Read questions aloud"
+              />
+              Read aloud
+            </label>
+          </>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <GradientButton
+          variant="ghost"
+          size="sm"
+          onClick={() => void submit(true)}
+          disabled={busy || Boolean(feedback)}
+        >
+          Skip
+        </GradientButton>
+        <GradientButton
+          variant="secondary"
+          size="sm"
+          onClick={repeatQuestion}
+          disabled={!speechAvailable || !speechEnabled}
+        >
+          <Volume2 className="h-4 w-4" />
+          Repeat question
+        </GradientButton>
+        {!feedback ? (
+          <GradientButton size="sm" onClick={() => void submit()} disabled={busy || !answer.trim()}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            Submit answer
+          </GradientButton>
+        ) : (
+          <GradientButton size="sm" onClick={nextQuestion} disabled={index + 1 >= questions.length}>
+            {index + 1 >= questions.length ? "Preparing report…" : "Next question"}
+          </GradientButton>
+        )}
+      </div>
+    </>
+  );
+
   const retryAction = () =>
     phase === "setup" ? void begin() : phase === "interview" ? void submit() : void finish();
   const percent = report ? Math.round((report.score / report.total) * 100) : 0;
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-5 px-4 py-5 md:px-8">
+    <div className="mobile-action-content mx-auto w-full max-w-5xl space-y-5 px-4 py-5 md:px-8">
       <PageHeader
         title="Viva Mode"
         icon={CircleHelp}
@@ -399,7 +461,7 @@ function VivaMode() {
                   <Switch checked={timed} onCheckedChange={setTimed} aria-label="Question timer" />
                 </div>
               </div>
-              <MobileStickyAction tabBarHidden>
+              <StickyActionBar>
                 <GradientButton
                   className="w-full"
                   size="lg"
@@ -413,7 +475,7 @@ function VivaMode() {
                   )}
                   Start viva
                 </GradientButton>
-              </MobileStickyAction>
+              </StickyActionBar>
             </SoftCard>
           </motion.div>
         )}
@@ -507,77 +569,12 @@ function VivaMode() {
                     Live transcript: {transcript}
                   </p>
                 )}
-                <div className="sticky bottom-0 z-20 -mx-2 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/95 p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur">
-                  <div className="flex items-center gap-2">
-                    {speechAvailable && (
-                      <>
-                        <GradientButton
-                          variant="secondary"
-                          size="sm"
-                          onClick={toggleMic}
-                          disabled={Boolean(feedback)}
-                          aria-label={speaking ? "Stop voice input" : "Start voice input"}
-                        >
-                          {speaking && !speechEnabled ? (
-                            <MicOff className="h-4 w-4" />
-                          ) : (
-                            <Mic className="h-4 w-4" />
-                          )}
-                          {speaking && !speechEnabled ? "Stop mic" : "Speak answer"}
-                        </GradientButton>
-                        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Switch
-                            checked={speechEnabled}
-                            onCheckedChange={setSpeechEnabled}
-                            aria-label="Read questions aloud"
-                          />
-                          Read aloud
-                        </label>
-                      </>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <GradientButton
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => void submit(true)}
-                      disabled={busy || Boolean(feedback)}
-                    >
-                      Skip
-                    </GradientButton>
-                    <GradientButton
-                      variant="secondary"
-                      size="sm"
-                      onClick={repeatQuestion}
-                      disabled={!speechAvailable || !speechEnabled}
-                    >
-                      <Volume2 className="h-4 w-4" />
-                      Repeat question
-                    </GradientButton>
-                    {!feedback ? (
-                      <GradientButton
-                        size="sm"
-                        onClick={() => void submit()}
-                        disabled={busy || !answer.trim()}
-                      >
-                        {busy ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Check className="h-4 w-4" />
-                        )}
-                        Submit answer
-                      </GradientButton>
-                    ) : (
-                      <GradientButton
-                        size="sm"
-                        onClick={nextQuestion}
-                        disabled={index + 1 >= questions.length}
-                      >
-                        {index + 1 >= questions.length ? "Preparing report…" : "Next question"}
-                      </GradientButton>
-                    )}
-                  </div>
+                <div className="hidden flex-wrap items-center justify-between gap-3 md:flex">
+                  {answerActions}
                 </div>
+                <StickyActionBar className="sticky-action-multiaction flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-background/95 p-3">
+                  {answerActions}
+                </StickyActionBar>
                 {feedback && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}

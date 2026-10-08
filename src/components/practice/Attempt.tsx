@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Check, Clock, Flag, Grid3x3, ImagePlus, Loader2, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GradientButton, ProgressBar } from "@/components/ui-custom";
+import { GradientButton, ProgressBar, StickyActionBar } from "@/components/ui-custom";
 import {
   Dialog,
   DialogContent,
@@ -155,6 +155,33 @@ export function Attempt({ paper, attempt }: { paper: Paper; attempt: AttemptT })
   );
 
   const currentQuestion = paper.questions[currentQuestionIndex];
+  const questionActions = (
+    <>
+      <GradientButton
+        variant="secondary"
+        onClick={() => setCurrentQuestionIndex((index) => Math.max(0, index - 1))}
+        disabled={currentQuestionIndex === 0}
+      >
+        Previous
+      </GradientButton>
+      <span className="text-sm text-muted-foreground">
+        {answeredCount} of {paper.questions.length} answered
+      </span>
+      {currentQuestionIndex + 1 < paper.questions.length ? (
+        <GradientButton
+          onClick={() =>
+            setCurrentQuestionIndex((index) => Math.min(paper.questions.length - 1, index + 1))
+          }
+        >
+          Next
+        </GradientButton>
+      ) : (
+        <GradientButton onClick={() => setConfirm(true)} disabled={submitting}>
+          Submit
+        </GradientButton>
+      )}
+    </>
+  );
 
   return (
     <div className="space-y-4">
@@ -319,35 +346,17 @@ export function Attempt({ paper, attempt }: { paper: Paper; attempt: AttemptT })
               This paper has no questions. Return to practice and create another paper.
             </p>
           )}
-          <div className="sticky bottom-0 z-20 -mx-4 mt-5 flex items-center justify-between gap-3 border-t bg-background/95 px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:pb-0">
-            <GradientButton
-              variant="secondary"
-              onClick={() => setCurrentQuestionIndex((index) => Math.max(0, index - 1))}
-              disabled={currentQuestionIndex === 0}
-            >
-              Previous
-            </GradientButton>
-            <span className="text-sm text-muted-foreground">
-              {answeredCount} of {paper.questions.length} answered
-            </span>
-            {currentQuestionIndex + 1 < paper.questions.length ? (
-              <GradientButton
-                onClick={() =>
-                  setCurrentQuestionIndex((index) =>
-                    Math.min(paper.questions.length - 1, index + 1),
-                  )
-                }
-              >
-                Next
-              </GradientButton>
-            ) : (
-              <GradientButton onClick={() => setConfirm(true)} disabled={submitting}>
-                Submit
-              </GradientButton>
-            )}
+          <div className="mt-5 hidden items-center justify-between gap-3 md:flex">
+            {questionActions}
           </div>
         </article>
       )}
+      <StickyActionBar
+        tabBarHidden
+        className="sticky-action-multiaction flex items-center justify-between gap-3 rounded-xl border bg-background/95 p-2"
+      >
+        {questionActions}
+      </StickyActionBar>
 
       <Sheet open={navOpen} onOpenChange={setNavOpen}>
         <SheetContent side="bottom" className="rounded-t-2xl">

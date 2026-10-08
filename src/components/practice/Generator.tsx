@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { ArrowRight, ClipboardCheck, ScanSearch, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GradientButton, MobileStickyAction, SoftCard } from "@/components/ui-custom";
+import { GradientButton, SoftCard, StickyActionBar } from "@/components/ui-custom";
 import { AsciiThinking } from "@/components/ui-custom/AsciiThinking";
 import {
   Select,
@@ -274,7 +274,7 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
             <ClipboardCheck className="h-4 w-4" />
             Generate paper
           </GradientButton>
-          <MobileStickyAction>
+          <StickyActionBar>
             <GradientButton
               size="lg"
               className="w-full"
@@ -284,7 +284,7 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
               <ClipboardCheck className="h-4 w-4" />
               Generate paper
             </GradientButton>
-          </MobileStickyAction>
+          </StickyActionBar>
         </SoftCard>
 
         <SoftCard className="space-y-5 p-5">

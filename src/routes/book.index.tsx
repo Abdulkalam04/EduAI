@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import {
   EmptyState,
   GradientButton,
-  MobileStickyAction,
+  StickyActionBar,
   PageHeader,
   SoftCard,
 } from "@/components/ui-custom";
@@ -158,14 +158,14 @@ function Library() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 md:px-8">
+    <div className="mobile-action-content mx-auto w-full max-w-6xl space-y-6 px-4 py-6 md:px-8">
       <PageHeader
         title="Study From My Book"
         icon={BookOpen}
         accent="book"
         description="Upload a chapter from your textbook and learn from it with AI."
       />
-      <MobileStickyAction>
+      <StickyActionBar>
         <GradientButton
           className="w-full"
           onClick={() => ref.current?.click()}
@@ -173,7 +173,7 @@ function Library() {
         >
           Upload a PDF
         </GradientButton>
-      </MobileStickyAction>
+      </StickyActionBar>
       {listError && (
         <div
           role="alert"

@@ -14,7 +14,7 @@ import {
   Timer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GradientButton, PageHeader, SoftCard } from "@/components/ui-custom";
+import { GradientButton, PageHeader, SoftCard, StickyActionBar } from "@/components/ui-custom";
 import { Markdown } from "@/components/tutor/Markdown";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -383,7 +383,7 @@ function CodingPractice() {
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="mx-auto w-full max-w-[1500px] space-y-4 px-4 py-5 md:px-8">
+      <div className="mobile-action-content mx-auto w-full max-w-[1500px] space-y-4 px-4 py-5 md:px-8">
         <PageHeader
           title="Coding Practice"
           icon={Code2}
@@ -545,7 +545,7 @@ function CodingPractice() {
             </TabsContent>
           </Tabs>
         </div>
-        <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-2 flex flex-wrap gap-2 border-t bg-background/95 px-2 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:px-0">
+        <div className="hidden flex-wrap gap-2 md:flex">
           {ACTIONS.map(({ id, icon: Icon, label }) => (
             <GradientButton
               key={id}
@@ -563,6 +563,24 @@ function CodingPractice() {
             </GradientButton>
           ))}
         </div>
+        <StickyActionBar className="sticky-action-multiaction flex flex-wrap gap-2 rounded-xl border bg-background/95 p-2">
+          {ACTIONS.map(({ id, icon: Icon, label }) => (
+            <GradientButton
+              key={id}
+              variant="secondary"
+              size="sm"
+              onClick={() => void runAction(id)}
+              disabled={busy}
+            >
+              {busy && lastAction === id ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Icon className="h-4 w-4" />
+              )}
+              {label}
+            </GradientButton>
+          ))}
+        </StickyActionBar>
         <Dialog open={generateOpen} onOpenChange={setGenerateOpen}>
           <DialogContent>
             <DialogHeader>

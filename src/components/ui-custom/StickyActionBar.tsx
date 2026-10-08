@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
-export function MobileStickyAction({
+export function StickyActionBar({
   children,
   tabBarHidden = false,
   className,
@@ -18,14 +18,16 @@ export function MobileStickyAction({
   return createPortal(
     <div
       className={cn(
-        "fixed inset-x-0 z-30 border-t bg-background/95 px-4 py-3 backdrop-blur md:hidden",
-        tabBarHidden
-          ? "bottom-[env(safe-area-inset-bottom)]"
-          : "bottom-[calc(3.5rem+env(safe-area-inset-bottom))]",
-        className,
+        "fixed left-4 right-4 z-30 mx-auto max-w-[760px] md:hidden",
+        tabBarHidden ? "sticky-action-offset-no-tabbar" : "sticky-action-offset",
       )}
+      style={{
+        bottom: tabBarHidden
+          ? "calc(env(safe-area-inset-bottom) + var(--action-gap))"
+          : "calc(var(--tabbar-h) + env(safe-area-inset-bottom) + var(--action-gap))",
+      }}
     >
-      {children}
+      <div className={cn("sticky-action-surface", className)}>{children}</div>
     </div>,
     document.body,
   );

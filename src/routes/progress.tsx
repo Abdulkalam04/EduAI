@@ -26,7 +26,7 @@ import {
   PageHeader,
   EmptyState,
   GradientButton,
-  MobileStickyAction,
+  StickyActionBar,
 } from "@/components/ui-custom";
 import {
   Select,
@@ -134,7 +134,7 @@ function ProgressPage() {
 
   if (error && !loaded)
     return (
-      <div className="mx-auto max-w-6xl space-y-5 px-4 py-5 md:px-8">
+      <div className="mobile-action-content mx-auto max-w-6xl space-y-5 px-4 py-5 md:px-8">
         <PageHeader
           title="Progress"
           icon={Activity}
@@ -155,11 +155,11 @@ function ProgressPage() {
             </GradientButton>
           }
         />
-        <MobileStickyAction>
+        <StickyActionBar>
           <GradientButton className="w-full" onClick={() => void load()} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}Try again
           </GradientButton>
-        </MobileStickyAction>
+        </StickyActionBar>
       </div>
     );
   if (!hydrated || (loading && !loaded))
@@ -185,7 +185,7 @@ function ProgressPage() {
     );
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-5 px-4 py-5 md:px-8">
+    <div className="mobile-action-content mx-auto w-full max-w-7xl space-y-5 px-4 py-5 md:px-8">
       <PageHeader
         title="Progress"
         icon={Activity}
@@ -430,13 +430,13 @@ function ProgressPage() {
           </SoftCard>
         </>
       )}
-      <MobileStickyAction>
+      <StickyActionBar>
         <Link to={hasProgress ? "/study" : "/practice"} className="block">
           <GradientButton className="w-full">
             {hasProgress ? "Choose what to study" : "Start practising"}
           </GradientButton>
         </Link>
-      </MobileStickyAction>
+      </StickyActionBar>
     </div>
   );
 }

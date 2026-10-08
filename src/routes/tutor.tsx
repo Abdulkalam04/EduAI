@@ -193,7 +193,7 @@ function TutorPage() {
       className={`mx-0 flex min-h-0 overflow-hidden ${
         composerFocused
           ? "h-[calc(100dvh_-_3.5rem_-_env(safe-area-inset-top))] md:h-[calc(100dvh_-_7rem)]"
-          : "h-[calc(100dvh_-_7rem_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom))] md:h-[calc(100dvh_-_7rem)]"
+          : "h-[calc(100dvh_-_3.5rem_-_var(--tabbar-h)_-_var(--action-gap)_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom))] md:h-[calc(100dvh_-_7rem)]"
       }`}
     >
       {/* Desktop history panel */}
@@ -243,7 +243,7 @@ function TutorPage() {
         <div
           ref={scrollRef}
           onScroll={onScroll}
-          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-6"
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-6 md:px-6"
         >
           <div className="mx-auto w-full max-w-[760px] py-4">
             {!hydrated ? (
@@ -296,7 +296,7 @@ function TutorPage() {
           )}
         </AnimatePresence>
 
-        <div className="border-t bg-background px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2 md:px-6 md:pb-4">
+        <div className="border-t bg-background px-4 pb-2 pt-2 md:px-6 md:pb-4">
           <div className="mx-auto w-full max-w-[760px]">
             <Composer
               streaming={busy}

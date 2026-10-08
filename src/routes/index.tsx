@@ -10,6 +10,7 @@ import {
   FeatureIcon,
   GradientButton,
   SectionHeader,
+  StickyActionBar,
   SoftCard,
 } from "@/components/ui-custom";
 import { Input } from "@/components/ui/input";
@@ -58,7 +59,7 @@ function HomePage() {
   const activity = data?.activity[0];
 
   return (
-    <div className="space-y-6 px-4 py-6 md:space-y-8 md:px-8">
+    <div className="mobile-action-content space-y-6 px-4 py-6 md:space-y-8 md:px-8">
       <section aria-labelledby="ask-title">
         <SoftCard className="space-y-4 rounded-2xl p-4 md:p-6">
           <div className="flex items-center gap-3">
@@ -74,10 +75,7 @@ function HomePage() {
               </p>
             </div>
           </div>
-          <form
-            onSubmit={ask}
-            className="fixed inset-x-4 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-[760px] gap-2 rounded-2xl border bg-card p-3 shadow-lift md:static md:max-w-none md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none"
-          >
+          <form onSubmit={ask} className="hidden gap-2 md:flex">
             <Input
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
@@ -92,6 +90,21 @@ function HomePage() {
           </form>
         </SoftCard>
       </section>
+      <StickyActionBar className="sticky-action-multiaction flex gap-2 rounded-xl border bg-card p-2 shadow-soft">
+        <form onSubmit={ask} className="flex w-full gap-2">
+          <Input
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            placeholder="Ask a question…"
+            aria-label="Ask a question"
+            className="h-12 min-w-0 text-base"
+          />
+          <GradientButton type="submit" disabled={!question.trim()} aria-label="Ask the tutor">
+            <Send className="h-4 w-4" />
+            <span className="hidden sm:inline">Ask</span>
+          </GradientButton>
+        </form>
+      </StickyActionBar>
 
       <section aria-labelledby="continue-title">
         <SectionHeader title="Continue where you left off" />

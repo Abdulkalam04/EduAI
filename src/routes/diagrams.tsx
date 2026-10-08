@@ -20,7 +20,7 @@ import {
   Workflow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GradientButton, PageHeader, SoftCard } from "@/components/ui-custom";
+import { GradientButton, PageHeader, SoftCard, StickyActionBar } from "@/components/ui-custom";
 import { Markdown } from "@/components/tutor/Markdown";
 import { renderMermaidSvg } from "@/lib/mermaid";
 import { Textarea } from "@/components/ui/textarea";
@@ -358,7 +358,7 @@ function DiagramMaker() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] space-y-5 px-4 py-5 md:px-8">
+    <div className="mobile-action-content mx-auto w-full max-w-[1500px] space-y-5 px-4 py-5 md:px-8">
       <PageHeader
         title="Diagram Maker"
         icon={Network}
@@ -463,7 +463,7 @@ function DiagramMaker() {
                 </Select>
               </label>
               <GradientButton
-                className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 w-full border bg-background/95 shadow-soft backdrop-blur xl:static"
+                className="hidden w-full md:inline-flex"
                 size="lg"
                 onClick={() => void generate()}
                 disabled={loading || !prompt.trim()}
@@ -475,6 +475,20 @@ function DiagramMaker() {
                 )}
                 {loading ? "Generating…" : "Generate diagram"}
               </GradientButton>
+              <StickyActionBar>
+                <GradientButton
+                  size="lg"
+                  onClick={() => void generate()}
+                  disabled={loading || !prompt.trim()}
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Workflow className="h-4 w-4" />
+                  )}
+                  {loading ? "Generating…" : "Generate diagram"}
+                </GradientButton>
+              </StickyActionBar>
               <div className="border-t pt-4">
                 <h2 className="mb-2 text-sm font-semibold">History</h2>
                 {diagrams.length === 0 ? (

@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 import {
   CardSkeleton,
   GradientButton,
-  MobileStickyAction,
+  StickyActionBar,
   PageHeader,
   SegmentedControl,
   SoftCard,
@@ -172,7 +172,7 @@ function SolverPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 md:px-8">
+    <div className="mobile-action-content mx-auto w-full max-w-6xl space-y-6 px-4 py-6 md:px-8">
       <PageHeader
         title="Exam Solver"
         icon={ScanLine}
@@ -364,7 +364,7 @@ function SolverPage() {
                     Continue to options
                   </GradientButton>
                 )}
-                <MobileStickyAction>
+                <StickyActionBar>
                   <GradientButton
                     size="lg"
                     className="w-full"
@@ -372,7 +372,7 @@ function SolverPage() {
                   >
                     {file ? "Continue to options" : "Choose a question paper"}
                   </GradientButton>
-                </MobileStickyAction>
+                </StickyActionBar>
               </>
             ) : (
               <>
@@ -429,7 +429,7 @@ function SolverPage() {
                   ))}
                 </div>
 
-                <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 -mx-2 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 px-2 py-3 backdrop-blur md:static md:mx-0 md:border-0 md:bg-transparent md:px-0">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t py-3">
                   <GradientButton variant="ghost" onClick={() => setSetupStep(0)}>
                     <RotateCcw className="h-4 w-4" />
                     Back to upload
@@ -443,11 +443,22 @@ function SolverPage() {
                       onChange={setStyle}
                     />
                   </div>
-                  <GradientButton size="lg" disabled={!file || !subject} onClick={solve}>
+                  <GradientButton
+                    className="hidden md:inline-flex"
+                    size="lg"
+                    disabled={!file || !subject}
+                    onClick={solve}
+                  >
                     <PenLine className="h-4 w-4" />
                     Solve paper
                   </GradientButton>
                 </div>
+                <StickyActionBar>
+                  <GradientButton size="lg" disabled={!file || !subject} onClick={solve}>
+                    <PenLine className="h-4 w-4" />
+                    Solve paper
+                  </GradientButton>
+                </StickyActionBar>
               </>
             )}
           </motion.div>

@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import {
   CardSkeleton,
   GradientButton,
-  MobileStickyAction,
+  StickyActionBar,
   PageHeader,
   ProgressRing,
   SoftCard,
@@ -170,7 +170,7 @@ function CheckPage() {
       : !!qpFile);
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 md:px-8">
+    <div className="mobile-action-content mx-auto w-full max-w-5xl space-y-6 px-4 py-6 md:px-8">
       <Link
         to="/practice"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
@@ -377,7 +377,7 @@ function CheckPage() {
               Check my answers
             </GradientButton>
           </div>
-          <MobileStickyAction>
+          <StickyActionBar>
             {items.length ? (
               <GradientButton className="w-full" size="lg" disabled={!canCheck} onClick={run}>
                 <ClipboardCheck className="h-4 w-4" />
@@ -393,7 +393,7 @@ function CheckPage() {
                 Add answer pages
               </GradientButton>
             )}
-          </MobileStickyAction>
+          </StickyActionBar>
         </motion.div>
       )}
 

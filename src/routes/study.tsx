@@ -4,7 +4,7 @@ import { pageHead } from "@/components/ComingSoonPage";
 import {
   FeatureIcon,
   GradientButton,
-  MobileStickyAction,
+  StickyActionBar,
   PageHeader,
   SoftCard,
 } from "@/components/ui-custom";
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/study")({
 
 export function StudyPage() {
   return (
-    <div className="space-y-6 px-4 py-6 md:px-8">
+    <div className="mobile-action-content space-y-6 px-4 py-6 md:px-8">
       <PageHeader
         title="What would you like to do?"
         description="Choose a goal to get started."
@@ -50,14 +50,14 @@ export function StudyPage() {
           </Link>
         ))}
       </div>
-      <MobileStickyAction>
+      <StickyActionBar>
         <GradientButton
           className="w-full"
           onClick={() => document.getElementById("study-tools")?.scrollIntoView({ block: "start" })}
         >
           Choose a study tool
         </GradientButton>
-      </MobileStickyAction>
+      </StickyActionBar>
     </div>
   );
 }

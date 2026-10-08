@@ -37,7 +37,7 @@ function PracticePage() {
   const stageIdx = missing ? 0 : view.stage === "generate" ? 0 : view.stage === "attempt" ? 1 : 2;
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-5 px-4 py-6 md:px-8">
+    <div className="mobile-action-content mx-auto w-full max-w-6xl space-y-5 px-4 py-6 md:px-8">
       <PageHeader
         title="Practice Papers"
         icon={ClipboardList}

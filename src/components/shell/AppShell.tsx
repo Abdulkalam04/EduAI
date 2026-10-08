@@ -25,6 +25,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
   const onboarded = useUserStore((s) => s.onboarded);
   const [desktop, setDesktop] = useState(false);
+  const hasMobileAction =
+    path === "/" ||
+    path.startsWith("/book") ||
+    path.startsWith("/solver") ||
+    path.startsWith("/practice") ||
+    path === "/viva" ||
+    path === "/ppt" ||
+    path === "/study" ||
+    path === "/progress" ||
+    path === "/settings" ||
+    path === "/coding" ||
+    path === "/diagrams";
 
   useEffect(() => {
     window.localStorage.removeItem("useMock");
@@ -83,7 +95,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar />
-          <main className={path === "/tutor" ? "flex-1 pb-0 pt-0" : "flex-1 pb-24 pt-0 md:pb-8"}>
+          <main
+            className={
+              path === "/tutor" || hasMobileAction
+                ? "flex-1 pb-0 pt-0"
+                : "flex-1 pb-24 pt-0 md:pb-8"
+            }
+          >
             <div
               key={path}
               className={`mx-auto w-full ${["/coding", "/diagrams", "/ppt"].includes(path) ? "max-w-[1500px]" : "max-w-[1200px]"}`}
