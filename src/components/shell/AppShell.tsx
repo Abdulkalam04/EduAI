@@ -34,7 +34,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     path === "/ppt" ||
     path === "/study" ||
     path === "/progress" ||
-    path === "/settings" ||
+    path.startsWith("/settings") ||
     path === "/coding" ||
     path === "/diagrams";
 

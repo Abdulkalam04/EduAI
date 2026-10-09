@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "@tanstack/react-router";
 import { Check, ArrowLeft, ArrowRight } from "lucide-react";
-import { LEVELS, SUBJECTS, useUserStore, type LevelId } from "@/store/useUserStore";
+import { LEVELS, SUBJECTS, useUserStore, DEFAULT_LEVEL, DEFAULT_SUBJECT, type LevelId } from "@/store/useUserStore";
 import { GradientButton, Chip } from "@/components/ui-custom";
 import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
@@ -14,15 +14,41 @@ export function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [name, setName] = useState(store.name);
-  const [level, setLevel] = useState<LevelId>(store.level);
-  const [subjects, setSubjects] = useState<string[]>(store.interests);
+  const [level, setLevel] = useState<LevelId | null>(store.levelSet ? store.level : null);
+  const [subjects, setSubjects] = useState<string[]>(() =>
+    store.interests.filter((subject) => (SUBJECTS as readonly string[]).includes(subject)),
+  );
+  const [otherSubject, setOtherSubject] = useState(
+    () =>
+      store.interests.find((subject) => !(SUBJECTS as readonly string[]).includes(subject)) ?? "",
+  );
+  const [otherSelected, setOtherSelected] = useState(Boolean(otherSubject));
 
   const finish = () => {
+    // If "Other" is selected but left empty, fall back to DEFAULT_SUBJECT
+    const customSubject = otherSelected
+      ? otherSubject.trim() || DEFAULT_SUBJECT
+      : "";
+    const selectedSubjects = [...subjects, ...(customSubject && customSubject !== DEFAULT_SUBJECT ? [customSubject] : [])];
     store.set({
       name: name.trim(),
-      level,
-      interests: subjects,
-      subject: subjects[0] ?? "Maths",
+      level: level ?? DEFAULT_LEVEL,
+      levelSet: true,
+      interests: selectedSubjects,
+      subject: customSubject || subjects[0] || DEFAULT_SUBJECT,
+      onboarded: true,
+    });
+    navigate({ to: "/" });
+  };
+
+  /** "Skip for now" — sets sensible defaults so nothing blocks the user. */
+  const skipNow = () => {
+    store.set({
+      name: name.trim(),
+      level: DEFAULT_LEVEL,
+      levelSet: true,
+      interests: [],
+      subject: DEFAULT_SUBJECT,
       onboarded: true,
     });
     navigate({ to: "/" });
@@ -105,6 +131,23 @@ export function Onboarding() {
                     This helps tailor explanations. You can change it anytime.
                   </p>
                   <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setLevel(null)}
+                      aria-pressed={level === null}
+                      className={cn(
+                        "relative flex items-start gap-3 rounded-2xl border p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        level === null
+                          ? "border-primary bg-accent-soft text-primary"
+                          : "hover:bg-muted",
+                      )}
+                    >
+                      <span>
+                        <span className="block font-semibold">Default</span>
+                        <span className="text-sm text-muted-foreground">No class chosen yet</span>
+                      </span>
+                      {level === null && <Check className="h-5 w-5 text-primary" />}
+                    </button>
                     {LEVELS.map((l) => {
                       const sel = l.id === level;
                       return (
@@ -151,7 +194,31 @@ export function Onboarding() {
                         {s}
                       </Chip>
                     ))}
+                    <Chip
+                      selected={otherSelected}
+                      onClick={() => setOtherSelected((selected) => !selected)}
+                    >
+                      {otherSelected && <Check className="h-4 w-4" />}
+                      Other
+                    </Chip>
                   </div>
+                  {otherSelected && (
+                    <label
+                      className="mt-4 block space-y-1.5 text-sm font-medium"
+                      htmlFor="onboarding-other-subject"
+                    >
+                      Enter subject
+                      <input
+                        id="onboarding-other-subject"
+                        autoFocus
+                        value={otherSubject}
+                        maxLength={80}
+                        onChange={(event) => setOtherSubject(event.target.value)}
+                        placeholder="Type your subject"
+                        className="h-11 w-full rounded-xl border bg-background px-3 text-base outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      />
+                    </label>
+                  )}
                 </div>
               )}
             </motion.div>
@@ -165,7 +232,7 @@ export function Onboarding() {
                   Back
                 </GradientButton>
               )}
-              <GradientButton variant="ghost" onClick={finish}>
+              <GradientButton variant="ghost" onClick={skipNow}>
                 Skip for now
               </GradientButton>
             </div>

@@ -49,7 +49,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { solvePaper, resolveQuestion, solutionFollowUp } from "@/lib/api";
 import type { PaperQuestion, SolveMode, SolveStyle } from "@/lib/types";
 import { downloadPdf } from "@/lib/pdf";
-import { SUBJECTS, useUserStore } from "@/store/useUserStore";
+import { SUBJECTS, useUserStore, useEffectiveProfile } from "@/store/useUserStore";
 import { useUiStore } from "@/store/useUiStore";
 
 export const Route = createFileRoute("/solver")({
@@ -91,10 +91,14 @@ function solutionMd(q: PaperQuestion) {
 
 function SolverPage() {
   const level = useUserStore((s) => s.level);
+  const userSubject = useUserStore((s) => s.subject);
   const [phase, setPhase] = useState<Phase>("idle");
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
-  const [subject, setSubject] = useState<string>("");
+  // Prefill subject from profile; map "Default" / empty → "" (optional for solver)
+  const [subject, setSubject] = useState<string>(
+    userSubject && userSubject !== "Default" ? userSubject : "",
+  );
   const [mode, setMode] = useState<SolveMode>(() => useUiStore.getState().solverMode);
   const [style, setStyle] = useState<SolveStyle>("Exam");
   const [errorMessage, setErrorMessage] = useState("");
@@ -121,7 +125,7 @@ function SolverPage() {
   };
 
   const solve = async () => {
-    if (!file || !subject) return;
+    if (!file) return;
     setPhase("processing");
     setErrorMessage("");
     try {
@@ -446,7 +450,7 @@ function SolverPage() {
                   <GradientButton
                     className="hidden md:inline-flex"
                     size="lg"
-                    disabled={!file || !subject}
+                    disabled={!file}
                     onClick={solve}
                   >
                     <PenLine className="h-4 w-4" />
@@ -454,7 +458,7 @@ function SolverPage() {
                   </GradientButton>
                 </div>
                 <StickyActionBar>
-                  <GradientButton size="lg" disabled={!file || !subject} onClick={solve}>
+                  <GradientButton size="lg" disabled={!file} onClick={solve}>
                     <PenLine className="h-4 w-4" />
                     Solve paper
                   </GradientButton>

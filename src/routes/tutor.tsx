@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowDown, PanelLeftClose, PanelLeftOpen, History, MessageCircle } from "lucide-react";
+import { ArrowDown, PanelLeftClose, PanelLeftOpen, History, MessageCircle, Settings2 } from "lucide-react";
 import "katex/dist/katex.min.css";
 import { pageHead } from "@/components/ComingSoonPage";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -9,7 +9,7 @@ import { ChatSidebar } from "@/components/tutor/ChatSidebar";
 import { Composer } from "@/components/tutor/Composer";
 import { MessageView, TypingDots } from "@/components/tutor/MessageView";
 import { useChatStore, uid } from "@/store/useChatStore";
-import { useUserStore, type LevelId } from "@/store/useUserStore";
+import { useUserStore, useEffectiveProfile, type LevelId } from "@/store/useUserStore";
 import { useUiStore } from "@/store/useUiStore";
 import { streamTutor } from "@/lib/api";
 import type { AnswerStyle } from "@/lib/types";
@@ -26,12 +26,13 @@ const CHIP_TEXTS = new Set(["explain simpler", "give an example", "quiz me on th
 
 function TutorPage() {
   const { chats, activeId, createChat, addMessage, updateMessage } = useChatStore();
-  const level = useUserStore((s) => s.level);
+  const { effectiveLevel, levelLabel, subjectLabel } = useEffectiveProfile();
   const hydrated = useUiStore((s) => s.hydrated);
   const defaultStyle = useUiStore((s) => s.answerStyle);
   const [style, setStyle] = useState<AnswerStyle>(() => useUiStore.getState().answerStyle);
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
+  const [profileSheetOpen, setProfileSheetOpen] = useState(false);
 
   useEffect(() => {
     if (hydrated) setStyle(defaultStyle);
@@ -68,14 +69,16 @@ function TutorPage() {
       setAtBottom(true);
       let acc = "";
       try {
-        const { level: lvl } = useUserStore.getState();
-        const { subject } = useUserStore.getState();
+        const stored = useUserStore.getState();
+        const lvl = stored.level ?? "c9-10";
+        // Map "Default" / empty subject to "" so backend omits subject from prompt
+        const subj = stored.subject && stored.subject !== "Default" ? stored.subject : "";
         for await (const chunk of streamTutor(
           {
             question,
             level: lvl,
             style,
-            subject,
+            subject: subj,
             session_id: chatId,
             ...(topic ? { topic } : {}),
           },
@@ -112,17 +115,7 @@ function TutorPage() {
         content: text,
         ...(attachment ? { attachment } : {}),
       });
-      if (!useUserStore.getState().levelSet) {
-        addMessage(chatId, {
-          id: uid(),
-          role: "assistant",
-          content: "Sure! What is your class?",
-          status: "done",
-          kind: "level-prompt",
-          pending: text,
-        });
-        return;
-      }
+      // Always answer immediately — no more blocking level-prompt step.
       void ask(chatId, text);
     },
     [busy, createChat, addMessage, ask],
@@ -306,8 +299,44 @@ function TutorPage() {
               setStyle={setStyle}
               onFocusChange={setComposerFocused}
             />
+            {/* Non-blocking context indicator */}
+            <p className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
+              <span>
+                Answering for{" "}
+                <span className="font-medium text-foreground">{levelLabel}</span>
+                {" · "}
+                <span className="font-medium text-foreground">{subjectLabel}</span>
+              </span>
+              <button
+                type="button"
+                aria-label="Change level or subject"
+                onClick={() => setProfileSheetOpen(true)}
+                className="ml-1 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-primary underline-offset-2 hover:underline"
+              >
+                <Settings2 className="h-3 w-3" />
+                Change
+              </button>
+            </p>
           </div>
         </div>
+        {/* Inline profile sheet triggered from context bar */}
+        <Sheet open={profileSheetOpen} onOpenChange={setProfileSheetOpen}>
+          <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto rounded-t-3xl pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
+            <SheetTitle className="sr-only">Profile settings</SheetTitle>
+            {/* Reuse the same TopBar profile sheet content by importing TopBar's inner form.
+                For now we redirect the user to open the avatar menu to change settings.
+                A simple message keeps this non-blocking. */}
+            <div className="mt-4 space-y-3 text-center">
+              <p className="text-sm text-muted-foreground">
+                Use the profile icon (top-right) to change your level and subject.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Current:{" "}
+                <strong>{levelLabel}</strong> · <strong>{subjectLabel}</strong>
+              </p>
+            </div>
+          </SheetContent>
+        </Sheet>
       </section>
     </div>
   );

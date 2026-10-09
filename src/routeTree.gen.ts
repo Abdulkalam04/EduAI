@@ -26,6 +26,11 @@ import { Route as BookIndexRouteImport } from './routes/book.index'
 import { Route as BookIdRouteImport } from './routes/book.$id'
 import { Route as PracticeIndexRouteImport } from './routes/practice.index'
 import { Route as PracticeCheckRouteImport } from './routes/practice.check'
+import { Route as SettingsAppearanceRouteImport } from './routes/settings.appearance'
+import { Route as SettingsBackendRouteImport } from './routes/settings.backend'
+import { Route as SettingsDataRouteImport } from './routes/settings.data'
+import { Route as SettingsLearningRouteImport } from './routes/settings.learning'
+import { Route as SettingsProfileRouteImport } from './routes/settings.profile'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -112,6 +117,31 @@ const PracticeCheckRoute = PracticeCheckRouteImport.update({
   path: '/check',
   getParentRoute: () => PracticeRoute,
 } as any)
+const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
+  id: '/appearance',
+  path: '/appearance',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsBackendRoute = SettingsBackendRouteImport.update({
+  id: '/backend',
+  path: '/backend',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsDataRoute = SettingsDataRouteImport.update({
+  id: '/data',
+  path: '/data',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsLearningRoute = SettingsLearningRouteImport.update({
+  id: '/learning',
+  path: '/learning',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsProfileRoute = SettingsProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => SettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -121,7 +151,7 @@ export interface FileRoutesByFullPath {
   '/ppt': typeof PptRoute
   '/practice': typeof PracticeRouteWithChildren
   '/progress': typeof ProgressRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/solver': typeof SolverRoute
   '/study': typeof StudyRoute
   '/tutor': typeof TutorRoute
@@ -129,6 +159,11 @@ export interface FileRoutesByFullPath {
   '/welcome': typeof WelcomeRoute
   '/book/$id': typeof BookIdRoute
   '/practice/check': typeof PracticeCheckRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/backend': typeof SettingsBackendRoute
+  '/settings/data': typeof SettingsDataRoute
+  '/settings/learning': typeof SettingsLearningRoute
+  '/settings/profile': typeof SettingsProfileRoute
   '/book/': typeof BookIndexRoute
   '/practice/': typeof PracticeIndexRoute
 }
@@ -138,7 +173,7 @@ export interface FileRoutesByTo {
   '/diagrams': typeof DiagramsRoute
   '/ppt': typeof PptRoute
   '/progress': typeof ProgressRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/solver': typeof SolverRoute
   '/study': typeof StudyRoute
   '/tutor': typeof TutorRoute
@@ -146,6 +181,11 @@ export interface FileRoutesByTo {
   '/welcome': typeof WelcomeRoute
   '/book/$id': typeof BookIdRoute
   '/practice/check': typeof PracticeCheckRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/backend': typeof SettingsBackendRoute
+  '/settings/data': typeof SettingsDataRoute
+  '/settings/learning': typeof SettingsLearningRoute
+  '/settings/profile': typeof SettingsProfileRoute
   '/book': typeof BookIndexRoute
   '/practice': typeof PracticeIndexRoute
 }
@@ -158,7 +198,7 @@ export interface FileRoutesById {
   '/ppt': typeof PptRoute
   '/practice': typeof PracticeRouteWithChildren
   '/progress': typeof ProgressRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
   '/solver': typeof SolverRoute
   '/study': typeof StudyRoute
   '/tutor': typeof TutorRoute
@@ -166,6 +206,11 @@ export interface FileRoutesById {
   '/welcome': typeof WelcomeRoute
   '/book/$id': typeof BookIdRoute
   '/practice/check': typeof PracticeCheckRoute
+  '/settings/appearance': typeof SettingsAppearanceRoute
+  '/settings/backend': typeof SettingsBackendRoute
+  '/settings/data': typeof SettingsDataRoute
+  '/settings/learning': typeof SettingsLearningRoute
+  '/settings/profile': typeof SettingsProfileRoute
   '/book/': typeof BookIndexRoute
   '/practice/': typeof PracticeIndexRoute
 }
@@ -187,6 +232,11 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/book/$id'
     | '/practice/check'
+    | '/settings/appearance'
+    | '/settings/backend'
+    | '/settings/data'
+    | '/settings/learning'
+    | '/settings/profile'
     | '/book/'
     | '/practice/'
   fileRoutesByTo: FileRoutesByTo
@@ -204,6 +254,11 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/book/$id'
     | '/practice/check'
+    | '/settings/appearance'
+    | '/settings/backend'
+    | '/settings/data'
+    | '/settings/learning'
+    | '/settings/profile'
     | '/book'
     | '/practice'
   id:
@@ -223,6 +278,11 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/book/$id'
     | '/practice/check'
+    | '/settings/appearance'
+    | '/settings/backend'
+    | '/settings/data'
+    | '/settings/learning'
+    | '/settings/profile'
     | '/book/'
     | '/practice/'
   fileRoutesById: FileRoutesById
@@ -235,7 +295,7 @@ export interface RootRouteChildren {
   PptRoute: typeof PptRoute
   PracticeRoute: typeof PracticeRouteWithChildren
   ProgressRoute: typeof ProgressRoute
-  SettingsRoute: typeof SettingsRoute
+  SettingsRoute: typeof SettingsRouteWithChildren
   SolverRoute: typeof SolverRoute
   StudyRoute: typeof StudyRoute
   TutorRoute: typeof TutorRoute
@@ -364,6 +424,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PracticeCheckRouteImport
       parentRoute: typeof PracticeRoute
     }
+    '/settings/appearance': {
+      id: '/settings/appearance'
+      path: '/appearance'
+      fullPath: '/settings/appearance'
+      preLoaderRoute: typeof SettingsAppearanceRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/backend': {
+      id: '/settings/backend'
+      path: '/backend'
+      fullPath: '/settings/backend'
+      preLoaderRoute: typeof SettingsBackendRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/data': {
+      id: '/settings/data'
+      path: '/data'
+      fullPath: '/settings/data'
+      preLoaderRoute: typeof SettingsDataRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/learning': {
+      id: '/settings/learning'
+      path: '/learning'
+      fullPath: '/settings/learning'
+      preLoaderRoute: typeof SettingsLearningRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/profile': {
+      id: '/settings/profile'
+      path: '/profile'
+      fullPath: '/settings/profile'
+      preLoaderRoute: typeof SettingsProfileRouteImport
+      parentRoute: typeof SettingsRoute
+    }
   }
 }
 
@@ -393,6 +488,26 @@ const PracticeRouteWithChildren = PracticeRoute._addFileChildren(
   PracticeRouteChildren,
 )
 
+interface SettingsRouteChildren {
+  SettingsAppearanceRoute: typeof SettingsAppearanceRoute
+  SettingsBackendRoute: typeof SettingsBackendRoute
+  SettingsDataRoute: typeof SettingsDataRoute
+  SettingsLearningRoute: typeof SettingsLearningRoute
+  SettingsProfileRoute: typeof SettingsProfileRoute
+}
+
+const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsAppearanceRoute: SettingsAppearanceRoute,
+  SettingsBackendRoute: SettingsBackendRoute,
+  SettingsDataRoute: SettingsDataRoute,
+  SettingsLearningRoute: SettingsLearningRoute,
+  SettingsProfileRoute: SettingsProfileRoute,
+}
+
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BookRoute: BookRouteWithChildren,
@@ -401,7 +516,7 @@ const rootRouteChildren: RootRouteChildren = {
   PptRoute: PptRoute,
   PracticeRoute: PracticeRouteWithChildren,
   ProgressRoute: ProgressRoute,
-  SettingsRoute: SettingsRoute,
+  SettingsRoute: SettingsRouteWithChildren,
   SolverRoute: SolverRoute,
   StudyRoute: StudyRoute,
   TutorRoute: TutorRoute,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouterState, Link } from "@tanstack/react-router";
 import { Search, Check } from "lucide-react";
-import { LEVELS, SUBJECTS, getLevel, useUserStore } from "@/store/useUserStore";
+import { LEVELS, SUBJECTS, getLevel, useUserStore, DEFAULT_SUBJECT, DEFAULT_SUBJECT_LABEL } from "@/store/useUserStore";
 import { useUiStore } from "@/store/useUiStore";
 import { titleFor } from "@/lib/nav";
 import { checkApiHealth } from "@/lib/api";
@@ -19,10 +19,15 @@ import { initials } from "./profile-utils";
 
 export function TopBar() {
   const path = useRouterState({ select: (state) => state.location.pathname });
-  const { level, subject, name, set } = useUserStore();
+  const { level, levelSet, subject, name, set } = useUserStore();
   const setPaletteOpen = useUiStore((state) => state.setPaletteOpen);
   const [backendConnected, setBackendConnected] = useState<boolean | null>(null);
+  const [otherSubjectSelected, setOtherSubjectSelected] = useState(false);
+  const [otherSubjectDraft, setOtherSubjectDraft] = useState("");
   const currentLevel = getLevel(level);
+  const isOtherSubject =
+    (otherSubjectSelected && !subject) ||
+    (Boolean(subject) && !SUBJECTS.includes(subject as (typeof SUBJECTS)[number]));
 
   useEffect(() => {
     let mounted = true;
@@ -97,7 +102,7 @@ export function TopBar() {
             </SheetTrigger>
             <SheetContent
               side="bottom"
-              className="max-h-[85dvh] overflow-y-auto rounded-t-3xl pb-[calc(env(safe-area-inset-bottom)+1.5rem)]"
+              className="mx-auto max-h-[85dvh] w-full overflow-y-auto rounded-t-3xl pb-[calc(env(safe-area-inset-bottom)+1.5rem)] md:left-1/2 md:max-w-md md:-translate-x-1/2"
             >
               <SheetHeader className="pr-8 text-left">
                 <SheetTitle className="text-primary">My Profile</SheetTitle>
@@ -108,40 +113,117 @@ export function TopBar() {
               <div className="mt-6 space-y-6">
                 <fieldset className="space-y-2">
                   <legend className="mb-2 text-sm font-medium">Learning level</legend>
+                  <button
+                    type="button"
+                    aria-pressed={!levelSet}
+                    onClick={() => set({ levelSet: false })}
+                    className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${!levelSet ? "border-primary bg-primary/10 text-primary" : "bg-card"}`}
+                  >
+                    <span>
+                      <span className="block font-medium">Default</span>
+                      <span className="block text-sm text-muted-foreground">
+                        No class chosen yet
+                      </span>
+                    </span>
+                    {!levelSet && <Check className="h-5 w-5 text-primary" />}
+                  </button>
                   {LEVELS.map((item) => (
                     <button
                       key={item.id}
                       type="button"
-                      aria-pressed={item.id === level}
+                      aria-pressed={levelSet && item.id === level}
                       onClick={() => set({ level: item.id })}
-                      className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${item.id === level ? "border-primary bg-primary/10 text-primary" : "bg-card"}`}
+                      className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${levelSet && item.id === level ? "border-primary bg-primary/10 text-primary" : "bg-card"}`}
                     >
                       <span>
                         <span className="block font-medium">{item.label}</span>
                         <span className="block text-sm text-muted-foreground">{item.style}</span>
                       </span>
-                      {item.id === level && <Check className="h-5 w-5 text-primary" />}
+                      {levelSet && item.id === level && <Check className="h-5 w-5 text-primary" />}
                     </button>
                   ))}
                 </fieldset>
                 <fieldset className="space-y-2">
                   <legend className="mb-2 text-sm font-medium">
-                    Subject <span className="font-normal text-muted-foreground">({subject})</span>
+                    Subject{" "}
+                    <span className="font-normal text-muted-foreground">
+                      ({subject ? (SUBJECTS.includes(subject as (typeof SUBJECTS)[number]) ? subject : isOtherSubject ? "Other" : subject) : DEFAULT_SUBJECT_LABEL})
+                    </span>
                   </legend>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      aria-pressed={!subject && !isOtherSubject}
+                      onClick={() => {
+                        setOtherSubjectSelected(false);
+                        setOtherSubjectDraft("");
+                        set({ subject: "" });
+                      }}
+                      className={`flex min-h-11 items-center justify-between rounded-xl border px-3 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${!subject && !isOtherSubject ? "border-primary bg-primary/10 text-primary" : "bg-card"}`}
+                    >
+                      {DEFAULT_SUBJECT_LABEL}
+                      {!subject && !isOtherSubject && <Check className="h-4 w-4 text-primary" />}
+                    </button>
                     {SUBJECTS.map((item) => (
                       <button
                         key={item}
                         type="button"
                         aria-pressed={item === subject}
-                        onClick={() => set({ subject: item })}
+                        onClick={() => {
+                          setOtherSubjectSelected(false);
+                          setOtherSubjectDraft("");
+                          set({ subject: item });
+                        }}
                         className={`flex min-h-11 items-center justify-between rounded-xl border px-3 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${item === subject ? "border-primary bg-primary/10 text-primary" : "bg-card"}`}
                       >
                         {item}
                         {item === subject && <Check className="h-4 w-4 text-primary" />}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      aria-pressed={isOtherSubject}
+                      onClick={() => {
+                        setOtherSubjectSelected(true);
+                        setOtherSubjectDraft(isOtherSubject ? subject : "");
+                        set({ subject: isOtherSubject ? subject : "" });
+                      }}
+                      className={`flex min-h-11 items-center justify-between rounded-xl border px-3 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isOtherSubject ? "border-primary bg-primary/10 text-primary" : "bg-card"}`}
+                    >
+                      Other
+                      {isOtherSubject && <Check className="h-4 w-4 text-primary" />}
+                    </button>
                   </div>
+                  {isOtherSubject && (
+                    <label
+                      className="block space-y-1.5 text-sm font-medium"
+                      htmlFor="profile-other-subject"
+                    >
+                      Enter subject
+                      <input
+                        id="profile-other-subject"
+                        autoFocus
+                        value={
+                          otherSubjectDraft ||
+                          (isOtherSubject && !otherSubjectSelected ? subject : "")
+                        }
+                        maxLength={80}
+                        onChange={(event) => {
+                          setOtherSubjectDraft(event.target.value);
+                          // If left empty, store DEFAULT_SUBJECT as fallback
+                          set({ subject: event.target.value || "" });
+                        }}
+                        onBlur={(event) => {
+                          // On blur with empty value, fall back to DEFAULT_SUBJECT
+                          if (!event.target.value.trim()) {
+                            set({ subject: "" });
+                          }
+                        }}
+                        placeholder="Type your subject (or leave blank for default)"
+                        className="h-11 w-full rounded-xl border bg-background px-3 text-base outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      />
+                    </label>
+                  )}
                 </fieldset>
                 <div className="flex gap-3 border-t pt-4">
                   <SheetClose asChild>
@@ -155,7 +237,7 @@ export function TopBar() {
                   <SheetClose asChild>
                     <Link
                       to="/progress"
-                      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border px-4 text-sm font-medium"
+                      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-xl border border-[var(--progress)] bg-[var(--progress)] px-4 text-sm font-medium text-primary-foreground hover:opacity-90"
                     >
                       My progress
                     </Link>

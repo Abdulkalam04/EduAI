@@ -55,6 +55,35 @@ export const SUBJECTS = [
   "Programming",
 ] as const;
 
+/** The sentinel value stored in the profile when no subject has been chosen. */
+export const DEFAULT_SUBJECT = "Default";
+
+/** The level used when the user hasn't explicitly set one. */
+export const DEFAULT_LEVEL: LevelId = "c9-10";
+
+/**
+ * Label shown in the UI for the default subject.
+ * Always display this string instead of the raw "Default" sentinel.
+ */
+export const DEFAULT_SUBJECT_LABEL = "Default (all subjects)";
+
+/**
+ * Maps the stored subject value to the value we actually send to the backend.
+ * "Default" → "" (empty string) for Chat/Solve (backend handles "" gracefully).
+ * Use toBackendSubject("general") variant for endpoints that require min_length=1.
+ */
+export function toApiSubject(subject: string): string {
+  return subject === DEFAULT_SUBJECT || subject === "" ? "" : subject;
+}
+
+/**
+ * For endpoints where subject has min_length=1 (Practice, Viva),
+ * "Default" maps to "General".
+ */
+export function toRequiredApiSubject(subject: string): string {
+  return subject === DEFAULT_SUBJECT || subject === "" ? "General" : subject;
+}
+
 export const getLevel = (id: LevelId): LevelMeta => LEVELS.find((l) => l.id === id) ?? LEVELS[2]!;
 
 interface UserState {
@@ -72,8 +101,8 @@ interface UserState {
 
 const initial = {
   name: "",
-  level: "c9-10" as LevelId,
-  subject: "Maths",
+  level: DEFAULT_LEVEL,
+  subject: "",
   interests: [] as string[],
   xp: 0,
   streak: 0,
@@ -85,13 +114,70 @@ export const useUserStore = create<UserState>()(
   persist(
     (set) => ({
       ...initial,
-      set: (p) => set(p.level ? { ...p, levelSet: true } : p),
+      set: (p) =>
+        set(p.level !== undefined && p.levelSet === undefined ? { ...p, levelSet: true } : p),
       reset: () => set(initial),
     }),
     {
       name: "eduai-user",
+      version: 2,
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
+      migrate: (persistedState, version) => {
+        const state = persistedState as Partial<UserState>;
+        const migratedState = { ...state };
+
+        if (migratedState.subject === "Maths" && !migratedState.interests?.length) {
+          migratedState.subject = "";
+        }
+        if (
+          version < 2 &&
+          migratedState.level === "c9-10" &&
+          migratedState.levelSet &&
+          !migratedState.name?.trim() &&
+          !migratedState.subject &&
+          !migratedState.interests?.length
+        ) {
+          migratedState.levelSet = false;
+        }
+
+        return migratedState;
+      },
     },
   ),
 );
+
+/**
+ * Returns the effective level and subject to use for API calls.
+ * Falls back to defaults when the user has not made an explicit choice.
+ *
+ * - effectiveLevel: always a valid LevelId
+ * - effectiveSubject: the stored subject, or DEFAULT_SUBJECT when empty
+ * - levelLabel: human-readable level label
+ * - subjectLabel: human-readable subject (DEFAULT_SUBJECT_LABEL when default)
+ */
+export function useEffectiveProfile() {
+  const level = useUserStore((s) => s.level);
+  const subject = useUserStore((s) => s.subject);
+  const levelSet = useUserStore((s) => s.levelSet);
+
+  const effectiveLevel: LevelId = level ?? DEFAULT_LEVEL;
+  const effectiveSubject: string = subject && subject !== "" ? subject : DEFAULT_SUBJECT;
+
+  const levelMeta = getLevel(effectiveLevel);
+
+  const subjectLabel =
+    effectiveSubject === DEFAULT_SUBJECT ? DEFAULT_SUBJECT_LABEL : effectiveSubject;
+
+  return {
+    effectiveLevel,
+    effectiveSubject,
+    levelSet,
+    levelLabel: levelMeta.short,
+    subjectLabel,
+    /** Value to send to Chat / Solve (min_length not required): "" when default */
+    apiSubject: toApiSubject(effectiveSubject),
+    /** Value to send to Practice / Viva (min_length=1 required): "General" when default */
+    requiredApiSubject: toRequiredApiSubject(effectiveSubject),
+  };
+}

@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { generatePaper } from "@/lib/api";
 import { MARK_OPTIONS, paperStructure, timeForMarks, type Difficulty } from "@/lib/types";
-import { LEVELS, SUBJECTS, useUserStore, type LevelId } from "@/store/useUserStore";
+import { LEVELS, SUBJECTS, useUserStore, useEffectiveProfile, type LevelId } from "@/store/useUserStore";
 import { usePracticeStore } from "@/store/usePracticeStore";
 
 const SECTION_COLORS = ["var(--practice)", "var(--solver)", "var(--diagrams)", "var(--book)"];
@@ -39,9 +39,13 @@ const DIFF: { id: Difficulty; color: string }[] = [
 
 export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
   const userLevel = useUserStore((s) => s.level);
+  const userSubject = useUserStore((s) => s.subject);
   const { papers, attempts, addPaper, startAttempt, setView, removePaper } = usePracticeStore();
   const [level, setLevel] = useState<LevelId>(userLevel);
-  const [subject, setSubject] = useState("");
+  // Prefill subject from user profile; map "Default" / empty → ""
+  const [subject, setSubject] = useState(
+    userSubject && userSubject !== "Default" ? userSubject : "",
+  );
   const [chapter, setChapter] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty>("Medium");
   const [marks, setMarks] = useState(50);
@@ -70,17 +74,17 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
   const structure = paperStructure(marks);
 
   const generate = async () => {
-    if (!subject || !chapter.trim()) {
-      toast.error("Choose a subject and enter a chapter before generating a paper.");
-      return;
-    }
     setLoading(true);
     setErrorMessage("");
     try {
+      // subject defaults to "General" if unset (backend requires min_length=1)
+      const effectiveSubject = subject.trim() || "General";
+      // chapter defaults to "Mixed topics" if empty
+      const effectiveChapter = chapter.trim() || "Mixed topics";
       const p = await generatePaper({
         level,
-        subject,
-        chapter,
+        subject: effectiveSubject,
+        chapter: effectiveChapter,
         difficulty,
         totalMarks: marks,
         timeMin: time,
@@ -175,12 +179,12 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
               </Select>
             </Field>
           </div>
-          <Field label="Chapter">
+          <Field label="Topic / chapter (optional)">
             <Input
-              aria-label="Chapter"
+              aria-label="Topic or chapter (optional)"
               value={chapter}
               onChange={(e) => setChapter(e.target.value)}
-              placeholder="Enter chapter name"
+              placeholder="e.g. Electricity (leave blank for mixed topics)"
             />
           </Field>
           <Field label="Difficulty">
@@ -269,7 +273,7 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
             size="lg"
             className="hidden w-full md:inline-flex"
             onClick={() => void generate()}
-            disabled={!subject || !chapter.trim() || loading}
+            disabled={loading}
           >
             <ClipboardCheck className="h-4 w-4" />
             Generate paper
@@ -279,7 +283,7 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
               size="lg"
               className="w-full"
               onClick={() => void generate()}
-              disabled={!subject || !chapter.trim() || loading}
+              disabled={loading}
             >
               <ClipboardCheck className="h-4 w-4" />
               Generate paper

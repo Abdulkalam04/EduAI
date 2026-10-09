@@ -44,7 +44,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { answerViva, createVivaReport, startViva } from "@/lib/api";
 import type { VivaAnswerFeedback, VivaQuestion, VivaReport } from "@/lib/types";
-import { useUserStore, LEVELS, type LevelId } from "@/store/useUserStore";
+import { useUserStore, useEffectiveProfile, LEVELS, type LevelId } from "@/store/useUserStore";
 import { useLearningStore } from "@/store/useLearningStore";
 import { usePracticeStore } from "@/store/usePracticeStore";
 import { pageHead } from "@/components/ComingSoonPage";
@@ -74,10 +74,12 @@ export const Route = createFileRoute("/viva")({
 
 function VivaMode() {
   const defaultLevel = useUserStore((state) => state.level);
+  const { effectiveSubject, requiredApiSubject } = useEffectiveProfile();
   const saveVivaReport = useLearningStore((state) => state.saveVivaReport);
   const setPracticeView = usePracticeStore((state) => state.setView);
   const [phase, setPhase] = useState<"setup" | "interview" | "report">("setup");
-  const [subject, setSubject] = useState("");
+  // Prefill subject from profile; empty string means user hasn't overridden it yet
+  const [subject, setSubject] = useState(effectiveSubject === "Default" ? "" : effectiveSubject);
   const [topic, setTopic] = useState("");
   const [level, setLevel] = useState<LevelId>(defaultLevel);
   const [count, setCount] = useState("10");
@@ -129,7 +131,9 @@ function VivaMode() {
     setBusy(true);
     setError("");
     try {
-      const started = await startViva({ subject, topic, level, count: Number(count), adaptive });
+      // Backend requires subject min_length=1; map empty/Default -> "General"
+      const apiSubject = subject.trim() || requiredApiSubject;
+      const started = await startViva({ subject: apiSubject, topic, level, count: Number(count), adaptive });
       if (!started.length) throw new Error("No viva questions were returned. Please try again.");
       setQuestions(started);
       setAnswers([]);
@@ -157,7 +161,8 @@ function VivaMode() {
     setBusy(true);
     setError("");
     try {
-      const next = await createVivaReport({ subject, topic, level, answers: finalAnswers });
+      const apiSubject = subject.trim() || requiredApiSubject;
+      const next = await createVivaReport({ subject: apiSubject, topic, level, answers: finalAnswers });
       saveVivaReport(next);
       setReport(next);
       setPhase("report");
@@ -400,10 +405,10 @@ function VivaMode() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="viva-topic">Topic (optional)</Label>
+                  <Label htmlFor="viva-topic">Topic <span className="font-normal text-muted-foreground">(optional)</span></Label>
                   <Input
                     id="viva-topic"
-                    placeholder="e.g. Normalization"
+                    placeholder="e.g. Normalization — leave blank for general questions"
                     value={topic}
                     onChange={(event) => setTopic(event.target.value)}
                   />
@@ -465,7 +470,7 @@ function VivaMode() {
                 <GradientButton
                   className="w-full"
                   size="lg"
-                  disabled={busy || !subject}
+                  disabled={busy}
                   onClick={() => void begin()}
                 >
                   {busy ? (
