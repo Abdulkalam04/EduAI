@@ -162,7 +162,7 @@ function SolverPage() {
     try {
       await downloadPdf(
         "eduai-solutions.pdf",
-        `${subject} paper — solutions (${mode === "teach" ? "Teach Me" : "Exam Answer"})`,
+        `${subjectChoice === "Default" ? "All subjects" : subjectChoice} paper — solutions (${mode === "teach" ? "Teach Me" : "Exam Answer"})`,
         questions.map((q) => ({
           heading: `Q${q.n}. ${q.text}  [${q.marks} marks]`,
           body: solutionMd(q),
@@ -560,7 +560,7 @@ function SolverPage() {
                   q={questions[active]!}
                   mode={mode}
                   onUpdate={(nq) => setQuestions((qs) => qs.map((x) => (x.id === nq.id ? nq : x)))}
-                  level={level}
+                  level={effectiveLevel}
                   style={style}
                 />
               </div>

@@ -44,7 +44,7 @@ import {
 import { generateDiagram, refineDiagram } from "@/lib/api";
 import type { DiagramType, GeneratedDiagram } from "@/lib/types";
 import { useCreativeStore } from "@/store/useCreativeStore";
-import { getLevel, LEVELS, SUBJECTS, useUserStore, type LevelId } from "@/store/useUserStore";
+import { getLevel, LEVELS, SUBJECTS, useUserStore, useEffectiveProfile, DEFAULT_LEVEL, type LevelId } from "@/store/useUserStore";
 import { resolvedTheme, useUiStore } from "@/store/useUiStore";
 import { pageHead } from "@/components/ComingSoonPage";
 
@@ -71,12 +71,10 @@ const TYPES: DiagramType[] = [
 ];
 
 function DiagramMaker() {
-  const level = useUserStore((state) => state.level);
-  const levelSet = useUserStore((state) => state.levelSet);
+  const { effectiveLevel, levelSet } = useEffectiveProfile();
   const profileSubject = useUserStore((state) => state.subject).trim() || "Maths";
   const knownSubject = SUBJECTS.find((item) => item === profileSubject);
-  const defaultLevel: LevelId = "c9-10";
-  const preferredLevel = levelSet ? getLevel(level).id : defaultLevel;
+  const preferredLevel: LevelId | "default" = levelSet ? effectiveLevel : "default";
   const theme = useUiStore((state) => state.theme);
   const { diagrams, addDiagram, updateDiagram, removeDiagram } = useCreativeStore();
   const [mode, setMode] = useState<DiagramMode>("General");
@@ -84,7 +82,7 @@ function DiagramMaker() {
   const [type, setType] = useState<DiagramType>("Flowchart");
   const [subject, setSubject] = useState(knownSubject ?? "Other");
   const [otherSubject, setOtherSubject] = useState(knownSubject ? "" : profileSubject);
-  const [selectedLevel, setSelectedLevel] = useState<LevelId>(preferredLevel);
+  const [selectedLevel, setSelectedLevel] = useState<LevelId | "default">(preferredLevel);
   const [current, setCurrent] = useState<GeneratedDiagram | null>(null);
   const [tab, setTab] = useState<ViewTab>("Preview");
   const [code, setCode] = useState("");
@@ -104,6 +102,8 @@ function DiagramMaker() {
   const currentId = current?.id;
   const dark = resolvedTheme(theme) === "dark";
   const selectedSubject = subject === "Other" ? otherSubject.trim() || "Other" : subject || "Maths";
+  /** Resolved LevelId — maps the "default" sentinel to DEFAULT_LEVEL for API calls */
+  const resolvedSelectedLevel: LevelId = selectedLevel === "default" ? DEFAULT_LEVEL : selectedLevel;
 
   useEffect(() => {
     if (!levelChosen.current && !current) setSelectedLevel(preferredLevel);
@@ -163,7 +163,7 @@ function DiagramMaker() {
       const result = await generateDiagram({
         prompt: prompt.trim(),
         type: requested,
-        level: getLevel(selectedLevel).id,
+        level: selectedLevel === "default" ? DEFAULT_LEVEL : selectedLevel,
         subject: selectedSubject,
         forceFlowchart: mode === "Flowchart Generator",
         forceMindMap: mode === "Mind Map",
@@ -186,7 +186,7 @@ function DiagramMaker() {
       const result = await refineDiagram(
         { ...current, code, subject: selectedSubject },
         request,
-        getLevel(selectedLevel).id,
+        getLevel(resolvedSelectedLevel).id,
       );
       addDiagram(result);
       load(result);
@@ -205,7 +205,7 @@ function DiagramMaker() {
       ...current,
       code,
       subject: selectedSubject,
-      level: getLevel(selectedLevel).id,
+      level: resolvedSelectedLevel,
       explanation: current.explanation,
     };
     updateDiagram(current.id, saved);
@@ -318,7 +318,7 @@ function DiagramMaker() {
       const corrected = await generateDiagram({
         prompt: current.prompt,
         type: current.type,
-        level: getLevel(selectedLevel).id,
+        level: resolvedSelectedLevel,
         subject: selectedSubject,
       });
       setCode(corrected.code);
@@ -506,16 +506,17 @@ function DiagramMaker() {
               <label className="block space-y-1.5 text-sm font-medium">
                 Learning level
                 <Select
-                  value={getLevel(selectedLevel).id}
+                  value={selectedLevel}
                   onValueChange={(value) => {
                     levelChosen.current = true;
-                    setSelectedLevel(value as LevelId);
+                    setSelectedLevel(value as LevelId | "default");
                   }}
                 >
                   <SelectTrigger aria-label="Learning level">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="default">Default (any level)</SelectItem>
                     {LEVELS.map((item) => (
                       <SelectItem key={item.id} value={item.id}>
                         {item.label}

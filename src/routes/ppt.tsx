@@ -48,7 +48,7 @@ import {
 import { exportPptx, generatePpt } from "@/lib/api";
 import type { DeckSlide, GeneratedDeck, PptTheme } from "@/lib/types";
 import { useCreativeStore } from "@/store/useCreativeStore";
-import { LEVELS, useUserStore, type LevelId } from "@/store/useUserStore";
+import { LEVELS, useEffectiveProfile, DEFAULT_LEVEL, type LevelId } from "@/store/useUserStore";
 import { pageHead } from "@/components/ComingSoonPage";
 
 export const Route = createFileRoute("/ppt")({
@@ -122,10 +122,11 @@ const themeColors: Record<
 
 function PptMaker() {
   const search = Route.useSearch();
-  const userLevel = useUserStore((state) => state.level);
+  const { effectiveLevel, levelSet } = useEffectiveProfile();
   const { decks, addDeck, updateDeck, removeDeck } = useCreativeStore();
   const [topic, setTopic] = useState(search.topic ?? search.doc ?? "");
-  const [level, setLevel] = useState<LevelId>(userLevel);
+  // "default" sentinel = user hasn't explicitly chosen; effectiveLevel is used for the API call
+  const [level, setLevel] = useState<LevelId | "default">(levelSet ? effectiveLevel : "default");
   const [slideCount, setSlideCount] = useState(Math.min(20, Math.max(5, search.slides ?? 10)));
   const [theme, setTheme] = useState<PptTheme>("Indigo Modern");
   const [speakerNotes, setSpeakerNotes] = useState(search.notes ?? true);
@@ -153,8 +154,8 @@ function PptMaker() {
   const colors = themeColors[deck?.theme ?? theme];
 
   useEffect(() => {
-    if (!levelChosen.current && !deck) setLevel(userLevel);
-  }, [userLevel, deck]);
+    if (!levelChosen.current && !deck) setLevel(levelSet ? effectiveLevel : "default");
+  }, [effectiveLevel, levelSet, deck]);
 
   const selectDeck = (value: GeneratedDeck) => {
     setDeck(value);
@@ -177,7 +178,7 @@ function PptMaker() {
       const created = await generatePpt(
         {
           topic: topic.trim(),
-          level,
+          level: level === "default" ? DEFAULT_LEVEL : level,
           slides: slideCount,
           theme,
           speakerNotes,
@@ -433,17 +434,18 @@ function PptMaker() {
           />
           <label className="block space-y-1.5 text-sm font-medium">
             Learning level
-            <Select
+              <Select
               value={level}
               onValueChange={(value) => {
                 levelChosen.current = true;
-                setLevel(value as LevelId);
+                setLevel(value as LevelId | "default");
               }}
             >
               <SelectTrigger aria-label="Learning level">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="default">Default (any level)</SelectItem>
                 {LEVELS.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
                     {item.label}

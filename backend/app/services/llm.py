@@ -427,8 +427,23 @@ async def stream(
         raise
     except OpenAIError as error:
         logger.warning("OmniRoute streaming completion failed (%s)", type(error).__name__)
+        status_code = error.status_code if isinstance(error, APIStatusError) else None
+        response_body = (
+            getattr(error.response, "text", "")
+            if isinstance(error, APIStatusError)
+            else str(error)
+        )
+        excerpt = _safe_excerpt(response_body)
+        reason = (
+            f"OmniRoute returned HTTP {status_code}: {excerpt}"
+            if status_code is not None
+            else "OmniRoute is not running or the API key is invalid"
+        )
         raise OmniRouteError(
-            "OmniRoute is not running or the API key is invalid"
+            reason,
+            status_code=status_code,
+            error_type=type(error).__name__,
+            response_excerpt=excerpt,
         ) from error
 
 
@@ -439,8 +454,23 @@ async def _create_stream_with_retry(**kwargs: Any) -> Any:
         except OpenAIError as error:
             if not _retryable(error) or attempt == 2:
                 logger.warning("OmniRoute stream setup failed (%s)", type(error).__name__)
+                status_code = error.status_code if isinstance(error, APIStatusError) else None
+                response_body = (
+                    getattr(error.response, "text", "")
+                    if isinstance(error, APIStatusError)
+                    else str(error)
+                )
+                excerpt = _safe_excerpt(response_body)
+                reason = (
+                    f"OmniRoute returned HTTP {status_code}: {excerpt}"
+                    if status_code is not None
+                    else "OmniRoute is not running or the API key is invalid"
+                )
                 raise OmniRouteError(
-                    "OmniRoute is not running or the API key is invalid"
+                    reason,
+                    status_code=status_code,
+                    error_type=type(error).__name__,
+                    response_excerpt=excerpt,
                 ) from error
             await asyncio.sleep(0.25 * (2**attempt))
     raise RuntimeError("Unreachable retry state")

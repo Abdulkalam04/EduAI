@@ -124,7 +124,7 @@ export const useUserStore = create<UserState>()(
     }),
     {
       name: "eduai-user",
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
       migrate: (persistedState, version) => {
@@ -140,6 +140,17 @@ export const useUserStore = create<UserState>()(
           migratedState.levelSet &&
           !migratedState.name?.trim() &&
           !migratedState.subject &&
+          !migratedState.interests?.length
+        ) {
+          migratedState.levelSet = false;
+        }
+        // v3: onboarding used to set levelSet:true even when "Default" was chosen.
+        // Reset levelSet for users who have the default level and no interests set
+        // (strong signal they picked "Default" in onboarding, not a specific class).
+        if (
+          version < 3 &&
+          migratedState.level === DEFAULT_LEVEL &&
+          migratedState.levelSet &&
           !migratedState.interests?.length
         ) {
           migratedState.levelSet = false;

@@ -30,10 +30,11 @@ export function Onboarding() {
       ? otherSubject.trim() || DEFAULT_SUBJECT
       : "";
     const selectedSubjects = [...subjects, ...(customSubject && customSubject !== DEFAULT_SUBJECT ? [customSubject] : [])];
+    // level===null means user picked "Default" — keep levelSet:false so the app shows Default everywhere
     store.set({
       name: name.trim(),
       level: level ?? DEFAULT_LEVEL,
-      levelSet: true,
+      levelSet: level !== null,
       interests: selectedSubjects,
       subject: customSubject || subjects[0] || DEFAULT_SUBJECT,
       onboarded: true,
@@ -46,7 +47,7 @@ export function Onboarding() {
     store.set({
       name: name.trim(),
       level: DEFAULT_LEVEL,
-      levelSet: true,
+      levelSet: false,
       interests: [],
       subject: DEFAULT_SUBJECT,
       onboarded: true,

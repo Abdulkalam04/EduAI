@@ -508,7 +508,7 @@ function VivaMode() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold">
-                  {subject}
+                  {subjectChoice === "Default" ? "All subjects" : subjectChoice}
                   {topic && ` · ${topic}`}
                 </p>
                 <p className="text-xs text-muted-foreground">
