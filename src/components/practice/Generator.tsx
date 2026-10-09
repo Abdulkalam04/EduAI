@@ -27,7 +27,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { generatePaper } from "@/lib/api";
 import { MARK_OPTIONS, paperStructure, timeForMarks, type Difficulty } from "@/lib/types";
-import { LEVELS, SUBJECTS, useUserStore, useEffectiveProfile, type LevelId } from "@/store/useUserStore";
+import {
+  LEVELS,
+  SUBJECTS,
+  useEffectiveProfile,
+  DEFAULT_LEVEL,
+  DEFAULT_SUBJECT,
+  toRequiredApiSubject,
+  type LevelId,
+} from "@/store/useUserStore";
 import { usePracticeStore } from "@/store/usePracticeStore";
 
 const SECTION_COLORS = ["var(--practice)", "var(--solver)", "var(--diagrams)", "var(--book)"];
@@ -38,13 +46,11 @@ const DIFF: { id: Difficulty; color: string }[] = [
 ];
 
 export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
-  const userLevel = useUserStore((s) => s.level);
-  const userSubject = useUserStore((s) => s.subject);
+  const { effectiveLevel, effectiveSubject, levelSet, customSubject } = useEffectiveProfile();
   const { papers, attempts, addPaper, startAttempt, setView, removePaper } = usePracticeStore();
-  const [level, setLevel] = useState<LevelId>(userLevel);
-  // Prefill subject from user profile; map "Default" / empty → ""
-  const [subject, setSubject] = useState(
-    userSubject && userSubject !== "Default" ? userSubject : "",
+  const [levelChoice, setLevelChoice] = useState<string>(levelSet ? effectiveLevel : "default");
+  const [subjectChoice, setSubjectChoice] = useState<string>(
+    effectiveSubject === DEFAULT_SUBJECT ? "Default" : effectiveSubject,
   );
   const [chapter, setChapter] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty>("Medium");
@@ -77,13 +83,13 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
     setLoading(true);
     setErrorMessage("");
     try {
-      // subject defaults to "General" if unset (backend requires min_length=1)
-      const effectiveSubject = subject.trim() || "General";
-      // chapter defaults to "Mixed topics" if empty
+      const effectiveSubjectToSend = toRequiredApiSubject(subjectChoice);
+      const effectiveLevelToSend =
+        levelChoice === "default" ? DEFAULT_LEVEL : (levelChoice as LevelId);
       const effectiveChapter = chapter.trim() || "Mixed topics";
       const p = await generatePaper({
-        level,
-        subject: effectiveSubject,
+        level: effectiveLevelToSend,
+        subject: effectiveSubjectToSend,
         chapter: effectiveChapter,
         difficulty,
         totalMarks: marks,
@@ -151,11 +157,12 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
           <h2 className="font-semibold">Create a paper</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Level">
-              <Select value={level} onValueChange={(v) => setLevel(v as LevelId)}>
+              <Select value={levelChoice} onValueChange={setLevelChoice}>
                 <SelectTrigger aria-label="Level">
-                  <SelectValue placeholder="Choose a subject" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="default">Default</SelectItem>
                   {LEVELS.map((l) => (
                     <SelectItem key={l.id} value={l.id}>
                       {l.label}
@@ -165,11 +172,15 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
               </Select>
             </Field>
             <Field label="Subject">
-              <Select value={subject} onValueChange={setSubject}>
+              <Select value={subjectChoice} onValueChange={setSubjectChoice}>
                 <SelectTrigger aria-label="Subject">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="Default">Default (all subjects)</SelectItem>
+                  {customSubject && !SUBJECTS.includes(customSubject as any) && (
+                    <SelectItem value={customSubject}>{customSubject}</SelectItem>
+                  )}
                   {SUBJECTS.map((s) => (
                     <SelectItem key={s} value={s}>
                       {s}

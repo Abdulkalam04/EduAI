@@ -12,7 +12,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { LevelBadge } from "@/components/ui-custom";
-import { LEVELS, useUserStore } from "@/store/useUserStore";
+import { LEVELS, useUserStore, DEFAULT_LEVEL } from "@/store/useUserStore";
 import type { AnswerStyle } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -55,7 +55,7 @@ export function Composer({
   const ta = useRef<HTMLTextAreaElement>(null);
   const rec = useRef<SR | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const { level, set } = useUserStore();
+  const { level, levelSet, set } = useUserStore();
 
   useEffect(() => {
     const w = window as unknown as {
@@ -149,20 +149,32 @@ export function Composer({
             aria-label="Change level"
             className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <LevelBadge level={level} className="cursor-pointer hover:bg-muted" />
+            <LevelBadge level={level} levelSet={levelSet} className="cursor-pointer hover:bg-muted" />
           </PopoverTrigger>
           <PopoverContent align="end" className="w-64 rounded-xl p-1.5">
+            <button
+              type="button"
+              onClick={() => set({ level: DEFAULT_LEVEL, levelSet: false })}
+              className="flex w-full items-start gap-2 rounded-lg p-2 text-left text-sm hover:bg-muted"
+            >
+              <span className="flex-1">
+                <span className="block font-medium">Default</span>
+                <span className="block text-xs text-muted-foreground">General learning, adaptable to any level</span>
+              </span>
+              {!levelSet && <Check className="mt-0.5 h-4 w-4 text-primary" />}
+            </button>
             {LEVELS.map((l) => (
               <button
                 key={l.id}
-                onClick={() => set({ level: l.id })}
+                type="button"
+                onClick={() => set({ level: l.id, levelSet: true })}
                 className="flex w-full items-start gap-2 rounded-lg p-2 text-left text-sm hover:bg-muted"
               >
                 <span className="flex-1">
                   <span className="block font-medium">{l.label}</span>
                   <span className="block text-xs text-muted-foreground">{l.style}</span>
                 </span>
-                {l.id === level && <Check className="mt-0.5 h-4 w-4 text-primary" />}
+                {levelSet && l.id === level && <Check className="mt-0.5 h-4 w-4 text-primary" />}
               </button>
             ))}
           </PopoverContent>

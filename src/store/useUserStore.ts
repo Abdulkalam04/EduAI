@@ -61,6 +61,10 @@ export const DEFAULT_SUBJECT = "Default";
 /** The level used when the user hasn't explicitly set one. */
 export const DEFAULT_LEVEL: LevelId = "c9-10";
 
+/** Label shown in the UI when no level has been explicitly chosen. */
+export const DEFAULT_LEVEL_LABEL = "Default";
+export const DEFAULT_LEVEL_FULL_LABEL = "Default (all levels)";
+
 /**
  * Label shown in the UI for the default subject.
  * Always display this string instead of the raw "Default" sentinel.
@@ -153,7 +157,7 @@ export const useUserStore = create<UserState>()(
  *
  * - effectiveLevel: always a valid LevelId
  * - effectiveSubject: the stored subject, or DEFAULT_SUBJECT when empty
- * - levelLabel: human-readable level label
+ * - levelLabel: human-readable level label ("Default" when !levelSet)
  * - subjectLabel: human-readable subject (DEFAULT_SUBJECT_LABEL when default)
  */
 export function useEffectiveProfile() {
@@ -166,15 +170,23 @@ export function useEffectiveProfile() {
 
   const levelMeta = getLevel(effectiveLevel);
 
+  const levelLabel = levelSet ? levelMeta.short : DEFAULT_LEVEL_LABEL;
   const subjectLabel =
     effectiveSubject === DEFAULT_SUBJECT ? DEFAULT_SUBJECT_LABEL : effectiveSubject;
+
+  const isCustomSubject =
+    Boolean(subject) &&
+    subject !== DEFAULT_SUBJECT &&
+    !SUBJECTS.includes(subject as (typeof SUBJECTS)[number]);
 
   return {
     effectiveLevel,
     effectiveSubject,
     levelSet,
-    levelLabel: levelMeta.short,
+    levelLabel,
     subjectLabel,
+    isCustomSubject,
+    customSubject: isCustomSubject ? subject : "",
     /** Value to send to Chat / Solve (min_length not required): "" when default */
     apiSubject: toApiSubject(effectiveSubject),
     /** Value to send to Practice / Viva (min_length=1 required): "General" when default */

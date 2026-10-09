@@ -85,8 +85,18 @@ export function FeatureIcon({
 }
 
 /* ---------- LevelBadge ---------- */
-export function LevelBadge({ level, className }: { level: LevelId; className?: string }) {
-  const meta = getLevel(level);
+export function LevelBadge({
+  level,
+  levelSet = true,
+  label,
+  className,
+}: {
+  level?: LevelId;
+  levelSet?: boolean;
+  label?: string;
+  className?: string;
+}) {
+  const displayLabel = label ?? (levelSet && level ? getLevel(level).label : "Default");
   return (
     <span
       className={cn(
@@ -94,7 +104,7 @@ export function LevelBadge({ level, className }: { level: LevelId; className?: s
         className,
       )}
     >
-      {meta.label}
+      {displayLabel}
     </span>
   );
 }

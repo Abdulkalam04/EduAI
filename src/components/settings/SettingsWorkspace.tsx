@@ -521,14 +521,13 @@ export function SettingsSectionContent({ section }: { section: SettingsSectionId
                       }));
                     } else {
                       setOtherSubjectOpen(true);
-                      document.getElementById("settings-other-subject")?.focus();
                     }
                   }}
                   className={`min-h-11 rounded-full border px-4 text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                     otherSubjectSelected ? "border-primary bg-primary/10 text-primary" : "bg-card"
                   }`}
                 >
-                  Other
+                  Other{otherSubjectDraft ? ` (${otherSubjectDraft})` : ""}
                 </button>
               </div>
               {otherSubjectSelected && (
@@ -539,7 +538,6 @@ export function SettingsSectionContent({ section }: { section: SettingsSectionId
                   Enter subject
                   <Input
                     id="settings-other-subject"
-                    autoFocus
                     value={otherSubjectDraft}
                     maxLength={80}
                     onChange={(event) => {

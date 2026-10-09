@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouterState, Link } from "@tanstack/react-router";
 import { Search, Check } from "lucide-react";
-import { LEVELS, SUBJECTS, getLevel, useUserStore, DEFAULT_SUBJECT, DEFAULT_SUBJECT_LABEL } from "@/store/useUserStore";
+import { LEVELS, SUBJECTS, getLevel, useUserStore, DEFAULT_LEVEL, DEFAULT_SUBJECT, DEFAULT_SUBJECT_LABEL } from "@/store/useUserStore";
 import { useUiStore } from "@/store/useUiStore";
 import { titleFor } from "@/lib/nav";
 import { checkApiHealth } from "@/lib/api";
@@ -24,6 +24,7 @@ export function TopBar() {
   const [backendConnected, setBackendConnected] = useState<boolean | null>(null);
   const [otherSubjectSelected, setOtherSubjectSelected] = useState(false);
   const [otherSubjectDraft, setOtherSubjectDraft] = useState("");
+  const [isEditingOther, setIsEditingOther] = useState(false);
   const currentLevel = getLevel(level);
   const isOtherSubject =
     (otherSubjectSelected && !subject) ||
@@ -116,13 +117,13 @@ export function TopBar() {
                   <button
                     type="button"
                     aria-pressed={!levelSet}
-                    onClick={() => set({ levelSet: false })}
+                    onClick={() => set({ level: DEFAULT_LEVEL, levelSet: false })}
                     className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${!levelSet ? "border-primary bg-primary/10 text-primary" : "bg-card"}`}
                   >
                     <span>
                       <span className="block font-medium">Default</span>
                       <span className="block text-sm text-muted-foreground">
-                        No class chosen yet
+                        General learning, adaptable to any level
                       </span>
                     </span>
                     {!levelSet && <Check className="h-5 w-5 text-primary" />}
@@ -132,7 +133,7 @@ export function TopBar() {
                       key={item.id}
                       type="button"
                       aria-pressed={levelSet && item.id === level}
-                      onClick={() => set({ level: item.id })}
+                      onClick={() => set({ level: item.id, levelSet: true })}
                       className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${levelSet && item.id === level ? "border-primary bg-primary/10 text-primary" : "bg-card"}`}
                     >
                       <span>
@@ -147,7 +148,7 @@ export function TopBar() {
                   <legend className="mb-2 text-sm font-medium">
                     Subject{" "}
                     <span className="font-normal text-muted-foreground">
-                      ({subject ? (SUBJECTS.includes(subject as (typeof SUBJECTS)[number]) ? subject : isOtherSubject ? "Other" : subject) : DEFAULT_SUBJECT_LABEL})
+                      ({subject ? (SUBJECTS.includes(subject as (typeof SUBJECTS)[number]) ? subject : isOtherSubject ? subject : subject) : DEFAULT_SUBJECT_LABEL})
                     </span>
                   </legend>
                   <div className="flex flex-col gap-2">
@@ -157,6 +158,7 @@ export function TopBar() {
                       onClick={() => {
                         setOtherSubjectSelected(false);
                         setOtherSubjectDraft("");
+                        setIsEditingOther(false);
                         set({ subject: "" });
                       }}
                       className={`flex min-h-11 items-center justify-between rounded-xl border px-3 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${!subject && !isOtherSubject ? "border-primary bg-primary/10 text-primary" : "bg-card"}`}
@@ -172,6 +174,7 @@ export function TopBar() {
                         onClick={() => {
                           setOtherSubjectSelected(false);
                           setOtherSubjectDraft("");
+                          setIsEditingOther(false);
                           set({ subject: item });
                         }}
                         className={`flex min-h-11 items-center justify-between rounded-xl border px-3 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${item === subject ? "border-primary bg-primary/10 text-primary" : "bg-card"}`}
@@ -185,44 +188,77 @@ export function TopBar() {
                       aria-pressed={isOtherSubject}
                       onClick={() => {
                         setOtherSubjectSelected(true);
-                        setOtherSubjectDraft(isOtherSubject ? subject : "");
-                        set({ subject: isOtherSubject ? subject : "" });
+                        if (!subject || SUBJECTS.includes(subject as (typeof SUBJECTS)[number])) {
+                          setIsEditingOther(true);
+                          setOtherSubjectDraft("");
+                        } else {
+                          // Already has a custom subject typed — keep it without asking again
+                          setOtherSubjectDraft(subject);
+                        }
                       }}
                       className={`flex min-h-11 items-center justify-between rounded-xl border px-3 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isOtherSubject ? "border-primary bg-primary/10 text-primary" : "bg-card"}`}
                     >
-                      Other
+                      <span>
+                        Other{isOtherSubject && subject && !SUBJECTS.includes(subject as (typeof SUBJECTS)[number]) ? ` (${subject})` : ""}
+                      </span>
                       {isOtherSubject && <Check className="h-4 w-4 text-primary" />}
                     </button>
                   </div>
                   {isOtherSubject && (
-                    <label
-                      className="block space-y-1.5 text-sm font-medium"
-                      htmlFor="profile-other-subject"
-                    >
-                      Enter subject
-                      <input
-                        id="profile-other-subject"
-                        autoFocus
-                        value={
-                          otherSubjectDraft ||
-                          (isOtherSubject && !otherSubjectSelected ? subject : "")
-                        }
-                        maxLength={80}
-                        onChange={(event) => {
-                          setOtherSubjectDraft(event.target.value);
-                          // If left empty, store DEFAULT_SUBJECT as fallback
-                          set({ subject: event.target.value || "" });
-                        }}
-                        onBlur={(event) => {
-                          // On blur with empty value, fall back to DEFAULT_SUBJECT
-                          if (!event.target.value.trim()) {
-                            set({ subject: "" });
-                          }
-                        }}
-                        placeholder="Type your subject (or leave blank for default)"
-                        className="h-11 w-full rounded-xl border bg-background px-3 text-base outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      />
-                    </label>
+                    <div className="pt-1">
+                      {isEditingOther || !subject || SUBJECTS.includes(subject as (typeof SUBJECTS)[number]) ? (
+                        <div className="space-y-1.5">
+                          <label
+                            className="block text-sm font-medium"
+                            htmlFor="profile-other-subject"
+                          >
+                            Enter subject
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              id="profile-other-subject"
+                              value={otherSubjectDraft}
+                              maxLength={80}
+                              onChange={(event) => {
+                                setOtherSubjectDraft(event.target.value);
+                                set({ subject: event.target.value.trim() });
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  setIsEditingOther(false);
+                                }
+                              }}
+                              placeholder="Type your subject"
+                              className="h-11 flex-1 rounded-xl border bg-background px-3 text-base outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setIsEditingOther(false)}
+                              className="rounded-xl border bg-card px-3 text-sm font-medium hover:bg-muted"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between rounded-xl border bg-muted/40 px-3 py-2 text-sm">
+                          <div>
+                            <span className="text-xs text-muted-foreground">Custom subject: </span>
+                            <span className="font-semibold text-foreground">{subject}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOtherSubjectDraft(subject);
+                              setIsEditingOther(true);
+                            }}
+                            className="text-xs font-semibold text-primary underline-offset-2 hover:underline"
+                          >
+                            Change
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </fieldset>
                 <div className="flex gap-3 border-t pt-4">

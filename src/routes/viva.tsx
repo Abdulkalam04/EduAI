@@ -44,7 +44,15 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { answerViva, createVivaReport, startViva } from "@/lib/api";
 import type { VivaAnswerFeedback, VivaQuestion, VivaReport } from "@/lib/types";
-import { useUserStore, useEffectiveProfile, LEVELS, type LevelId } from "@/store/useUserStore";
+import {
+  useEffectiveProfile,
+  LEVELS,
+  SUBJECTS,
+  DEFAULT_LEVEL,
+  DEFAULT_SUBJECT,
+  toRequiredApiSubject,
+  type LevelId,
+} from "@/store/useUserStore";
 import { useLearningStore } from "@/store/useLearningStore";
 import { usePracticeStore } from "@/store/usePracticeStore";
 import { pageHead } from "@/components/ComingSoonPage";
@@ -73,15 +81,16 @@ export const Route = createFileRoute("/viva")({
 });
 
 function VivaMode() {
-  const defaultLevel = useUserStore((state) => state.level);
-  const { effectiveSubject, requiredApiSubject } = useEffectiveProfile();
+  const { effectiveLevel, effectiveSubject, levelSet, customSubject } = useEffectiveProfile();
   const saveVivaReport = useLearningStore((state) => state.saveVivaReport);
   const setPracticeView = usePracticeStore((state) => state.setView);
   const [phase, setPhase] = useState<"setup" | "interview" | "report">("setup");
-  // Prefill subject from profile; empty string means user hasn't overridden it yet
-  const [subject, setSubject] = useState(effectiveSubject === "Default" ? "" : effectiveSubject);
+  const [subjectChoice, setSubjectChoice] = useState(
+    effectiveSubject === DEFAULT_SUBJECT ? "Default" : effectiveSubject,
+  );
   const [topic, setTopic] = useState("");
-  const [level, setLevel] = useState<LevelId>(defaultLevel);
+  const [levelChoice, setLevelChoice] = useState<string>(levelSet ? effectiveLevel : "default");
+  const [activeLevel, setActiveLevel] = useState<LevelId>(DEFAULT_LEVEL);
   const [count, setCount] = useState("10");
   const [adaptive, setAdaptive] = useState(true);
   const [timed, setTimed] = useState(true);
@@ -131,9 +140,10 @@ function VivaMode() {
     setBusy(true);
     setError("");
     try {
-      // Backend requires subject min_length=1; map empty/Default -> "General"
-      const apiSubject = subject.trim() || requiredApiSubject;
-      const started = await startViva({ subject: apiSubject, topic, level, count: Number(count), adaptive });
+      const apiSubject = toRequiredApiSubject(subjectChoice);
+      const apiLevel = levelChoice === "default" ? DEFAULT_LEVEL : (levelChoice as LevelId);
+      setActiveLevel(apiLevel);
+      const started = await startViva({ subject: apiSubject, topic, level: apiLevel, count: Number(count), adaptive });
       if (!started.length) throw new Error("No viva questions were returned. Please try again.");
       setQuestions(started);
       setAnswers([]);
@@ -161,8 +171,8 @@ function VivaMode() {
     setBusy(true);
     setError("");
     try {
-      const apiSubject = subject.trim() || requiredApiSubject;
-      const next = await createVivaReport({ subject: apiSubject, topic, level, answers: finalAnswers });
+      const apiSubject = toRequiredApiSubject(subjectChoice);
+      const next = await createVivaReport({ subject: apiSubject, topic, level: activeLevel, answers: finalAnswers });
       saveVivaReport(next);
       setReport(next);
       setPhase("report");
@@ -188,7 +198,7 @@ function VivaMode() {
             explanation: "Skipping is okay; this question will be included in your review.",
             ideal: currentQuestion.explanation,
           }
-        : await answerViva(currentQuestion, answer, level);
+        : await answerViva(currentQuestion, answer, activeLevel);
       const nextAnswers = [
         ...answers,
         { question: currentQuestion, answer: skip ? "" : answer, feedback: evaluated },
@@ -389,18 +399,20 @@ function VivaMode() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="viva-subject">Subject</Label>
-                  <Select value={subject} onValueChange={setSubject}>
+                  <Select value={subjectChoice} onValueChange={setSubjectChoice}>
                     <SelectTrigger id="viva-subject">
-                      <SelectValue placeholder="Choose a subject" />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {["DBMS", "Science", "Computer Science", "Biology", "Physics", "Maths"].map(
-                        (item) => (
-                          <SelectItem key={item} value={item}>
-                            {item}
-                          </SelectItem>
-                        ),
+                      <SelectItem value="Default">Default (all subjects)</SelectItem>
+                      {customSubject && !SUBJECTS.includes(customSubject as any) && (
+                        <SelectItem value={customSubject}>{customSubject}</SelectItem>
                       )}
+                      {SUBJECTS.map((item) => (
+                        <SelectItem key={item} value={item}>
+                          {item}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -415,11 +427,12 @@ function VivaMode() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="viva-level">Learning level</Label>
-                  <Select value={level} onValueChange={(value) => setLevel(value as LevelId)}>
+                  <Select value={levelChoice} onValueChange={setLevelChoice}>
                     <SelectTrigger id="viva-level">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="default">Default</SelectItem>
                       {LEVELS.map((item) => (
                         <SelectItem key={item.id} value={item.id}>
                           {item.label}

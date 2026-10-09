@@ -49,7 +49,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { solvePaper, resolveQuestion, solutionFollowUp } from "@/lib/api";
 import type { PaperQuestion, SolveMode, SolveStyle } from "@/lib/types";
 import { downloadPdf } from "@/lib/pdf";
-import { SUBJECTS, useUserStore, useEffectiveProfile } from "@/store/useUserStore";
+import { SUBJECTS, useEffectiveProfile, toApiSubject } from "@/store/useUserStore";
 import { useUiStore } from "@/store/useUiStore";
 
 export const Route = createFileRoute("/solver")({
@@ -90,14 +90,12 @@ function solutionMd(q: PaperQuestion) {
 }
 
 function SolverPage() {
-  const level = useUserStore((s) => s.level);
-  const userSubject = useUserStore((s) => s.subject);
+  const { effectiveLevel, effectiveSubject, customSubject } = useEffectiveProfile();
   const [phase, setPhase] = useState<Phase>("idle");
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
-  // Prefill subject from profile; map "Default" / empty → "" (optional for solver)
-  const [subject, setSubject] = useState<string>(
-    userSubject && userSubject !== "Default" ? userSubject : "",
+  const [subjectChoice, setSubjectChoice] = useState<string>(
+    effectiveSubject === "Default" ? "Default" : effectiveSubject,
   );
   const [mode, setMode] = useState<SolveMode>(() => useUiStore.getState().solverMode);
   const [style, setStyle] = useState<SolveStyle>("Exam");
@@ -129,10 +127,11 @@ function SolverPage() {
     setPhase("processing");
     setErrorMessage("");
     try {
+      const apiSubject = toApiSubject(subjectChoice);
       const qs = await solvePaper({
         file,
-        level,
-        subject,
+        level: effectiveLevel,
+        subject: apiSubject,
         mode,
         style,
         onProgress: setProgress,
@@ -383,11 +382,15 @@ function SolverPage() {
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Subject</label>
-                    <Select value={subject} onValueChange={setSubject}>
+                    <Select value={subjectChoice} onValueChange={setSubjectChoice}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Choose a subject" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="Default">Default (all subjects)</SelectItem>
+                        {customSubject && !SUBJECTS.includes(customSubject as any) && (
+                          <SelectItem value={customSubject}>{customSubject}</SelectItem>
+                        )}
                         {SUBJECTS.map((s) => (
                           <SelectItem key={s} value={s}>
                             {s}
