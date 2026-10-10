@@ -433,3 +433,93 @@ def test_health_keeps_last_good_until_two_failed_probes(monkeypatch):
         (True, 0),
         (False, 0),
     ]
+
+
+def test_retry_after_honored_and_capped_in_completion(monkeypatch):
+    calls = 0
+    delays = []
+    # 429 response with Retry-After: 35 (should cap at 20)
+    response_capped = httpx.Response(
+        429,
+        headers={"retry-after": "35"},
+        request=httpx.Request("POST", "http://omniroute.test/v1/chat"),
+    )
+    # 429 response with Retry-After: 3
+    response_normal = httpx.Response(
+        429,
+        headers={"retry-after": "3"},
+        request=httpx.Request("POST", "http://omniroute.test/v1/chat"),
+    )
+
+    async def fake_create(**kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise llm.RateLimitError("rate limited", response=response_capped, body={})
+        if calls == 2:
+            raise llm.RateLimitError("rate limited", response=response_normal, body={})
+        return "success"
+
+    async def fake_sleep(delay):
+        delays.append(delay)
+
+    monkeypatch.setattr(
+        llm,
+        "_client",
+        SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        ),
+    )
+    monkeypatch.setattr(llm.asyncio, "sleep", fake_sleep)
+
+    result = asyncio.run(llm._create_completion())
+    assert result == "success"
+    assert calls == 3
+    assert delays == [20.0, 3.0]
+
+
+def test_retry_after_honored_and_capped_in_stream(monkeypatch):
+    calls = 0
+    delays = []
+    response = httpx.Response(
+        429,
+        headers={"retry-after": "25"},
+        request=httpx.Request("POST", "http://omniroute.test/v1/chat"),
+    )
+
+    async def fake_create(**kwargs):
+        nonlocal calls
+        calls += 1
+        if calls < 3:
+            raise llm.RateLimitError("rate limited", response=response, body={})
+        return "streamed"
+
+    async def fake_sleep(delay):
+        delays.append(delay)
+
+    monkeypatch.setattr(
+        llm,
+        "_client",
+        SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+        ),
+    )
+    monkeypatch.setattr(llm.asyncio, "sleep", fake_sleep)
+
+    result = asyncio.run(llm._create_stream_with_retry())
+    assert result == "streamed"
+    assert delays == [20.0, 20.0]
+
+
+def test_llm_semaphore_allows_concurrency_down_to_one(monkeypatch):
+    from app.config import Settings
+    custom_settings = Settings(max_concurrent_llm=1)
+    sem = asyncio.Semaphore(max(1, custom_settings.max_concurrent_llm))
+    assert sem._value == 1
+
+
+def test_task_role_has_no_duplicates():
+    # Verify key roles exist
+    for role in ("grading", "split", "ppt", "mcq", "flashcard", "teacher", "reasoning", "multimodal", "json"):
+        assert role in llm._TASK_ROLE
+

@@ -2,7 +2,14 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "@tanstack/react-router";
 import { Check, ArrowLeft, ArrowRight } from "lucide-react";
-import { LEVELS, SUBJECTS, useUserStore, DEFAULT_LEVEL, DEFAULT_SUBJECT, type LevelId } from "@/store/useUserStore";
+import {
+  LEVELS,
+  SUBJECTS,
+  useUserStore,
+  DEFAULT_LEVEL,
+  DEFAULT_SUBJECT,
+  type LevelId,
+} from "@/store/useUserStore";
 import { GradientButton, Chip } from "@/components/ui-custom";
 import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
@@ -26,10 +33,11 @@ export function Onboarding() {
 
   const finish = () => {
     // If "Other" is selected but left empty, fall back to DEFAULT_SUBJECT
-    const customSubject = otherSelected
-      ? otherSubject.trim() || DEFAULT_SUBJECT
-      : "";
-    const selectedSubjects = [...subjects, ...(customSubject && customSubject !== DEFAULT_SUBJECT ? [customSubject] : [])];
+    const customSubject = otherSelected ? otherSubject.trim() || DEFAULT_SUBJECT : "";
+    const selectedSubjects = [
+      ...subjects,
+      ...(customSubject && customSubject !== DEFAULT_SUBJECT ? [customSubject] : []),
+    ];
     // level===null means user picked "Default" — keep levelSet:false so the app shows Default everywhere
     store.set({
       name: name.trim(),

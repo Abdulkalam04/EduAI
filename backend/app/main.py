@@ -78,6 +78,20 @@ async def request_context(request: Request, call_next):
                 status_code=413,
                 content={"error": "Upload too large", "detail": "Uploads must be 20 MB or smaller."},
             )
+        if (
+            settings.app_access_token
+            and request.url.path.startswith("/api/")
+            and request.method != "OPTIONS"
+            and request.url.path != "/health"
+        ):
+            auth_header = request.headers.get("Authorization", "")
+            scheme, _, bearer_token = auth_header.partition(" ")
+            if scheme.lower() != "bearer" or bearer_token.strip() != settings.app_access_token:
+                return JSONResponse(
+                    status_code=401,
+                    content={"error": "Unauthorized", "detail": "Invalid or missing access token."},
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
         try:
             enforce_rate_limit(request)
         except HTTPException as error:
@@ -143,10 +157,10 @@ async def unexpected_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health")
 async def health():
-    available, model_count = await check_models()
+    reachable, models = await list_models()
     return {
         "status": "ok",
-        "omniroute": {"available": available, "models_count": model_count},
+        "omniroute": {"available": reachable, "models_count": len(models)},
     }
 
 

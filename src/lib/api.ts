@@ -62,6 +62,28 @@ export function getApiUrl(): string {
   return (import.meta.env["VITE_API_URL"] as string | undefined) ?? "http://localhost:8000";
 }
 
+export function getAccessToken(): string {
+  if (typeof window !== "undefined") {
+    return window.localStorage.getItem("accessToken") || "";
+  }
+  return "";
+}
+
+export function setAccessToken(token: string): void {
+  if (typeof window !== "undefined") {
+    if (token.trim()) {
+      window.localStorage.setItem("accessToken", token.trim());
+    } else {
+      window.localStorage.removeItem("accessToken");
+    }
+  }
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getAccessToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export class ApiConnectionError extends Error {
   constructor(message = "Can't reach the AI server. Is the backend running?") {
     super(message);
@@ -114,12 +136,11 @@ async function request<T>(
   try {
     const response = await fetch(apiUrl(path), {
       method: options.method ?? "GET",
-      ...(options.body === undefined
-        ? {}
-        : {
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(options.body),
-          }),
+      headers: {
+        ...authHeaders(),
+        ...(options.body === undefined ? {} : { "Content-Type": "application/json" }),
+      },
+      ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
       ...(options.signal ? { signal: options.signal } : {}),
     });
     return await parseResponse<T>(response);
@@ -149,6 +170,10 @@ export function uploadWithProgress<T>(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", apiUrl(path));
+    const token = getAccessToken();
+    if (token) {
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    }
     xhr.upload.addEventListener("progress", (event) => {
       if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100));
     });
@@ -209,7 +234,11 @@ export async function* streamTutor(
   try {
     response = await fetch(apiUrl("/api/chat"), {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      headers: {
+        ...authHeaders(),
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+      },
       body: JSON.stringify(req),
       ...(signal ? { signal } : {}),
     });
@@ -449,7 +478,10 @@ export async function exportPptx(opts: {
   try {
     response = await fetch(apiUrl("/api/pptx"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        ...authHeaders(),
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(opts),
     });
   } catch (cause) {

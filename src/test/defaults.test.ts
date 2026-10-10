@@ -193,14 +193,14 @@ describe("Solver — disabled only when !file", () => {
     const oldDisabled = !file || !subject;
     // New behaviour: !file → disabled
     const newDisabled = !file;
-    expect(newDisabled).toBe(true);     // still disabled without a file
-    expect(oldDisabled).toBe(true);     // was disabled
+    expect(newDisabled).toBe(true); // still disabled without a file
+    expect(oldDisabled).toBe(true); // was disabled
 
     const fileWithContent = new File(["data"], "paper.pdf", { type: "application/pdf" });
     const newEnabledWithFile = !fileWithContent; // false → enabled
     const oldEnabledWithFile = !fileWithContent || !subject; // true → was disabled
-    expect(newEnabledWithFile).toBe(false);  // NOW enabled
-    expect(oldEnabledWithFile).toBe(true);   // WAS disabled (regression caught!)
+    expect(newEnabledWithFile).toBe(false); // NOW enabled
+    expect(oldEnabledWithFile).toBe(true); // WAS disabled (regression caught!)
   });
 });
 
@@ -216,7 +216,7 @@ describe("Viva — Start viva enabled without subject/topic", () => {
     const oldDisabled = busy || !subject;
     // New: busy → not disabled
     const newDisabled = busy;
-    expect(oldDisabled).toBe(true);  // was blocked
+    expect(oldDisabled).toBe(true); // was blocked
     expect(newDisabled).toBe(false); // now allowed
   });
 });
@@ -234,7 +234,7 @@ describe("Practice Generator — Generate enabled without subject or chapter", (
     const oldDisabled = !subject || !chapter.trim() || loading;
     // New: loading → not disabled
     const newDisabled = loading;
-    expect(oldDisabled).toBe(true);  // was blocked
+    expect(oldDisabled).toBe(true); // was blocked
     expect(newDisabled).toBe(false); // now allowed
   });
 

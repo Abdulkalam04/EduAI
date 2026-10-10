@@ -41,3 +41,31 @@ if (typeof globalThis.localStorage === "undefined") {
     writable: true,
   });
 }
+
+if (typeof globalThis.sessionStorage === "undefined") {
+  let sessionStore: Record<string, string> = {};
+  Object.defineProperty(globalThis, "sessionStorage", {
+    value: {
+      getItem: (k: string) => sessionStore[k] ?? null,
+      setItem: (k: string, v: string) => {
+        sessionStore[k] = v;
+      },
+      removeItem: (k: string) => {
+        delete sessionStore[k];
+      },
+      clear: () => {
+        sessionStore = {};
+      },
+      get length() {
+        return Object.keys(sessionStore).length;
+      },
+      key: (i: number) => Object.keys(sessionStore)[i] ?? null,
+    },
+    writable: true,
+  });
+}
+
+if (typeof window !== "undefined" && typeof window.HTMLMediaElement !== "undefined") {
+  window.HTMLMediaElement.prototype.play = () => Promise.resolve();
+  window.HTMLMediaElement.prototype.pause = () => {};
+}

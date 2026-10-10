@@ -149,7 +149,11 @@ export function Composer({
             aria-label="Change level"
             className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <LevelBadge level={level} levelSet={levelSet} className="cursor-pointer hover:bg-muted" />
+            <LevelBadge
+              level={level}
+              levelSet={levelSet}
+              className="cursor-pointer hover:bg-muted"
+            />
           </PopoverTrigger>
           <PopoverContent align="end" className="w-64 rounded-xl p-1.5">
             <button
@@ -159,7 +163,9 @@ export function Composer({
             >
               <span className="flex-1">
                 <span className="block font-medium">Default</span>
-                <span className="block text-xs text-muted-foreground">General learning, adaptable to any level</span>
+                <span className="block text-xs text-muted-foreground">
+                  General learning, adaptable to any level
+                </span>
               </span>
               {!levelSet && <Check className="mt-0.5 h-4 w-4 text-primary" />}
             </button>

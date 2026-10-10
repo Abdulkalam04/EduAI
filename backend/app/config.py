@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     reasoning_effort_solve: str = "high"
     reasoning_effort_grading: str = "high"
     reasoning_effort_code_debug: str = "high"
+    reasoning_effort_chat: str = ""
+    chat_history_limit: int = 8
+    chat_max_tokens_simple: int = 800
+    chat_max_tokens_exam: int = 1200
+    chat_max_tokens_detailed: int = 2000
     long_context_max_tokens: int = 120_000
     max_concurrent_llm: int = 4
     embeddings: str = "none"
@@ -39,6 +44,8 @@ class Settings(BaseSettings):
     )
     database_url: str = f"sqlite:///{(BACKEND_DIR / 'eduai.db').as_posix()}"
     uploads_dir: str = str(BACKEND_DIR / "uploads")
+    trust_proxy_headers: bool = False
+    app_access_token: str = ""
 
     model_config = SettingsConfigDict(
         env_file=BACKEND_DIR / ".env",

@@ -55,6 +55,8 @@ export const SUBJECTS = [
   "Programming",
 ] as const;
 
+export type Subject = (typeof SUBJECTS)[number];
+
 /** The sentinel value stored in the profile when no subject has been chosen. */
 export const DEFAULT_SUBJECT = "Default";
 

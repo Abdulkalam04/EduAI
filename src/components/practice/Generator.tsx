@@ -35,6 +35,7 @@ import {
   DEFAULT_SUBJECT,
   toRequiredApiSubject,
   type LevelId,
+  type Subject,
 } from "@/store/useUserStore";
 import { usePracticeStore } from "@/store/usePracticeStore";
 
@@ -178,7 +179,7 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Default">Default (all subjects)</SelectItem>
-                  {customSubject && !SUBJECTS.includes(customSubject as any) && (
+                  {customSubject && !SUBJECTS.includes(customSubject as Subject) && (
                     <SelectItem value={customSubject}>{customSubject}</SelectItem>
                   )}
                   {SUBJECTS.map((s) => (

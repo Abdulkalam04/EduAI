@@ -49,7 +49,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { solvePaper, resolveQuestion, solutionFollowUp } from "@/lib/api";
 import type { PaperQuestion, SolveMode, SolveStyle } from "@/lib/types";
 import { downloadPdf } from "@/lib/pdf";
-import { SUBJECTS, useEffectiveProfile, toApiSubject } from "@/store/useUserStore";
+import { SUBJECTS, useEffectiveProfile, toApiSubject, type Subject } from "@/store/useUserStore";
 import { useUiStore } from "@/store/useUiStore";
 
 export const Route = createFileRoute("/solver")({
@@ -388,7 +388,7 @@ function SolverPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Default">Default (all subjects)</SelectItem>
-                        {customSubject && !SUBJECTS.includes(customSubject as any) && (
+                        {customSubject && !SUBJECTS.includes(customSubject as Subject) && (
                           <SelectItem value={customSubject}>{customSubject}</SelectItem>
                         )}
                         {SUBJECTS.map((s) => (

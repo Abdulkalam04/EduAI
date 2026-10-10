@@ -35,7 +35,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { checkApiHealth, getApiUrl, resetLearningActivity } from "@/lib/api";
+import {
+  checkApiHealth,
+  getAccessToken,
+  getApiUrl,
+  resetLearningActivity,
+  setAccessToken,
+} from "@/lib/api";
 import type { AnswerStyle } from "@/lib/types";
 import { LEVELS, SUBJECTS, getLevel, useUserStore } from "@/store/useUserStore";
 import { useChatStore } from "@/store/useChatStore";
@@ -86,6 +92,7 @@ interface SettingsDraft {
     solverMode: "teach" | "exam";
   };
   apiUrl: string;
+  accessToken: string;
 }
 
 interface SettingsContextValue {
@@ -123,6 +130,7 @@ function readDraft(): SettingsDraft {
       solverMode: ui.solverMode,
     },
     apiUrl: getApiUrl(),
+    accessToken: getAccessToken(),
   };
 }
 
@@ -189,6 +197,7 @@ export function SettingsPage() {
     ui.setAnswerStyle(draft.ui.answerStyle);
     ui.setSolverMode(draft.ui.solverMode);
     window.localStorage.setItem("apiUrl", draft.apiUrl.trim());
+    setAccessToken(draft.accessToken);
     const saved = structuredClone(draft);
     setSavedDraft(saved);
     setDraft(saved);
@@ -396,6 +405,7 @@ export function SettingsSectionContent({ section }: { section: SettingsSectionId
         }),
       );
       data["apiUrl"] = getApiUrl();
+      data["accessToken"] = getAccessToken();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const anchor = Object.assign(document.createElement("a"), {
@@ -677,6 +687,22 @@ export function SettingsSectionContent({ section }: { section: SettingsSectionId
               />
               <p className="text-xs text-muted-foreground">
                 EduAI sends backend requests to this server.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="access-token">Access token</Label>
+              <Input
+                id="access-token"
+                type="password"
+                value={draft.accessToken}
+                onChange={(event) =>
+                  updateDraft((current) => ({ ...current, accessToken: event.target.value }))
+                }
+                placeholder="Optional Bearer token"
+                autoComplete="off"
+              />
+              <p className="text-xs text-muted-foreground">
+                Required if the backend is configured with an access token.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">

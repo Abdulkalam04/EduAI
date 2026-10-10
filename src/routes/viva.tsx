@@ -52,6 +52,7 @@ import {
   DEFAULT_SUBJECT,
   toRequiredApiSubject,
   type LevelId,
+  type Subject,
 } from "@/store/useUserStore";
 import { useLearningStore } from "@/store/useLearningStore";
 import { usePracticeStore } from "@/store/usePracticeStore";
@@ -143,7 +144,13 @@ function VivaMode() {
       const apiSubject = toRequiredApiSubject(subjectChoice);
       const apiLevel = levelChoice === "default" ? DEFAULT_LEVEL : (levelChoice as LevelId);
       setActiveLevel(apiLevel);
-      const started = await startViva({ subject: apiSubject, topic, level: apiLevel, count: Number(count), adaptive });
+      const started = await startViva({
+        subject: apiSubject,
+        topic,
+        level: apiLevel,
+        count: Number(count),
+        adaptive,
+      });
       if (!started.length) throw new Error("No viva questions were returned. Please try again.");
       setQuestions(started);
       setAnswers([]);
@@ -172,7 +179,12 @@ function VivaMode() {
     setError("");
     try {
       const apiSubject = toRequiredApiSubject(subjectChoice);
-      const next = await createVivaReport({ subject: apiSubject, topic, level: activeLevel, answers: finalAnswers });
+      const next = await createVivaReport({
+        subject: apiSubject,
+        topic,
+        level: activeLevel,
+        answers: finalAnswers,
+      });
       saveVivaReport(next);
       setReport(next);
       setPhase("report");
@@ -405,7 +417,7 @@ function VivaMode() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Default">Default (all subjects)</SelectItem>
-                      {customSubject && !SUBJECTS.includes(customSubject as any) && (
+                      {customSubject && !SUBJECTS.includes(customSubject as Subject) && (
                         <SelectItem value={customSubject}>{customSubject}</SelectItem>
                       )}
                       {SUBJECTS.map((item) => (
@@ -417,7 +429,9 @@ function VivaMode() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="viva-topic">Topic <span className="font-normal text-muted-foreground">(optional)</span></Label>
+                  <Label htmlFor="viva-topic">
+                    Topic <span className="font-normal text-muted-foreground">(optional)</span>
+                  </Label>
                   <Input
                     id="viva-topic"
                     placeholder="e.g. Normalization — leave blank for general questions"

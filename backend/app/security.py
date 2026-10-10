@@ -9,6 +9,8 @@ from pathlib import PurePosixPath
 
 from fastapi import HTTPException, Request, UploadFile
 
+from app.config import settings
+
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 RATE_LIMIT_REQUESTS = 60
 RATE_LIMIT_WINDOW_SECONDS = 60
@@ -33,6 +35,12 @@ def enforce_rate_limit(request: Request) -> None:
     ):
         return
     client_ip = request.client.host if request.client else "unknown"
+    if settings.trust_proxy_headers:
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            first_ip = forwarded.split(",")[0].strip()
+            if first_ip:
+                client_ip = first_ip
     now = time.monotonic()
     recent = _requests[client_ip]
     while recent and recent[0] <= now - RATE_LIMIT_WINDOW_SECONDS:

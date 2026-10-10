@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 _CACHE_LIMIT = 128
 _response_cache: OrderedDict[str, str] = OrderedDict()
-_llm_semaphore = asyncio.Semaphore(max(4, settings.max_concurrent_llm))
+_llm_semaphore = asyncio.Semaphore(max(1, settings.max_concurrent_llm))
 _REASONING_OPEN = ("<think>", "<analysis>", "<reasoning>")
 _REASONING_CLOSE = ("</think>", "</analysis>", "</reasoning>")
 _HEALTH_CACHE_TTL = 20.0
@@ -57,15 +57,10 @@ _TASK_ROLE: dict[str, str] = {
     "multimodal": "multimodal",
     "solve": "reasoning",
     "reasoning": "reasoning",
-    "grading": "reasoning",
     "viva": "reasoning",
     "code": "reasoning",
     "mermaid": "reasoning",
     "json": "json",
-    "split": "json",
-    "ppt": "json",
-    "mcq": "json",
-    "flashcard": "json",
     "vision": "multimodal",
     "image": "multimodal",
     "document": "multimodal",
@@ -85,6 +80,8 @@ _TASK_REASONING_SETTINGS: dict[str, str] = {
     "solve": "reasoning_effort_solve",
     "grading": "reasoning_effort_grading",
     "code_debug": "reasoning_effort_code_debug",
+    "chat": "reasoning_effort_chat",
+    "teacher": "reasoning_effort_chat",
 }
 
 
@@ -127,6 +124,48 @@ def _safe_excerpt(text: str) -> str:
     text = re.sub(r"(?i)bearer\s+\S+", "Bearer [redacted]", text)
     text = re.sub(r"sk-[A-Za-z0-9_-]{8,}", "[redacted-key]", text)
     return re.sub(r"\s+", " ", text).strip()[:200]
+
+
+def _format_omniroute_error(
+    error: OpenAIError, model: str | None = None
+) -> tuple[str, int | None, str]:
+    if isinstance(error, APIConnectionError):
+        return (
+            f"Cannot connect to OmniRoute at {settings.omniroute_base_url}. Is it running?",
+            None,
+            "",
+        )
+    if isinstance(error, APITimeoutError):
+        return ("OmniRoute timed out", None, "")
+
+    status_code = error.status_code if isinstance(error, APIStatusError) else None
+    response_body = (
+        error.response.text if isinstance(error, APIStatusError) else str(error)
+    )
+    excerpt = _safe_excerpt(response_body)
+
+    if status_code in (401, 403):
+        return ("OmniRoute rejected the API key", status_code, excerpt)
+    if status_code == 404:
+        return (
+            f"Model not found in OmniRoute: {model or 'unknown'}",
+            status_code,
+            excerpt,
+        )
+    if status_code == 429:
+        return (
+            "Rate limit reached on the AI provider. Try again in a moment.",
+            status_code,
+            excerpt,
+        )
+    if status_code is not None:
+        return (f"OmniRoute returned HTTP {status_code}: {excerpt}", status_code, excerpt)
+
+    return (
+        f"Cannot connect to OmniRoute at {settings.omniroute_base_url}. Is it running?",
+        None,
+        excerpt,
+    )
 
 def model_for(task: str) -> str:
     role = _TASK_ROLE.get(task.strip().lower(), "teacher")
@@ -176,6 +215,22 @@ def _retryable(error: Exception) -> bool:
     if isinstance(error, APIStatusError):
         return error.status_code == 429 or error.status_code >= 500
     return False
+
+
+def _retry_delay(error: Exception, retry_index: int) -> float:
+    default_delay = 0.25 * (2**retry_index)
+    if isinstance(error, APIStatusError) and error.status_code == 429:
+        headers = getattr(error.response, "headers", None)
+        if headers:
+            retry_after = headers.get("retry-after") or headers.get("Retry-After")
+            if retry_after:
+                try:
+                    delay = float(retry_after)
+                    if delay >= 0:
+                        return min(20.0, delay)
+                except (ValueError, TypeError):
+                    pass
+    return default_delay
 
 
 async def _create_completion(**kwargs: Any) -> Any:
@@ -287,14 +342,12 @@ async def _create_completion(**kwargs: Any) -> Any:
                     queue_ms,
                     attempt,
                 )
-                reason = (
-                    f"OmniRoute returned HTTP {status_code}: {excerpt}"
-                    if status_code is not None
-                    else "OmniRoute is not running or the API key is invalid"
+                reason, code, excerpt = _format_omniroute_error(
+                    error, kwargs.get("model")
                 )
                 raise OmniRouteError(
                     reason,
-                    status_code=status_code,
+                    status_code=code,
                     error_type=type(error).__name__,
                     response_excerpt=excerpt,
                 ) from error
@@ -309,7 +362,7 @@ async def _create_completion(**kwargs: Any) -> Any:
                 queue_ms,
                 attempt,
             )
-            await asyncio.sleep(0.25 * (2**retry_count))
+            await asyncio.sleep(_retry_delay(error, retry_count))
             retry_count += 1
     raise RuntimeError("Unreachable retry state")
 
@@ -356,9 +409,15 @@ async def chat(
 
 
 async def stream(
-    messages: Sequence[dict[str, Any]], task: str = "teacher", temperature: float = 0.4
+    messages: Sequence[dict[str, Any]],
+    task: str = "teacher",
+    temperature: float = 0.4,
+    *,
+    max_tokens: int | None = None,
+    reasoning_effort: str | None = None,
 ) -> AsyncGenerator[str, None]:
     model = model_for(task)
+    effort = reasoning_effort if reasoning_effort is not None else reasoning_effort_for(task)
     pending = ""
     in_reasoning = False
 
@@ -408,11 +467,19 @@ async def stream(
             break
         return "".join(output)
 
+    stream_options: dict[str, Any] = {
+        "model": model,
+        "messages": list(messages),
+        "temperature": temperature,
+    }
+    if max_tokens is not None:
+        stream_options["max_tokens"] = max_tokens
+    if effort:
+        stream_options["reasoning_effort"] = effort
+
     try:
         async with _llm_semaphore:
-            response = await _create_stream_with_retry(
-                model=model, messages=list(messages), temperature=temperature
-            )
+            response = await _create_stream_with_retry(**stream_options)
             async for event in response:
                 delta = event.choices[0].delta
                 content = delta.content
@@ -427,52 +494,71 @@ async def stream(
         raise
     except OpenAIError as error:
         logger.warning("OmniRoute streaming completion failed (%s)", type(error).__name__)
-        status_code = error.status_code if isinstance(error, APIStatusError) else None
-        response_body = (
-            getattr(error.response, "text", "")
-            if isinstance(error, APIStatusError)
-            else str(error)
-        )
-        excerpt = _safe_excerpt(response_body)
-        reason = (
-            f"OmniRoute returned HTTP {status_code}: {excerpt}"
-            if status_code is not None
-            else "OmniRoute is not running or the API key is invalid"
-        )
+        reason, code, excerpt = _format_omniroute_error(error, model)
         raise OmniRouteError(
             reason,
-            status_code=status_code,
+            status_code=code,
             error_type=type(error).__name__,
             response_excerpt=excerpt,
         ) from error
 
 
 async def _create_stream_with_retry(**kwargs: Any) -> Any:
-    for attempt in range(3):
+    fallback_retried = False
+    retry_count = 0
+    attempt = 0
+    while attempt < 4:
+        attempt += 1
         try:
             return await _client.chat.completions.create(stream=True, **kwargs)
         except OpenAIError as error:
-            if not _retryable(error) or attempt == 2:
-                logger.warning("OmniRoute stream setup failed (%s)", type(error).__name__)
-                status_code = error.status_code if isinstance(error, APIStatusError) else None
-                response_body = (
-                    getattr(error.response, "text", "")
-                    if isinstance(error, APIStatusError)
-                    else str(error)
+            status_code = (
+                error.status_code if isinstance(error, APIStatusError) else None
+            )
+            error_message = (
+                error.response.text
+                if isinstance(error, APIStatusError)
+                else str(error)
+            )
+            effort_rejected = (
+                status_code in {400, 422}
+                and "reasoning_effort" in kwargs
+                and any(
+                    term in error_message.lower()
+                    for term in (
+                        "reasoning_effort",
+                        "reasoning effort",
+                        "unknown parameter",
+                        "unsupported parameter",
+                    )
                 )
-                excerpt = _safe_excerpt(response_body)
-                reason = (
-                    f"OmniRoute returned HTTP {status_code}: {excerpt}"
-                    if status_code is not None
-                    else "OmniRoute is not running or the API key is invalid"
+            )
+            if effort_rejected and not fallback_retried:
+                kwargs.pop("reasoning_effort")
+                fallback_retried = True
+                logger.warning(
+                    "OmniRoute stream rejected reasoning_effort; retrying once without it "
+                    "requested_model=%s status_code=%s error_type=%s",
+                    kwargs.get("model", "unknown"),
+                    status_code,
+                    type(error).__name__,
+                )
+                continue
+            if not _retryable(error) or retry_count >= 2:
+                logger.warning(
+                    "OmniRoute stream setup failed (%s)", type(error).__name__
+                )
+                reason, code, excerpt = _format_omniroute_error(
+                    error, kwargs.get("model")
                 )
                 raise OmniRouteError(
                     reason,
-                    status_code=status_code,
+                    status_code=code,
                     error_type=type(error).__name__,
                     response_excerpt=excerpt,
                 ) from error
-            await asyncio.sleep(0.25 * (2**attempt))
+            await asyncio.sleep(_retry_delay(error, retry_count))
+            retry_count += 1
     raise RuntimeError("Unreachable retry state")
 
 

@@ -25,6 +25,8 @@ backend/uploads/**
 
 # Python environments, bytecode, and test artifacts
 .venv/
+venv/
+backend/venv/
 __pycache__/
 .pytest_cache/
 *.py[cod]
@@ -51,3 +53,8 @@ vector_store/
 *.njsproj
 *.sln
 *.sw?
+
+# Android Capacitor
+android/build
+android/.gradle
+android/local.properties

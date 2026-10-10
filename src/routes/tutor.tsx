@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowDown, PanelLeftClose, PanelLeftOpen, History, MessageCircle, Settings2 } from "lucide-react";
+import {
+  ArrowDown,
+  PanelLeftClose,
+  PanelLeftOpen,
+  History,
+  MessageCircle,
+  Settings2,
+} from "lucide-react";
 import "katex/dist/katex.min.css";
 import { pageHead } from "@/components/ComingSoonPage";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -302,8 +309,7 @@ function TutorPage() {
             {/* Non-blocking context indicator */}
             <p className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
               <span>
-                Answering for{" "}
-                <span className="font-medium text-foreground">{levelLabel}</span>
+                Answering for <span className="font-medium text-foreground">{levelLabel}</span>
                 {" · "}
                 <span className="font-medium text-foreground">{subjectLabel}</span>
               </span>
@@ -321,7 +327,10 @@ function TutorPage() {
         </div>
         {/* Inline profile sheet triggered from context bar */}
         <Sheet open={profileSheetOpen} onOpenChange={setProfileSheetOpen}>
-          <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto rounded-t-3xl pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
+          <SheetContent
+            side="bottom"
+            className="max-h-[85dvh] overflow-y-auto rounded-t-3xl pb-[calc(env(safe-area-inset-bottom)+1.5rem)]"
+          >
             <SheetTitle className="sr-only">Profile settings</SheetTitle>
             {/* Reuse the same TopBar profile sheet content by importing TopBar's inner form.
                 For now we redirect the user to open the avatar menu to change settings.
@@ -331,8 +340,7 @@ function TutorPage() {
                 Use the profile icon (top-right) to change your level and subject.
               </p>
               <p className="text-xs text-muted-foreground">
-                Current:{" "}
-                <strong>{levelLabel}</strong> · <strong>{subjectLabel}</strong>
+                Current: <strong>{levelLabel}</strong> · <strong>{subjectLabel}</strong>
               </p>
             </div>
           </SheetContent>

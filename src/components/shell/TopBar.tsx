@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
 import { useRouterState, Link } from "@tanstack/react-router";
 import { Search, Check } from "lucide-react";
-import { LEVELS, SUBJECTS, getLevel, useUserStore, DEFAULT_LEVEL, DEFAULT_SUBJECT, DEFAULT_SUBJECT_LABEL } from "@/store/useUserStore";
+import {
+  LEVELS,
+  SUBJECTS,
+  getLevel,
+  useUserStore,
+  DEFAULT_LEVEL,
+  DEFAULT_SUBJECT,
+  DEFAULT_SUBJECT_LABEL,
+} from "@/store/useUserStore";
 import { useUiStore } from "@/store/useUiStore";
 import { titleFor } from "@/lib/nav";
 import { checkApiHealth } from "@/lib/api";
@@ -148,7 +156,15 @@ export function TopBar() {
                   <legend className="mb-2 text-sm font-medium">
                     Subject{" "}
                     <span className="font-normal text-muted-foreground">
-                      ({subject ? (SUBJECTS.includes(subject as (typeof SUBJECTS)[number]) ? subject : isOtherSubject ? subject : subject) : DEFAULT_SUBJECT_LABEL})
+                      (
+                      {subject
+                        ? SUBJECTS.includes(subject as (typeof SUBJECTS)[number])
+                          ? subject
+                          : isOtherSubject
+                            ? subject
+                            : subject
+                        : DEFAULT_SUBJECT_LABEL}
+                      )
                     </span>
                   </legend>
                   <div className="flex flex-col gap-2">
@@ -199,14 +215,21 @@ export function TopBar() {
                       className={`flex min-h-11 items-center justify-between rounded-xl border px-3 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isOtherSubject ? "border-primary bg-primary/10 text-primary" : "bg-card"}`}
                     >
                       <span>
-                        Other{isOtherSubject && subject && !SUBJECTS.includes(subject as (typeof SUBJECTS)[number]) ? ` (${subject})` : ""}
+                        Other
+                        {isOtherSubject &&
+                        subject &&
+                        !SUBJECTS.includes(subject as (typeof SUBJECTS)[number])
+                          ? ` (${subject})`
+                          : ""}
                       </span>
                       {isOtherSubject && <Check className="h-4 w-4 text-primary" />}
                     </button>
                   </div>
                   {isOtherSubject && (
                     <div className="pt-1">
-                      {isEditingOther || !subject || SUBJECTS.includes(subject as (typeof SUBJECTS)[number]) ? (
+                      {isEditingOther ||
+                      !subject ||
+                      SUBJECTS.includes(subject as (typeof SUBJECTS)[number]) ? (
                         <div className="space-y-1.5">
                           <label
                             className="block text-sm font-medium"

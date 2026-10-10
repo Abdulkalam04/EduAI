@@ -44,7 +44,15 @@ import {
 import { generateDiagram, refineDiagram } from "@/lib/api";
 import type { DiagramType, GeneratedDiagram } from "@/lib/types";
 import { useCreativeStore } from "@/store/useCreativeStore";
-import { getLevel, LEVELS, SUBJECTS, useUserStore, useEffectiveProfile, DEFAULT_LEVEL, type LevelId } from "@/store/useUserStore";
+import {
+  getLevel,
+  LEVELS,
+  SUBJECTS,
+  useUserStore,
+  useEffectiveProfile,
+  DEFAULT_LEVEL,
+  type LevelId,
+} from "@/store/useUserStore";
 import { resolvedTheme, useUiStore } from "@/store/useUiStore";
 import { pageHead } from "@/components/ComingSoonPage";
 
@@ -103,7 +111,8 @@ function DiagramMaker() {
   const dark = resolvedTheme(theme) === "dark";
   const selectedSubject = subject === "Other" ? otherSubject.trim() || "Other" : subject || "Maths";
   /** Resolved LevelId — maps the "default" sentinel to DEFAULT_LEVEL for API calls */
-  const resolvedSelectedLevel: LevelId = selectedLevel === "default" ? DEFAULT_LEVEL : selectedLevel;
+  const resolvedSelectedLevel: LevelId =
+    selectedLevel === "default" ? DEFAULT_LEVEL : selectedLevel;
 
   useEffect(() => {
     if (!levelChosen.current && !current) setSelectedLevel(preferredLevel);
