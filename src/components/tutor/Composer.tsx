@@ -16,6 +16,7 @@ import { LEVELS, useUserStore, DEFAULT_LEVEL } from "@/store/useUserStore";
 import type { AnswerStyle } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { ModelPicker } from "./ModelPicker";
 
 const STYLES: { id: AnswerStyle; tip: string }[] = [
   { id: "Simple", tip: "Short, plain-language answer" },
@@ -40,6 +41,7 @@ export function Composer({
   style,
   setStyle,
   onFocusChange,
+  resolvedModelLabel,
 }: {
   streaming: boolean;
   onSend: (text: string, attachment?: { name: string; type: string }) => void;
@@ -47,6 +49,8 @@ export function Composer({
   style: AnswerStyle;
   setStyle: (s: AnswerStyle) => void;
   onFocusChange?: (focused: boolean) => void;
+  /** Label for the resolved Auto model, shown in the model picker button. */
+  resolvedModelLabel?: string;
 }) {
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -144,6 +148,8 @@ export function Composer({
             </Tooltip>
           ))}
         </div>
+        {/* Model picker – placed after style tabs on the same row */}
+        <ModelPicker {...(resolvedModelLabel ? { resolvedLabel: resolvedModelLabel } : {})} />
         <Popover>
           <PopoverTrigger
             aria-label="Change level"
@@ -189,7 +195,7 @@ export function Composer({
 
       <div
         data-tutor-composer
-        className="rounded-2xl border bg-card p-2 shadow-lift transition-colors focus-within:border-primary/60"
+        className="rounded-2xl border bg-card p-2 shadow-lift transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20"
       >
         {file && (
           <div className="mb-2 inline-flex max-w-full items-center gap-2 rounded-lg bg-muted px-2.5 py-1 text-xs">
@@ -223,7 +229,7 @@ export function Composer({
           rows={1}
           placeholder="Ask anything…"
           aria-label="Message the AI Tutor"
-          className="block max-h-[200px] w-full resize-none bg-transparent px-2 py-1.5 outline-none placeholder:text-muted-foreground"
+          className="block max-h-[200px] w-full resize-none rounded-md bg-transparent px-2 py-1.5 outline-none placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
         />
         <div className="mt-1 flex items-center gap-1">
           <input

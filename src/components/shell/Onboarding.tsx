@@ -13,14 +13,12 @@ import {
 import { GradientButton, Chip } from "@/components/ui-custom";
 import { cn } from "@/lib/utils";
 import { Logo } from "./Logo";
-import { initials } from "./profile-utils";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 export function Onboarding() {
   const store = useUserStore();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
-  const [name, setName] = useState(store.name);
   const [level, setLevel] = useState<LevelId | null>(store.levelSet ? store.level : null);
   const [subjects, setSubjects] = useState<string[]>(() =>
     store.interests.filter((subject) => (SUBJECTS as readonly string[]).includes(subject)),
@@ -40,7 +38,6 @@ export function Onboarding() {
     ];
     // level===null means user picked "Default" — keep levelSet:false so the app shows Default everywhere
     store.set({
-      name: name.trim(),
       level: level ?? DEFAULT_LEVEL,
       levelSet: level !== null,
       interests: selectedSubjects,
@@ -53,7 +50,6 @@ export function Onboarding() {
   /** "Skip for now" — sets sensible defaults so nothing blocks the user. */
   const skipNow = () => {
     store.set({
-      name: name.trim(),
       level: DEFAULT_LEVEL,
       levelSet: false,
       interests: [],
@@ -63,7 +59,7 @@ export function Onboarding() {
     navigate({ to: "/" });
   };
   const next = () => {
-    if (step === 2) finish();
+    if (step === 1) finish();
     else setStep(step + 1);
   };
 
@@ -88,8 +84,8 @@ export function Onboarding() {
         >
           <div className="mb-8 flex items-center justify-between">
             <Logo />
-            <div className="flex gap-1.5" aria-label={`Step ${step + 1} of 3`}>
-              {[0, 1, 2].map((i) => (
+            <div className="flex gap-1.5" aria-label={`Step ${step + 1} of 2`}>
+              {[0, 1].map((i) => (
                 <motion.span
                   key={i}
                   animate={{ width: i === step ? 28 : 8 }}
@@ -109,31 +105,6 @@ export function Onboarding() {
               className="min-h-[300px]"
             >
               {step === 0 && (
-                <div>
-                  <h2 className="text-2xl font-bold sm:text-3xl">What should we call you?</h2>
-                  <p className="mt-2 text-muted-foreground">Your tutor will greet you by name.</p>
-                  <div className="mt-10 flex flex-col items-center gap-6">
-                    <motion.div
-                      key={initials(name)}
-                      initial={{ scale: 0.9 }}
-                      animate={{ scale: 1 }}
-                      className="flex h-24 w-24 items-center justify-center rounded-full bg-primary text-3xl font-bold text-primary-foreground"
-                    >
-                      {initials(name)}
-                    </motion.div>
-                    <input
-                      autoFocus
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Your name"
-                      maxLength={40}
-                      aria-label="Your name"
-                      className="h-12 w-full max-w-sm rounded-xl border bg-background px-4 text-center text-lg outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/15"
-                    />
-                  </div>
-                </div>
-              )}
-              {step === 1 && (
                 <div>
                   <h2 className="text-2xl font-bold sm:text-3xl">Pick your level</h2>
                   <p className="mt-2 text-muted-foreground">
@@ -192,7 +163,7 @@ export function Onboarding() {
                   </div>
                 </div>
               )}
-              {step === 2 && (
+              {step === 1 && (
                 <div>
                   <h2 className="text-2xl font-bold sm:text-3xl">What are you studying?</h2>
                   <p className="mt-2 text-muted-foreground">Choose one or more subjects.</p>
@@ -246,7 +217,7 @@ export function Onboarding() {
               </GradientButton>
             </div>
             <GradientButton size="lg" onClick={next}>
-              {step === 2 ? "Finish" : "Next"}
+              {step === 1 ? "Finish" : "Next"}
               <ArrowRight className="h-4 w-4" />
             </GradientButton>
           </div>

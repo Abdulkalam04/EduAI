@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.auth import AuthUser, get_current_user
 from app.database import get_db
 from app.models import PracticeAttempt, PracticeEvaluation, PracticePaper
 from app.schemas import LevelId
@@ -259,7 +260,11 @@ def _valid_partial_questions(
 
 
 @router.post("/generate", response_model=PracticePaperData, response_model_exclude_none=True)
-async def generate_paper(payload: GeneratePaperRequest, db: Session = Depends(get_db)):
+async def generate_paper(
+    payload: GeneratePaperRequest,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+):
     specs = _SECTION_PLANS[payload.totalMarks]
 
     async def generate_section(
@@ -337,7 +342,7 @@ async def generate_paper(payload: GeneratePaperRequest, db: Session = Depends(ge
                         f"batch {request_number}"
                     ),
                     timeout=120.0,
-                    max_tokens=2
+                    max_tokens=8
                     * requested_count
                     * _EXPECTED_TOKENS_PER_QUESTION[section_type],
                     validator=lambda result: validate_questions(
@@ -376,10 +381,10 @@ async def generate_paper(payload: GeneratePaperRequest, db: Session = Depends(ge
             validate_questions(questions, requested_count)
             missing_count = requested_count - len(questions)
             if missing_count:
-                if retry_count >= 1:
+                if retry_count >= 2:
                     raise ValueError(
                         f"Practice {section_type} section {section_id} is missing "
-                        f"{missing_count} question(s) after a continuation request."
+                        f"{missing_count} question(s) after continuation attempts."
                     )
                 return questions + await request_batch(
                     missing_count, continuation=True, retry_count=retry_count + 1
@@ -487,6 +492,7 @@ async def generate_paper(payload: GeneratePaperRequest, db: Session = Depends(ge
     db.add(
         PracticePaper(
             id=generated.id,
+            user_id=current_user.uid,
             paper_json=generated.model_dump_json(exclude_none=True),
         )
     )
@@ -496,10 +502,13 @@ async def generate_paper(payload: GeneratePaperRequest, db: Session = Depends(ge
 
 @router.post("/{paper_id}/submit", response_model=PaperResult)
 async def submit_paper(
-    paper_id: str, payload: PaperSubmission, db: Session = Depends(get_db)
+    paper_id: str,
+    payload: PaperSubmission,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
 ):
     stored = db.get(PracticePaper, paper_id)
-    if stored is None:
+    if stored is None or stored.user_id != current_user.uid:
         raise HTTPException(status_code=404, detail="Practice paper not found.")
     paper = PracticePaperData.model_validate_json(stored.paper_json)
 
@@ -578,6 +587,7 @@ async def submit_paper(
     db.add(
         PracticeAttempt(
             paper_id=paper.id,
+            user_id=current_user.uid,
             subject=paper.subject,
             chapter=paper.chapter,
             total=paper.totalMarks,
@@ -596,6 +606,7 @@ async def check_handwritten(
     paper_id: str | None = Form(default=None, alias="paperId"),
     question_paper: UploadFile | None = File(default=None, alias="questionPaper"),
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
 ):
     total_bytes = 0
     extracted: list[str] = []
@@ -623,7 +634,7 @@ async def check_handwritten(
         question_text = format_page_text(question_pages)
     elif paper_id:
         stored = db.get(PracticePaper, paper_id)
-        if stored is None:
+        if stored is None or stored.user_id != current_user.uid:
             raise HTTPException(status_code=404, detail="Practice paper not found.")
         paper = PracticePaperData.model_validate_json(stored.paper_json)
         question_text = "\n".join(
@@ -667,6 +678,7 @@ async def check_handwritten(
         db.add(
             PracticeEvaluation(
                 id=evaluation.id,
+                user_id=current_user.uid,
                 evaluation_json=evaluation.model_dump_json(),
             )
         )
@@ -679,9 +691,10 @@ async def re_evaluate(
     evaluation_id: str,
     payload: ReevaluateRequest,
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
 ):
     previous = db.get(PracticeEvaluation, evaluation_id)
-    if previous is None:
+    if previous is None or previous.user_id != current_user.uid:
         raise HTTPException(status_code=404, detail="Evaluation not found. Please upload the answers again.")
     original = Evaluation.model_validate_json(previous.evaluation_json)
     try:

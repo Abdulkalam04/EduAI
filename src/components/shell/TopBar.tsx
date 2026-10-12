@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouterState, Link } from "@tanstack/react-router";
-import { Search, Check } from "lucide-react";
+import { Search, Check, LogOut } from "lucide-react";
+import { toast } from "sonner";
 import {
   LEVELS,
   SUBJECTS,
@@ -12,7 +13,8 @@ import {
 } from "@/store/useUserStore";
 import { useUiStore } from "@/store/useUiStore";
 import { titleFor } from "@/lib/nav";
-import { checkApiHealth } from "@/lib/api";
+import { checkApiHealth, type ApiHealthStatus } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { Logo } from "./Logo";
 import {
   Sheet,
@@ -28,31 +30,65 @@ import { initials } from "./profile-utils";
 export function TopBar() {
   const path = useRouterState({ select: (state) => state.location.pathname });
   const { level, levelSet, subject, name, set } = useUserStore();
+  const { signOut } = useAuth();
   const setPaletteOpen = useUiStore((state) => state.setPaletteOpen);
-  const [backendConnected, setBackendConnected] = useState<boolean | null>(null);
+  const [health, setHealth] = useState<"checking" | "connected" | "gateway-offline" | "offline">(
+    "checking",
+  );
+  const [gatewayUrl, setGatewayUrl] = useState("OmniRoute");
   const [otherSubjectSelected, setOtherSubjectSelected] = useState(false);
   const [otherSubjectDraft, setOtherSubjectDraft] = useState("");
   const [isEditingOther, setIsEditingOther] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   const currentLevel = getLevel(level);
   const isOtherSubject =
     (otherSubjectSelected && !subject) ||
     (Boolean(subject) && !SUBJECTS.includes(subject as (typeof SUBJECTS)[number]));
 
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await signOut();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to sign out.");
+    } finally {
+      setSigningOut(false);
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
+    let checking = false;
+    const controller = new AbortController();
     const check = async () => {
+      if (checking) return;
+      checking = true;
       try {
-        await checkApiHealth();
-        if (mounted) setBackendConnected(true);
+        const result: ApiHealthStatus = await checkApiHealth(controller.signal);
+        if (mounted) {
+          setGatewayUrl(result.gatewayUrl);
+          setHealth(result.gateway === "online" ? "connected" : "gateway-offline");
+        }
       } catch {
-        if (mounted) setBackendConnected(false);
+        if (mounted) setHealth("offline");
+      } finally {
+        checking = false;
       }
     };
     void check();
     const interval = window.setInterval(() => void check(), 30_000);
+    const onOnline = () => void check();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void check();
+    };
+    window.addEventListener("online", onOnline);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       mounted = false;
+      controller.abort();
       window.clearInterval(interval);
+      window.removeEventListener("online", onOnline);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
 
@@ -67,26 +103,42 @@ export function TopBar() {
           <div
             role="status"
             aria-label={
-              backendConnected === null
+              health === "checking"
                 ? "Checking study server"
-                : backendConnected
+                : health === "connected"
                   ? "Study server connected"
-                  : "Study server unavailable"
+                  : health === "gateway-offline"
+                    ? "AI gateway offline"
+                    : "Offline"
             }
             title={
-              backendConnected
+              health === "connected"
                 ? "Study server connected"
-                : backendConnected === null
-                  ? "Checking study server"
-                  : "Study server unavailable"
+                : health === "gateway-offline"
+                  ? `The AI gateway at ${gatewayUrl} is not responding.`
+                  : health === "checking"
+                    ? "Checking study server"
+                    : "Offline"
             }
             className="flex min-h-11 items-center gap-2"
           >
             <span
-              className={`h-2.5 w-2.5 rounded-full ${backendConnected ? "bg-success" : backendConnected === false ? "bg-destructive" : "animate-pulse bg-warning"}`}
+              className={`h-2.5 w-2.5 rounded-full ${
+                health === "connected"
+                  ? "bg-success"
+                  : health === "offline"
+                    ? "bg-destructive"
+                    : "animate-pulse bg-warning"
+              }`}
             />
             <span className="hidden text-xs text-muted-foreground md:inline">
-              {backendConnected ? "Connected" : backendConnected === false ? "Offline" : "Checking"}
+              {health === "connected"
+                ? "Connected"
+                : health === "gateway-offline"
+                  ? "AI gateway offline"
+                  : health === "offline"
+                    ? "Offline"
+                    : "Checking"}
             </span>
           </div>
           <button
@@ -302,6 +354,15 @@ export function TopBar() {
                     </Link>
                   </SheetClose>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => void handleSignOut()}
+                  disabled={signingOut}
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-destructive/30 px-4 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-60"
+                >
+                  <LogOut className="h-4 w-4" />
+                  {signingOut ? "Signing out…" : "Log out"}
+                </button>
                 <p className="sr-only">Current level: {currentLevel.label}</p>
               </div>
             </SheetContent>

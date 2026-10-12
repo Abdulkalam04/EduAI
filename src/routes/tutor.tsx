@@ -19,7 +19,7 @@ import { useChatStore, uid } from "@/store/useChatStore";
 import { useUserStore, useEffectiveProfile, type LevelId } from "@/store/useUserStore";
 import { useUiStore } from "@/store/useUiStore";
 import { streamTutor } from "@/lib/api";
-import type { AnswerStyle } from "@/lib/types";
+import { chatModelLabel, type AnswerStyle } from "@/lib/types";
 
 export const Route = createFileRoute("/tutor")({
   head: pageHead(
@@ -36,6 +36,9 @@ function TutorPage() {
   const { effectiveLevel, levelLabel, subjectLabel } = useEffectiveProfile();
   const hydrated = useUiStore((s) => s.hydrated);
   const defaultStyle = useUiStore((s) => s.answerStyle);
+  const preferredChatModel = useUiStore((s) => s.preferredChatModel);
+  const resolvedChatModel = useUiStore((s) => s.resolvedChatModel);
+  const setResolvedChatModel = useUiStore((s) => s.setResolvedChatModel);
   const [style, setStyle] = useState<AnswerStyle>(() => useUiStore.getState().answerStyle);
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
@@ -59,7 +62,7 @@ function TutorPage() {
   const stop = useCallback(() => abortRef.current?.abort(), []);
 
   const ask = useCallback(
-    async (chatId: string, question: string, replaceId?: string) => {
+    async (chatId: string, question: string, replaceId?: string, forceModel?: string) => {
       const msgs = useChatStore.getState().chats.find((c) => c.id === chatId)?.messages ?? [];
       const topic = [...msgs]
         .reverse()
@@ -75,11 +78,23 @@ function TutorPage() {
       atBottomRef.current = true;
       setAtBottom(true);
       let acc = "";
+      // requestAnimationFrame throttle for streaming updates
+      let rafPending = false;
+      const flushContent = (chatId: string, id: string) => {
+        if (rafPending) return;
+        rafPending = true;
+        requestAnimationFrame(() => {
+          rafPending = false;
+          updateMessage(chatId, id, { content: acc });
+        });
+      };
       try {
         const stored = useUserStore.getState();
         const lvl = stored.level ?? "c9-10";
         // Map "Default" / empty subject to "" so backend omits subject from prompt
         const subj = stored.subject && stored.subject !== "Default" ? stored.subject : "";
+        const model =
+          forceModel ?? (preferredChatModel !== "auto" ? preferredChatModel : undefined);
         for await (const chunk of streamTutor(
           {
             question,
@@ -88,13 +103,30 @@ function TutorPage() {
             subject: subj,
             session_id: chatId,
             ...(topic ? { topic } : {}),
+            ...(model ? { model } : {}),
           },
           ctrl.signal,
+          (meta) => {
+            // Save model meta on the message as soon as first token arrives.
+            updateMessage(chatId, id, {
+              ...(meta.modelUsed !== undefined ? { model: meta.modelUsed } : {}),
+              ...(meta.modelRequested !== undefined && meta.modelRequested !== meta.modelUsed
+                ? { modelRequested: meta.modelRequested }
+                : {}),
+              ...(meta.modelFallback !== undefined ? { modelFallback: meta.modelFallback } : {}),
+              ...(meta.ttftMs !== undefined ? { ttftMs: meta.ttftMs } : {}),
+            });
+            // Update the "Auto resolved to X" label in the composer.
+            if (meta.modelUsed && preferredChatModel === "auto") {
+              setResolvedChatModel(chatModelLabel(meta.modelUsed));
+            }
+          },
         )) {
           acc += chunk;
-          updateMessage(chatId, id, { content: acc });
+          flushContent(chatId, id);
         }
-        updateMessage(chatId, id, { status: "done" });
+        // Make sure the final accumulated content is flushed.
+        updateMessage(chatId, id, { content: acc, status: "done" });
       } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError")
           updateMessage(chatId, id, { status: "stopped" });
@@ -109,7 +141,7 @@ function TutorPage() {
         streamChatRef.current = null;
       }
     },
-    [addMessage, updateMessage, style],
+    [addMessage, updateMessage, style, preferredChatModel, setResolvedChatModel],
   );
 
   const send = useCallback(
@@ -126,6 +158,20 @@ function TutorPage() {
       void ask(chatId, text);
     },
     [busy, createChat, addMessage, ask],
+  );
+
+  /** Retry the last assistant message with a specific model (from fallback notice). */
+  const retryWithModel = useCallback(
+    (modelId: string) => {
+      if (!chat || busy) return;
+      const msgs = useChatStore.getState().chats.find((c) => c.id === chat.id)?.messages ?? [];
+      const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant");
+      const lastUser = [...msgs].reverse().find((m) => m.role === "user");
+      if (lastAssistant && lastUser) {
+        void ask(chat.id, lastUser.content, lastAssistant.id, modelId);
+      }
+    },
+    [chat, busy, ask],
   );
 
   useEffect(() => {
@@ -269,6 +315,7 @@ function TutorPage() {
                       }
                       onChip={(t) => send(t)}
                       onPickLevel={(lvl) => pickLevel(lvl, m.pending)}
+                      onRetryWithModel={retryWithModel}
                     />
                   ),
                 )}
@@ -305,6 +352,9 @@ function TutorPage() {
               style={style}
               setStyle={setStyle}
               onFocusChange={setComposerFocused}
+              {...(preferredChatModel === "auto" && resolvedChatModel
+                ? { resolvedModelLabel: resolvedChatModel }
+                : {})}
             />
             {/* Non-blocking context indicator */}
             <p className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">

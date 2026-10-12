@@ -1,4 +1,5 @@
 <!-- LOVABLE:BEGIN -->
+
 > [!IMPORTANT]
 > This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
 > published git history — force pushing, or rebasing/amending/squashing commits
@@ -7,9 +8,11 @@
 >
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
+
 <!-- LOVABLE:END -->
 
 ## Architecture rules
+
 - All backend calls go through `src/lib/api.ts`; request and response types live in `src/lib/types.ts`. UI never fetches directly — keeps the future backend swap to one file.
 - Persisted client state lives in zustand stores under `src/store/` with `skipHydration`, rehydrated in `AppShell` — avoids SSR hydration mismatches.
 - App chrome (sidebar, top bar, mobile tabs, command palette, onboarding) lives in `src/components/shell/` and wraps `<Outlet />` in `__root.tsx`.

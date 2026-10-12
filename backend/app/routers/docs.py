@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import AuthUser, get_current_user
 from app.database import get_db
 from app.models import StudyDocument
 from app.security import read_validated_upload
@@ -78,7 +79,9 @@ def _stored_pages(document: StudyDocument) -> list[DocumentPage]:
 
 @router.post("/docs/upload")
 async def upload_document(
-    file: UploadFile = File(...), db: Session = Depends(get_db)
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
 ) -> dict[str, object]:
     filename, payload = await read_validated_upload(file)
     content_type = file.content_type or ""
@@ -91,6 +94,7 @@ async def upload_document(
     full_text = "\n\n".join(f"[Page {item.page}]\n{item.text}" for item in pages)
     document = StudyDocument(
         id=str(uuid.uuid4()),
+        user_id=current_user.uid,
         title=filename,
         page_count=len(pages),
         uploaded_at=date.today().isoformat(),
@@ -108,17 +112,26 @@ async def upload_document(
 
 
 @router.get("/docs")
-def list_documents(db: Session = Depends(get_db)) -> list[dict[str, object]]:
+def list_documents(
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+) -> list[dict[str, object]]:
     documents = db.scalars(
-        select(StudyDocument).order_by(StudyDocument.uploaded_at.desc(), StudyDocument.id)
+        select(StudyDocument)
+        .where(StudyDocument.user_id == current_user.uid)
+        .order_by(StudyDocument.uploaded_at.desc(), StudyDocument.id)
     ).all()
     return [_book_doc(item) for item in documents]
 
 
 @router.delete("/docs/{document_id}", status_code=204)
-def delete_document(document_id: str, db: Session = Depends(get_db)) -> None:
+def delete_document(
+    document_id: str,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+) -> None:
     document = db.get(StudyDocument, document_id)
-    if document is None:
+    if document is None or document.user_id != current_user.uid:
         raise HTTPException(status_code=404, detail="Document not found.")
     db.delete(document)
     db.commit()
@@ -129,9 +142,10 @@ async def ask_document(
     document_id: str,
     payload: DocumentQuestion,
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
 ) -> dict[str, object]:
     document = db.get(StudyDocument, document_id)
-    if document is None:
+    if document is None or document.user_id != current_user.uid:
         raise HTTPException(status_code=404, detail="Document not found.")
     try:
         answer, cited_pages = await answer_document(
@@ -156,9 +170,10 @@ async def generate_from_document(
     document_id: str,
     payload: DocumentGeneration,
     db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
 ) -> dict[str, object]:
     document = db.get(StudyDocument, document_id)
-    if document is None:
+    if document is None or document.user_id != current_user.uid:
         raise HTTPException(status_code=404, detail="Document not found.")
     try:
         return await generate_document_result(

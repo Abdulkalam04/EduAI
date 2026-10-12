@@ -20,15 +20,15 @@ dist-ssr
 .env
 .env.*
 !.env.example
+!.env.android.example
 backend/uploads/**
 !backend/uploads/.gitkeep
 
-# Python environments, bytecode, and test artifacts
+# Python environments and bytecode
 .venv/
 venv/
 backend/venv/
 __pycache__/
-.pytest_cache/
 *.py[cod]
 
 # Local database and vector-store data

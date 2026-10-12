@@ -11,6 +11,14 @@ export interface ChatMessage {
   kind?: "level-prompt";
   pending?: string;
   feedback?: "up" | "down" | undefined;
+  /** The model that actually answered (X-Model-Used / DB `model` column). */
+  model?: string;
+  /** The model the user originally requested when a fallback occurred. */
+  modelRequested?: string;
+  /** The model tried first that failed before the fallback. */
+  modelFallback?: string;
+  /** Measured time-to-first-token in milliseconds for this response. */
+  ttftMs?: number;
   attachment?: { name: string; type: string };
 }
 

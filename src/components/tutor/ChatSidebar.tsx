@@ -130,13 +130,13 @@ export function ChatSidebar({ onNavigate }: { onNavigate?: () => void }) {
         <Plus className="h-4 w-4" />
         New chat
       </GradientButton>
-      <label className="flex h-9 items-center gap-2 rounded-xl border bg-background px-3 text-sm focus-within:border-primary">
+      <label className="flex h-11 items-center gap-2 rounded-2xl border bg-card p-2 text-sm shadow-lift transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
         <Search className="h-4 w-4 text-muted-foreground" />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search chats"
-          className="w-full bg-transparent outline-none"
+          className="h-full min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           aria-label="Search chats"
         />
       </label>

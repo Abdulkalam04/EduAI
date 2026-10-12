@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.auth import AuthUser, get_current_user
 from app.database import get_db
 from app.models import VivaSession
 from app.schemas import LevelId
@@ -86,7 +87,11 @@ def _examiner_tone(level: LevelId) -> str:
 
 
 @router.post("/start", response_model=list[VivaQuestion], response_model_exclude_none=True)
-async def start_viva(payload: VivaStart, db: Session = Depends(get_db)):
+async def start_viva(
+    payload: VivaStart,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+):
     session_id = str(uuid.uuid4())
     tone = _examiner_tone(payload.level)
     prompt = (
@@ -128,6 +133,7 @@ async def start_viva(payload: VivaStart, db: Session = Depends(get_db)):
         question.id = f"{session_id}::{index}"
     row = VivaSession(
         id=session_id,
+        user_id=current_user.uid,
         subject=payload.subject,
         topic=payload.topic,
         level=payload.level,
@@ -142,10 +148,14 @@ async def start_viva(payload: VivaStart, db: Session = Depends(get_db)):
 
 
 @router.post("/answer", response_model=VivaFeedback)
-async def answer_viva(payload: VivaAnswer, db: Session = Depends(get_db)):
+async def answer_viva(
+    payload: VivaAnswer,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+):
     session_id = _session_id(payload.question.id)
     session = db.get(VivaSession, session_id)
-    if session is None:
+    if session is None or session.user_id != current_user.uid:
         raise HTTPException(status_code=404, detail="Viva session not found.")
     if payload.level != session.level:
         raise HTTPException(status_code=422, detail="The answer level does not match this viva.")
@@ -205,12 +215,16 @@ async def answer_viva(payload: VivaAnswer, db: Session = Depends(get_db)):
 
 
 @router.post("/report")
-def viva_report(payload: VivaReportRequest, db: Session = Depends(get_db)):
+def viva_report(
+    payload: VivaReportRequest,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+):
     session_ids = {_session_id(item.question.id) for item in payload.answers}
     if len(session_ids) != 1:
         raise HTTPException(status_code=400, detail="Report answers must come from one viva session.")
     session = db.get(VivaSession, session_ids.pop())
-    if session is None:
+    if session is None or session.user_id != current_user.uid:
         raise HTTPException(status_code=404, detail="Viva session not found.")
     topic_scores: dict[str, float] = {}
     report_questions: list[dict[str, object]] = []

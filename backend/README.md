@@ -54,7 +54,7 @@ REASONING_EFFORT_CODE_DEBUG=high
 LONG_CONTEXT_MAX_TOKENS=120000
 MAX_CONCURRENT_LLM=4
 EMBEDDINGS=none
-CORS_ORIGINS=http://localhost:5173,http://localhost:8080,http://localhost:8081
+CORS_ORIGINS=http://localhost:8082,http://localhost,https://localhost
 DATABASE_URL=sqlite:///./eduai.db
 UPLOADS_DIR=uploads
 ```
@@ -71,87 +71,104 @@ Model role guidance:
 
 Model reasoning strength is configured per task. Formatting and generation
 tasks use `low` by default; maths solving, written-answer grading, and code
-debugging use `high`. Empty task settings use the gateway default. If the
-gateway explicitly rejects `reasoning_effort`, the backend logs the rejection
-and retries once without the parameter.
+debugging use `high`. Empty task settings use the gateway default. If a model
+explicitly rejects `reasoning_effort`, that model is remembered for the process
+lifetime and subsequent requests omit the parameter.
 
-The model IDs must exactly match IDs exposed by OmniRoute. Empty specialized
-IDs fall back to `MODEL_TEACHER`. `/api/models` reports each resolved mapping
-and whether the gateway lists that model; `/health` reports gateway reachability.
-Never commit `.env` or send its API key to the frontend.
+The model IDs must exactly match IDs exposed by OmniRoute. Each
+`MODEL_<ROLE>_FALLBACKS` value is an ordered, comma-separated list. Requests
+retry each eligible model before moving on; 404, 429, 5xx, timeout, and
+connection failures can move to the next model. Authentication and invalid
+request errors are returned directly. Models returning 429 or 5xx are skipped
+during a cooldown (60 seconds by default, or `Retry-After`, capped at 10
+minutes); a successful request clears that model's cooldown. Streaming can
+switch models only before sending its first text token.
+
+`/api/models` reports each role's ordered chain and per-model cooldown and last
+success state. `/health` uses the cached `/v1/models` check (5-second timeout,
+15-second cache) or a successful completion in the last 120 seconds.
+Successful completion responses include `X-Model-Used`; chat messages can show
+that model when the Learning setting is enabled. `npm run check:models` probes
+every configured model in each chain. Never commit `.env` or send its API key
+to the frontend.
+
+Free provider quotas, model availability, and account access can change.
+Confirm current limits in each provider dashboard before choosing concurrency
+or long-context settings; the account-specific quotas cannot be inferred from
+the public model list.
 
 ## Run
 
 From the repository root:
 
 ```powershell
-python -m uvicorn app.main:app --reload --app-dir backend
+python -m uvicorn app.main:app --reload --app-dir backend --port 8010
 ```
 
 Or from `backend/`:
 
 ```powershell
-python -m uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8010
 ```
 
 On Windows, prefer `python -m uvicorn` if application-control policies block
 the `uvicorn` executable launcher.
 
-The health check is `http://localhost:8000/health`; interactive API
-documentation is at `http://localhost:8000/docs`.
+The health check is `http://localhost:8010/health`; interactive API
+documentation is at `http://localhost:8010/docs`.
 
 ## API examples
 
-Examples use `http://localhost:8000`. Upload endpoints accept PDF, JPG or PNG,
+Examples use `http://localhost:8010`. Upload endpoints accept PDF, JPG or PNG,
 with a 20 MB limit. `curl.exe` is used below for PowerShell compatibility.
 
 ```powershell
 # Health and model-role diagnostics
-curl.exe http://localhost:8000/health
-curl.exe http://localhost:8000/api/models
+curl.exe http://localhost:8010/health
+curl.exe http://localhost:8010/api/models
 
 # Chat returns an SSE stream ending in data: [DONE]
-curl.exe -N -H "Content-Type: application/json" -d "{\"question\":\"Explain gravity\",\"level\":\"c9-10\",\"style\":\"Simple\"}" http://localhost:8000/api/chat
+curl.exe -N -H "Content-Type: application/json" -d "{\"question\":\"Explain gravity\",\"level\":\"c9-10\",\"style\":\"Simple\"}" http://localhost:8010/api/chat
 
 # Solve an uploaded exam paper (mode: teach or exam; style: Simple, Exam, Detailed)
-curl.exe -F "file=@paper.pdf" -F "level=c9-10" -F "subject=Science" -F "mode=exam" -F "style=Exam" http://localhost:8000/api/solve
-curl.exe -H "Content-Type: application/json" -d "{\"question\":{\"id\":\"q1\",\"n\":1,\"text\":\"Find x: 2x=8\",\"marks\":2,\"status\":\"review\",\"hints\":[\"Hint one\",\"Hint two\"],\"solution\":{\"given\":[],\"steps\":[],\"therefore\":\"\",\"answer\":\"\"}},\"text\":\"Find x: 2x=8\",\"level\":\"c9-10\",\"style\":\"Exam\"}" http://localhost:8000/api/solve/resolve
-curl.exe -H "Content-Type: application/json" -d "{\"kind\":\"simpler\",\"question\":{\"id\":\"q1\",\"n\":1,\"text\":\"Find x: 2x=8\",\"marks\":2,\"status\":\"solved\",\"hints\":[\"Hint one\",\"Hint two\"],\"solution\":{\"given\":[],\"steps\":[],\"therefore\":\"\",\"answer\":\"4\"}}}" http://localhost:8000/api/solve/follow-up
+curl.exe -F "file=@paper.pdf" -F "level=c9-10" -F "subject=Science" -F "mode=exam" -F "style=Exam" http://localhost:8010/api/solve
+curl.exe -H "Content-Type: application/json" -d "{\"question\":{\"id\":\"q1\",\"n\":1,\"text\":\"Find x: 2x=8\",\"marks\":2,\"status\":\"review\",\"hints\":[\"Hint one\",\"Hint two\"],\"solution\":{\"given\":[],\"steps\":[],\"therefore\":\"\",\"answer\":\"\"}},\"text\":\"Find x: 2x=8\",\"level\":\"c9-10\",\"style\":\"Exam\"}" http://localhost:8010/api/solve/resolve
+curl.exe -H "Content-Type: application/json" -d "{\"kind\":\"simpler\",\"question\":{\"id\":\"q1\",\"n\":1,\"text\":\"Find x: 2x=8\",\"marks\":2,\"status\":\"solved\",\"hints\":[\"Hint one\",\"Hint two\"],\"solution\":{\"given\":[],\"steps\":[],\"therefore\":\"\",\"answer\":\"4\"}}}" http://localhost:8010/api/solve/follow-up
 
 # Study From My Book: upload, list, ask, generate, delete
-curl.exe -F "file=@chapter.pdf" http://localhost:8000/api/docs/upload
-curl.exe http://localhost:8000/api/docs
-curl.exe -H "Content-Type: application/json" -d "{\"question\":\"Summarise the key idea\",\"level\":\"c9-10\"}" http://localhost:8000/api/docs/DOCUMENT_ID/ask
-curl.exe -H "Content-Type: application/json" -d "{\"task\":\"notes\",\"level\":\"c9-10\"}" http://localhost:8000/api/docs/DOCUMENT_ID/generate
-curl.exe -X DELETE http://localhost:8000/api/docs/DOCUMENT_ID
+curl.exe -F "file=@chapter.pdf" http://localhost:8010/api/docs/upload
+curl.exe http://localhost:8010/api/docs
+curl.exe -H "Content-Type: application/json" -d "{\"question\":\"Summarise the key idea\",\"level\":\"c9-10\"}" http://localhost:8010/api/docs/DOCUMENT_ID/ask
+curl.exe -H "Content-Type: application/json" -d "{\"task\":\"notes\",\"level\":\"c9-10\"}" http://localhost:8010/api/docs/DOCUMENT_ID/generate
+curl.exe -X DELETE http://localhost:8010/api/docs/DOCUMENT_ID
 
 # Practice paper generation, grading, handwritten checking and re-evaluation
 # Objective MCQs are graded in code; written answers use a Concept/Explanation/Example/Presentation rubric.
-curl.exe -H "Content-Type: application/json" -d "{\"level\":\"c9-10\",\"subject\":\"Science\",\"chapter\":\"Electricity\",\"difficulty\":\"Medium\",\"totalMarks\":50,\"timeMin\":90,\"weakFocus\":[]}" http://localhost:8000/api/practice/generate
-curl.exe -H "Content-Type: application/json" -d "{\"answers\":{\"q1\":\"1\"},\"timeUsedSec\":300}" http://localhost:8000/api/practice/PAPER_ID/submit
-curl.exe -F "answers=@handwritten-answers.pdf" -F "paperId=PAPER_ID" http://localhost:8000/api/practice/check
-curl.exe -H "Content-Type: application/json" -d "{\"answer\":\"Revised answer text\"}" http://localhost:8000/api/practice/EVALUATION_ID/re-evaluate
+curl.exe -H "Content-Type: application/json" -d "{\"level\":\"c9-10\",\"subject\":\"Science\",\"chapter\":\"Electricity\",\"difficulty\":\"Medium\",\"totalMarks\":50,\"timeMin\":90,\"weakFocus\":[]}" http://localhost:8010/api/practice/generate
+curl.exe -H "Content-Type: application/json" -d "{\"answers\":{\"q1\":\"1\"},\"timeUsedSec\":300}" http://localhost:8010/api/practice/PAPER_ID/submit
+curl.exe -F "answers=@handwritten-answers.pdf" -F "paperId=PAPER_ID" http://localhost:8010/api/practice/check
+curl.exe -H "Content-Type: application/json" -d "{\"answer\":\"Revised answer text\"}" http://localhost:8010/api/practice/EVALUATION_ID/re-evaluate
 
 # Diagram and presentation generation
-curl.exe -H "Content-Type: application/json" -d "{\"prompt\":\"Flowchart to check if a number is even or odd\",\"type\":\"Flowchart\",\"level\":\"c9-10\",\"forceFlowchart\":true}" http://localhost:8000/api/diagram
-curl.exe -H "Content-Type: application/json" -d "{\"action\":\"refine\",\"diagram\":{\"id\":\"d1\",\"prompt\":\"Example\",\"title\":\"Example\",\"type\":\"Flowchart\",\"code\":\"flowchart TD\\nA([Start])-->B([End])\",\"explanation\":\"A flow\",\"level\":\"c9-10\",\"createdAt\":\"2026-10-07T00:00:00Z\"},\"instruction\":\"Make it simpler\",\"level\":\"c9-10\"}" http://localhost:8000/api/diagram
-curl.exe -H "Content-Type: application/json" -d "{\"topic\":\"Artificial Intelligence\",\"level\":\"c9-10\",\"slides\":5,\"theme\":\"Indigo Modern\",\"speakerNotes\":true,\"includeDiagrams\":false,\"includeQuiz\":false,\"extra\":\"\"}" http://localhost:8000/api/ppt
+curl.exe -H "Content-Type: application/json" -d "{\"prompt\":\"Flowchart to check if a number is even or odd\",\"type\":\"Flowchart\",\"level\":\"c9-10\",\"forceFlowchart\":true}" http://localhost:8010/api/diagram
+curl.exe -H "Content-Type: application/json" -d "{\"action\":\"refine\",\"diagram\":{\"id\":\"d1\",\"prompt\":\"Example\",\"title\":\"Example\",\"type\":\"Flowchart\",\"code\":\"flowchart TD\\nA([Start])-->B([End])\",\"explanation\":\"A flow\",\"level\":\"c9-10\",\"createdAt\":\"2026-10-07T00:00:00Z\"},\"instruction\":\"Make it simpler\",\"level\":\"c9-10\"}" http://localhost:8010/api/diagram
+curl.exe -H "Content-Type: application/json" -d "{\"topic\":\"Artificial Intelligence\",\"level\":\"c9-10\",\"slides\":5,\"theme\":\"Indigo Modern\",\"speakerNotes\":true,\"includeDiagrams\":false,\"includeQuiz\":false,\"extra\":\"\"}" http://localhost:8010/api/ppt
 # Post the returned topic, theme, slides and speakerNotes fields to /api/pptx to download a .pptx.
 # PPTX themes: Indigo Modern, Clean White, Dark Elegant, Playful.
 
 # Coding actions: action values are Explain, Debug, Predict Output, Give Hint,
 # Generate Test Cases, Run, Interview, Generate Exercise.
-curl.exe -H "Content-Type: application/json" -d "{\"action\":\"Explain\",\"code\":\"print(1 + 1)\",\"language\":\"Python\",\"level\":\"c9-10\"}" http://localhost:8000/api/code
-curl.exe -H "Content-Type: application/json" -d "{\"action\":\"Run\",\"code\":\"print(input())\",\"input\":\"hello\",\"language\":\"Python\",\"level\":\"c9-10\"}" http://localhost:8000/api/code
+curl.exe -H "Content-Type: application/json" -d "{\"action\":\"Explain\",\"code\":\"print(1 + 1)\",\"language\":\"Python\",\"level\":\"c9-10\"}" http://localhost:8010/api/code
+curl.exe -H "Content-Type: application/json" -d "{\"action\":\"Run\",\"code\":\"print(input())\",\"input\":\"hello\",\"language\":\"Python\",\"level\":\"c9-10\"}" http://localhost:8010/api/code
 
 # Viva start, answer, and final report
-curl.exe -H "Content-Type: application/json" -d "{\"subject\":\"DBMS\",\"topic\":\"Normalization\",\"level\":\"grad\",\"count\":5,\"adaptive\":true}" http://localhost:8000/api/viva/start
-curl.exe -H "Content-Type: application/json" -d "{\"question\":{\"id\":\"SESSION_ID::1\",\"question\":\"What is normalization?\",\"topic\":\"Normalization\",\"keywords\":[\"data\",\"redundancy\"],\"explanation\":\"It reduces duplicate data.\"},\"answer\":\"It reduces duplicate data.\",\"level\":\"grad\"}" http://localhost:8000/api/viva/answer
-curl.exe -H "Content-Type: application/json" -d "{\"subject\":\"DBMS\",\"topic\":\"Normalization\",\"level\":\"grad\",\"answers\":[{\"question\":{\"id\":\"SESSION_ID::1\",\"question\":\"What is normalization?\",\"topic\":\"Normalization\",\"keywords\":[\"data\",\"redundancy\"],\"explanation\":\"It reduces duplicate data.\"},\"answer\":\"It reduces duplicate data.\",\"feedback\":{\"label\":\"Good\",\"score\":1,\"explanation\":\"Clear answer.\",\"ideal\":\"It reduces duplicate data.\"}}]}" http://localhost:8000/api/viva/report
+curl.exe -H "Content-Type: application/json" -d "{\"subject\":\"DBMS\",\"topic\":\"Normalization\",\"level\":\"grad\",\"count\":5,\"adaptive\":true}" http://localhost:8010/api/viva/start
+curl.exe -H "Content-Type: application/json" -d "{\"question\":{\"id\":\"SESSION_ID::1\",\"question\":\"What is normalization?\",\"topic\":\"Normalization\",\"keywords\":[\"data\",\"redundancy\"],\"explanation\":\"It reduces duplicate data.\"},\"answer\":\"It reduces duplicate data.\",\"level\":\"grad\"}" http://localhost:8010/api/viva/answer
+curl.exe -H "Content-Type: application/json" -d "{\"subject\":\"DBMS\",\"topic\":\"Normalization\",\"level\":\"grad\",\"answers\":[{\"question\":{\"id\":\"SESSION_ID::1\",\"question\":\"What is normalization?\",\"topic\":\"Normalization\",\"keywords\":[\"data\",\"redundancy\"],\"explanation\":\"It reduces duplicate data.\"},\"answer\":\"It reduces duplicate data.\",\"feedback\":{\"label\":\"Good\",\"score\":1,\"explanation\":\"Clear answer.\",\"ideal\":\"It reduces duplicate data.\"}}]}" http://localhost:8010/api/viva/report
 
 # Progress and dashboard share the same persisted mastery aggregates
-curl.exe http://localhost:8000/api/progress
-curl.exe http://localhost:8000/api/dashboard
+curl.exe http://localhost:8010/api/progress
+curl.exe http://localhost:8010/api/dashboard
 ```
 
 Python `Run` executes only Python and is labelled **“basic sandbox, not a
@@ -186,14 +203,6 @@ removed automatically. Expensive AI routes have an in-memory per-IP limit of
 - **Python code execution denied/timed out:** run only short educational
   snippets. The service deliberately has strict process/time/memory limits and
   is not a secure multi-tenant sandbox.
-
-## Tests
-
-From the repository root:
-
-```powershell
-python -m pytest backend/tests -q
-```
 
 To manually check the configured model roles against OmniRoute, run this from
 `backend/`:

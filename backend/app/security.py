@@ -34,15 +34,20 @@ def enforce_rate_limit(request: Request) -> None:
         request.url.path.startswith(path) for path in _EXPENSIVE_PREFIXES
     ):
         return
-    client_ip = request.client.host if request.client else "unknown"
-    if settings.trust_proxy_headers:
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            first_ip = forwarded.split(",")[0].strip()
-            if first_ip:
-                client_ip = first_ip
+    user = getattr(request.state, "user", None)
+    if user and getattr(user, "uid", None):
+        rate_key = f"uid:{user.uid}"
+    else:
+        client_ip = request.client.host if request.client else "unknown"
+        if settings.trust_proxy_headers:
+            forwarded = request.headers.get("X-Forwarded-For")
+            if forwarded:
+                first_ip = forwarded.split(",")[0].strip()
+                if first_ip:
+                    client_ip = first_ip
+        rate_key = client_ip
     now = time.monotonic()
-    recent = _requests[client_ip]
+    recent = _requests[rate_key]
     while recent and recent[0] <= now - RATE_LIMIT_WINDOW_SECONDS:
         recent.popleft()
     if len(recent) >= RATE_LIMIT_REQUESTS:

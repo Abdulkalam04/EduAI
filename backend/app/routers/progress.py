@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.auth import AuthUser, get_current_user
 from app.database import get_db
 from app.models import (
     ChatMessage,
@@ -37,14 +38,14 @@ def _record_day(value: datetime | str) -> date:
     return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
 
 
-def build_progress_snapshot(db: Session) -> dict[str, object]:
+def build_progress_snapshot(db: Session, user_id: str = "local") -> dict[str, object]:
     today = date.today()
-    attempts = db.scalars(select(PracticeAttempt)).all()
+    attempts = db.scalars(select(PracticeAttempt).where(PracticeAttempt.user_id == user_id)).all()
     viva_sessions = db.scalars(
-        select(VivaSession).where(VivaSession.report_json.is_not(None))
+        select(VivaSession).where(VivaSession.report_json.is_not(None), VivaSession.user_id == user_id)
     ).all()
     chat_messages = db.scalars(
-        select(ChatMessage).where(ChatMessage.role == "user")
+        select(ChatMessage).where(ChatMessage.role == "user", ChatMessage.user_id == user_id)
     ).all()
 
     topic_totals: dict[tuple[str, str], list[float]] = defaultdict(lambda: [0.0, 0.0])
@@ -198,28 +199,31 @@ def build_progress_snapshot(db: Session) -> dict[str, object]:
 
 
 @router.get("/progress")
-def get_progress(db: Session = Depends(get_db)):
-    return build_progress_snapshot(db)
+def get_progress(
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+):
+    return build_progress_snapshot(db, current_user.uid)
 
 
 @router.delete("/progress")
-def reset_progress(db: Session = Depends(get_db)) -> dict[str, str]:
-    for model in (
-        ChatMessage,
-        ChatSession,
-        PracticeAttempt,
-        PracticeEvaluation,
-        PracticePaper,
-        VivaSession,
-    ):
-        db.execute(delete(model))
+def reset_progress(
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+) -> dict[str, str]:
+    uid = current_user.uid
+    for model in (ChatMessage, ChatSession, PracticeAttempt, PracticeEvaluation, PracticePaper, VivaSession):
+        db.execute(delete(model).where(model.user_id == uid))
     db.commit()
     return {"status": "cleared"}
 
 
 @router.get("/dashboard")
-def get_dashboard(db: Session = Depends(get_db)):
-    progress = build_progress_snapshot(db)
+def get_dashboard(
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+):
+    progress = build_progress_snapshot(db, current_user.uid)
     all_topics = [
         (str(topic["name"]), int(topic["value"]))
         for topics in progress["mastery"].values()

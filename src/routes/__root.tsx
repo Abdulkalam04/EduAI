@@ -3,7 +3,9 @@ import {
   Outlet,
   Link,
   createRootRouteWithContext,
+  useNavigate,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
   type ErrorComponentProps,
@@ -14,7 +16,9 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppShell } from "@/components/shell/AppShell";
 import { IntroSplash } from "@/components/shell/IntroSplash";
+import { Logo } from "@/components/shell/Logo";
 import { EmptyState, GradientButton } from "@/components/ui-custom";
+import { AuthProvider, useAuth, authEnabled } from "@/lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -134,14 +138,66 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+export function AuthGate() {
+  const { user, loading, introSeen, markIntroSeen } = useAuth();
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (!authEnabled) {
+      if (pathname === "/login") {
+        void navigate({ to: "/", replace: true });
+      }
+      return;
+    }
+
+    if (!user && pathname !== "/login") {
+      void navigate({ to: "/login", replace: true });
+      return;
+    }
+
+    if (user && pathname === "/login") {
+      void navigate({ to: "/", replace: true });
+    }
+  }, [loading, navigate, pathname, user]);
+
+  if (loading) {
+    return <AuthLoadingScreen />;
+  }
+
+  if (authEnabled && !user) {
+    return pathname === "/login" ? <Outlet /> : <AuthLoadingScreen />;
+  }
+
+  if (!authEnabled && pathname === "/login") return <AuthLoadingScreen />;
+
+  return (
+    <>
+      <AppShell introDone={!authEnabled || introSeen}>
+        <Outlet />
+      </AppShell>
+      {authEnabled && user && !introSeen && <IntroSplash onDone={markIntroSeen} />}
+    </>
+  );
+}
+
+function AuthLoadingScreen() {
+  return (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-[#0D0B17]">
+      <Logo />
+    </div>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <IntroSplash />
-      <AppShell>
-        <Outlet />
-      </AppShell>
+      <AuthProvider>
+        <AuthGate />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

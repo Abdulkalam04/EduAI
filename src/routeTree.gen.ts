@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as BookRouteImport } from './routes/book'
 import { Route as CodingRouteImport } from './routes/coding'
 import { Route as DiagramsRouteImport } from './routes/diagrams'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as PptRouteImport } from './routes/ppt'
 import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as ProgressRouteImport } from './routes/progress'
@@ -50,6 +51,11 @@ const CodingRoute = CodingRouteImport.update({
 const DiagramsRoute = DiagramsRouteImport.update({
   id: '/diagrams',
   path: '/diagrams',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PptRoute = PptRouteImport.update({
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/book': typeof BookRouteWithChildren
   '/coding': typeof CodingRoute
   '/diagrams': typeof DiagramsRoute
+  '/login': typeof LoginRoute
   '/ppt': typeof PptRoute
   '/practice': typeof PracticeRouteWithChildren
   '/progress': typeof ProgressRoute
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/coding': typeof CodingRoute
   '/diagrams': typeof DiagramsRoute
+  '/login': typeof LoginRoute
   '/ppt': typeof PptRoute
   '/progress': typeof ProgressRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -195,6 +203,7 @@ export interface FileRoutesById {
   '/book': typeof BookRouteWithChildren
   '/coding': typeof CodingRoute
   '/diagrams': typeof DiagramsRoute
+  '/login': typeof LoginRoute
   '/ppt': typeof PptRoute
   '/practice': typeof PracticeRouteWithChildren
   '/progress': typeof ProgressRoute
@@ -221,6 +230,7 @@ export interface FileRouteTypes {
     | '/book'
     | '/coding'
     | '/diagrams'
+    | '/login'
     | '/ppt'
     | '/practice'
     | '/progress'
@@ -244,6 +254,7 @@ export interface FileRouteTypes {
     | '/'
     | '/coding'
     | '/diagrams'
+    | '/login'
     | '/ppt'
     | '/progress'
     | '/settings'
@@ -267,6 +278,7 @@ export interface FileRouteTypes {
     | '/book'
     | '/coding'
     | '/diagrams'
+    | '/login'
     | '/ppt'
     | '/practice'
     | '/progress'
@@ -292,6 +304,7 @@ export interface RootRouteChildren {
   BookRoute: typeof BookRouteWithChildren
   CodingRoute: typeof CodingRoute
   DiagramsRoute: typeof DiagramsRoute
+  LoginRoute: typeof LoginRoute
   PptRoute: typeof PptRoute
   PracticeRoute: typeof PracticeRouteWithChildren
   ProgressRoute: typeof ProgressRoute
@@ -331,6 +344,13 @@ declare module '@tanstack/react-router' {
       path: '/diagrams'
       fullPath: '/diagrams'
       preLoaderRoute: typeof DiagramsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ppt': {
@@ -513,6 +533,7 @@ const rootRouteChildren: RootRouteChildren = {
   BookRoute: BookRouteWithChildren,
   CodingRoute: CodingRoute,
   DiagramsRoute: DiagramsRoute,
+  LoginRoute: LoginRoute,
   PptRoute: PptRoute,
   PracticeRoute: PracticeRouteWithChildren,
   ProgressRoute: ProgressRoute,

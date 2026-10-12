@@ -1,30 +1,33 @@
-from openai import OpenAI
+import asyncio
+from pathlib import Path
+import sys
 
-from app.config import settings
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-client = OpenAI(
-    base_url=settings.omniroute_base_url,
-    api_key=settings.omniroute_api_key or "not-configured",
+from app.services.llm import (
+    OmniRouteError,
+    _refresh_model_registry,
+    model_chain_for,
+    probe_model_details,
 )
-models = {
-    "teacher": settings.model_teacher,
-    "practice": settings.model_practice,
-    "reasoning": settings.model_reasoning,
-    "multimodal": settings.model_multimodal,
-    "json": settings.model_json,
-}
 
-for role, model in models.items():
-    if not model.strip():
-        print(f"{role}: SKIPPED (no model configured)")
-        continue
+
+async def main() -> None:
+    print(f"{'ROLE':<12} {'MODEL':<44} {'STATUS':<8} {'LATENCY':>9}  ERROR")
     try:
-        response = client.chat.completions.create(
-            model=model,
-            max_tokens=60,
-            messages=[{"role": "user", "content": "Reply with only: OK"}],
-        )
-        answer = response.choices[0].message.content or ""
-        print(f"{role} ({model}) -> {answer.strip()}")
-    except Exception as error:
-        print(f"{role} ({model}) FAILED: {error}")
+        await _refresh_model_registry()
+    except OmniRouteError as error:
+        print(f"Model check stopped: {error}")
+        return
+    for role in ("teacher", "practice", "reasoning", "multimodal", "json"):
+        for model in model_chain_for(role):
+            success, elapsed, error = await probe_model_details(model)
+            status = "PASS" if success else "FAIL"
+            print(
+                f"{role:<12} {model:<44} {status:<8} "
+                f"{elapsed:>8.2f}s  {error}"
+            )
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

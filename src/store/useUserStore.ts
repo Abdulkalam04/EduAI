@@ -101,6 +101,7 @@ interface UserState {
   streak: number;
   onboarded: boolean;
   levelSet: boolean;
+  nameCustomized: boolean;
   set: (p: Partial<Omit<UserState, "set" | "reset">>) => void;
   reset: () => void;
 }
@@ -114,6 +115,7 @@ const initial = {
   streak: 0,
   onboarded: false,
   levelSet: false,
+  nameCustomized: false,
 };
 
 export const useUserStore = create<UserState>()(

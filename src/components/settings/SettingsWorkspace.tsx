@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useBlocker, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -38,6 +38,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   checkApiHealth,
   getAccessToken,
+  getApiUrlConfig,
   getApiUrl,
   resetLearningActivity,
   setAccessToken,
@@ -83,6 +84,7 @@ interface SettingsDraft {
     subject: string;
     interests: string[];
   };
+
   ui: {
     theme: Theme;
     accent: AccentColor;
@@ -90,6 +92,7 @@ interface SettingsDraft {
     fontSize: number;
     answerStyle: AnswerStyle;
     solverMode: "teach" | "exam";
+    showAiModel: boolean;
   };
   apiUrl: string;
   accessToken: string;
@@ -98,6 +101,7 @@ interface SettingsDraft {
 interface SettingsContextValue {
   draft: SettingsDraft;
   updateDraft: (update: (current: SettingsDraft) => SettingsDraft) => void;
+  resetApiUrl: () => void;
   connected: boolean | null;
   setConnected: (connected: boolean | null) => void;
 }
@@ -128,6 +132,7 @@ function readDraft(): SettingsDraft {
       fontSize: ui.fontSize,
       answerStyle: ui.answerStyle,
       solverMode: ui.solverMode,
+      showAiModel: ui.showAiModel,
     },
     apiUrl: getApiUrl(),
     accessToken: getAccessToken(),
@@ -177,18 +182,31 @@ export function SettingsPage() {
     disabled: !hasChanges,
   });
 
+  const resetApiUrl = useCallback(() => {
+    window.localStorage.removeItem("apiUrl");
+    const defaultUrl = getApiUrlConfig().url;
+    setDraft((current) => ({ ...current, apiUrl: defaultUrl }));
+    setSavedDraft((current) => ({ ...current, apiUrl: defaultUrl }));
+    setConnected(null);
+  }, []);
+
   const contextValue = useMemo<SettingsContextValue>(
     () => ({
       draft,
       updateDraft: (update) => setDraft(update),
+      resetApiUrl,
       connected,
       setConnected,
     }),
-    [connected, draft],
+    [connected, draft, resetApiUrl],
   );
 
   const save = () => {
-    useUserStore.getState().set(draft.user);
+    const nameChanged = draft.user.name !== savedDraft.user.name;
+    useUserStore.getState().set({
+      ...draft.user,
+      ...(nameChanged ? { nameCustomized: true } : {}),
+    });
     const ui = useUiStore.getState();
     ui.setTheme(draft.ui.theme);
     ui.setAccent(draft.ui.accent);
@@ -196,7 +214,12 @@ export function SettingsPage() {
     ui.setFontSize(draft.ui.fontSize);
     ui.setAnswerStyle(draft.ui.answerStyle);
     ui.setSolverMode(draft.ui.solverMode);
-    window.localStorage.setItem("apiUrl", draft.apiUrl.trim());
+    ui.setShowAiModel(draft.ui.showAiModel);
+    if (draft.apiUrl.trim()) {
+      window.localStorage.setItem("apiUrl", draft.apiUrl.trim());
+    } else {
+      window.localStorage.removeItem("apiUrl");
+    }
     setAccessToken(draft.accessToken);
     const saved = structuredClone(draft);
     setSavedDraft(saved);
@@ -345,7 +368,7 @@ function SectionList({
 }
 
 export function SettingsSectionContent({ section }: { section: SettingsSectionId }) {
-  const { draft, updateDraft, connected, setConnected } = useSettingsDraft();
+  const { draft, updateDraft, resetApiUrl, connected, setConnected } = useSettingsDraft();
   const queryClient = useQueryClient();
   const [testing, setTesting] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
@@ -592,6 +615,14 @@ export function SettingsSectionContent({ section }: { section: SettingsSectionId
                 }))
               }
             />
+            <PreferenceSwitch
+              label="Show which AI model answered"
+              description="Display the model name beneath each tutor response."
+              checked={ui.showAiModel}
+              onCheckedChange={(showAiModel) =>
+                updateUi((current) => ({ ...current, showAiModel }))
+              }
+            />
           </>
         )}
 
@@ -673,6 +704,12 @@ export function SettingsSectionContent({ section }: { section: SettingsSectionId
 
         {section === "backend" && (
           <>
+            <p className="text-sm text-muted-foreground" aria-live="polite">
+              Active URL:{" "}
+              <span className="font-medium text-foreground">{getApiUrlConfig().url}</span>
+              {" · "}
+              {getApiUrlConfig().source}
+            </p>
             <div className="space-y-2">
               <Label htmlFor="api-url">API URL</Label>
               <Input
@@ -681,7 +718,7 @@ export function SettingsSectionContent({ section }: { section: SettingsSectionId
                 onChange={(event) =>
                   updateDraft((current) => ({ ...current, apiUrl: event.target.value }))
                 }
-                placeholder="http://localhost:8000"
+                placeholder="http://localhost:8010"
                 inputMode="url"
                 autoComplete="url"
               />
@@ -705,6 +742,13 @@ export function SettingsSectionContent({ section }: { section: SettingsSectionId
                 Required if the backend is configured with an access token.
               </p>
             </div>
+            <button
+              type="button"
+              className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+              onClick={resetApiUrl}
+            >
+              Reset to default
+            </button>
             <div className="flex flex-wrap items-center gap-3">
               <GradientButton
                 variant="secondary"

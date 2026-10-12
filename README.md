@@ -7,8 +7,8 @@ tracking.
 
 The project contains a TanStack Start frontend in `src/` and a FastAPI backend
 in `backend/`. Backend model requests use the local OpenAI-compatible OmniRoute
-gateway. Configure separate model IDs for the teacher, practice, reasoning,
-multimodal, and JSON roles; optional roles fall back to the teacher model.
+gateway. Configure a primary model and ordered fallback model IDs for each teacher,
+practice, reasoning, multimodal, and JSON role.
 
 ## Requirements
 
@@ -32,63 +32,70 @@ Set `OMNIROUTE_BASE_URL`, `OMNIROUTE_API_KEY`, and the model role IDs in
 `backend/.env`. See [backend/README.md](./backend/README.md) for role guidance
 and the full configuration list. Never commit `.env`.
 
-## Run the app
+## Running locally
 
-Start each service in its own terminal. Install the frontend dependencies from
-the project root with `npm install --legacy-peer-deps` if needed.
-
-| Terminal  | Folder          | Command                                                                                    |
-| --------- | --------------- | ------------------------------------------------------------------------------------------ |
-| OmniRoute | Any             | `docker start omniroute` (skip this if `docker ps` already shows `omniroute` as `Up`)      |
-| Backend   | `EduAI\backend` | `python -m uvicorn app.main:app --reload` (with the backend virtual environment activated) |
-| Frontend  | `EduAI`         | `npm run dev`                                                                              |
-
-In the backend terminal, from `backend/`, activate the virtual environment and
-start the server:
+Start OmniRoute first (skip this if it is already running). The helper checks
+Docker and the configured container; the dashboard is at
+`http://localhost:20128/dashboard`:
 
 ```powershell
-.\.venv\Scripts\Activate.ps1
-python -m uvicorn app.main:app --reload
+npm run dev:omniroute
 ```
 
-Using `python -m uvicorn` is recommended on Windows when application-control
-policies block executable launchers.
-
-In the frontend terminal, from the project root, run:
+OmniRoute normally listens on port `20128`. In separate terminals from the
+project root, start the backend and frontend:
 
 ```powershell
+npm run dev:backend
 npm run dev
 ```
 
-The frontend is available at `http://localhost:5173` and sends requests to the
-backend at `http://localhost:8000`. Configure a different backend URL in
-Settings if needed. AI-powered features require the backend and a configured
-OmniRoute gateway; EduAI does not provide local demo responses.
+The backend starter checks or creates the project virtual environment and
+listens on port `8010` by default. The frontend is pinned to
+`http://localhost:8082` and fails rather than silently switching ports. The
+web API URL is configured in `.env.local` as `http://localhost:8010`.
 
-## Use on your phone
-
-Connect your phone and computer to the same Wi-Fi network. Start the backend
-and frontend so they listen on the local network:
+To connect from a phone on the same Wi-Fi, use the exact **Phone API URL**
+printed by `npm run dev:backend`. If Windows Firewall blocks the connection,
+run this in an Administrator PowerShell:
 
 ```powershell
-# From the backend directory, with its virtual environment activated
-python -m uvicorn app.main:app --reload --host 0.0.0.0
-
-# From the project root, in a separate terminal
-npm run dev -- --host 0.0.0.0
+New-NetFirewallRule -DisplayName "EduAI backend TCP 8010" -Direction Inbound -Protocol TCP -LocalPort 8010 -RemoteAddress LocalSubnet -Profile Private -Action Allow
 ```
 
-Open `http://<computer-ip>:5173` on your phone (for example,
-`http://192.168.1.20:5173`). The app will connect to the backend at the same
-computer's address on port `8000`. In Windows Firewall, allow/open inbound
-TCP ports `5173` (frontend) and `8000` (backend) on your private network.
+### Rebuilding the Android APK
+
+Set the computer's current Wi-Fi IPv4 address in the ignored
+`.env.android.local` file as `VITE_API_URL=http://<PC-LAN-IP>:8010`, then run:
+
+```powershell
+npm run build:android
+```
+
+After the web assets are built and synced, rebuild the APK in Android Studio.
+The three local ports are OmniRoute `20128`, backend `8010`, and frontend
+`8082`. AI-powered features require the backend and a configured OmniRoute
+gateway; EduAI does not provide local demo responses.
+
+### AI model fallback
+
+Set `MODEL_<ROLE>` and optional comma-separated `MODEL_<ROLE>_FALLBACKS` in
+`backend/.env`. Paid providers and personal-login providers are always refused
+by the backend. Configure `CHAT_MODEL_ALLOWLIST` in display order to limit the
+Ask picker; an empty list shows Auto only. `CHAT_PICKER_MAX` includes Auto and
+is capped at six. The backend switches after eligible model failures and
+applies a cooldown to rate-limited or failing models. Check configured model
+IDs from a PowerShell terminal with `npm run check:models`. Free routing is
+fail-closed: `FREE_PROVIDERS` defaults to `gemini,groq`. Models from those
+trusted providers may be used when OmniRoute pricing is unknown/null or zero;
+explicitly positive prices and all unlisted providers are refused.
+The Gemini benchmark harness (`backend/scripts/benchmark_gemini.py`) applies
+the same verification and makes three runs per model at least 20 seconds apart;
+it refuses to send benchmark prompts when price verification fails.
 
 ## Checks
 
 ```powershell
 npm run build
 npx tsc --noEmit
-npx vitest run
-cd backend
-python -m pytest -q
 ```

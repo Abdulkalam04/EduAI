@@ -2,8 +2,10 @@ import { lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, RotateCcw, ThumbsUp, ThumbsDown, AlertCircle, FileText } from "lucide-react";
 import type { ChatMessage } from "@/store/useChatStore";
+import { chatModelLabel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { AsciiThinking } from "@/components/ui-custom/AsciiThinking";
+import { useUiStore } from "@/store/useUiStore";
 
 const Markdown = lazy(() => import("./Markdown").then((module) => ({ default: module.Markdown })));
 const CopyButton = lazy(() =>
@@ -45,6 +47,7 @@ export function MessageView({
   onChip,
   onRetry,
   onPickLevel,
+  onRetryWithModel,
 }: {
   m: ChatMessage;
   isLast: boolean;
@@ -54,7 +57,10 @@ export function MessageView({
   onChip: (t: string) => void;
   onRetry: () => void;
   onPickLevel: (level: (typeof LEVEL_REPLIES)[number]["level"]) => void;
+  /** Called when the user wants to retry using a specific model id. */
+  onRetryWithModel?: (modelId: string) => void;
 }) {
+  const showAiModel = useUiStore((state) => state.showAiModel);
   if (m.role === "user")
     return (
       <motion.div
@@ -85,7 +91,14 @@ export function MessageView({
         <Avatar />
         <div className="flex flex-1 flex-wrap items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">
           <AlertCircle className="h-4 w-4 text-destructive" />
-          <span className="flex-1">{m.content || "Something went wrong."}</span>
+          <span className="min-w-0 flex-1">
+            <span>{m.content || "Something went wrong."}</span>
+            {m.content.includes("Cannot connect to OmniRoute") && (
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Start OmniRoute, then press Retry
+              </span>
+            )}
+          </span>
           <button
             onClick={onRetry}
             disabled={busy}
@@ -114,6 +127,39 @@ export function MessageView({
             <Markdown content={m.content} streaming={streaming} />
           </Suspense>
         </div>
+        {/* Model attribution: shown when showAiModel=true and response has finished */}
+        {showAiModel && m.model && !streaming && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p className="text-xs text-muted-foreground">
+              Answered by{" "}
+              <span className="font-medium text-foreground">{chatModelLabel(m.model)}</span>
+              {m.ttftMs !== undefined && (
+                <span className="ml-1 opacity-70">
+                  · {(m.ttftMs / 1000).toFixed(1)}s to first word
+                </span>
+              )}
+            </p>
+            {/* Fallback notice: shown when the model that answered ≠ what was requested */}
+            {m.modelRequested && m.modelRequested !== m.model && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-700 dark:text-amber-400"
+                data-testid="fallback-notice"
+              >
+                {chatModelLabel(m.modelRequested)} was busy — answered by {chatModelLabel(m.model)}
+                {onRetryWithModel && isLast && !busy && (
+                  <button
+                    type="button"
+                    onClick={() => m.modelRequested && onRetryWithModel(m.modelRequested)}
+                    className="ml-1 underline underline-offset-2 hover:no-underline"
+                    data-testid="retry-with-model"
+                  >
+                    Retry with {chatModelLabel(m.modelRequested)}
+                  </button>
+                )}
+              </span>
+            )}
+          </div>
+        )}
         {m.status === "stopped" && (
           <p className="mt-1 text-xs italic text-muted-foreground">Stopped generating.</p>
         )}

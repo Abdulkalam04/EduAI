@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const INTRO_SEEN_KEY = "eduai_intro_seen";
 
-export function IntroSplash() {
+export function IntroSplash({ onDone }: { onDone?: () => void }) {
   const [visible, setVisible] = useState(true);
   const [fading, setFading] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -14,7 +14,8 @@ export function IntroSplash() {
     } catch {
       // ignore
     }
-  }, []);
+    onDone?.();
+  }, [onDone]);
 
   const dismiss = useCallback(
     (immediate = false) => {
@@ -43,22 +44,12 @@ export function IntroSplash() {
   );
 
   useEffect(() => {
-    try {
-      if (sessionStorage.getItem(INTRO_SEEN_KEY)) {
-        dismissedRef.current = true;
-        setVisible(false);
-        return;
-      }
-    } catch {
-      // ignore
-    }
-
     const video = videoRef.current;
     let started = false;
 
     // Safety: Hard maximum of 6 seconds total
     const maxTimer = setTimeout(() => {
-      dismiss(false);
+      dismiss(true);
     }, 6000);
 
     // Safety: Dismiss if playback has not started within 3 seconds
@@ -86,8 +77,7 @@ export function IntroSplash() {
       video.addEventListener("ended", onEnded);
       video.addEventListener("error", onError);
 
-      // Sound: First try playing with sound.
-      // If rejected (e.g. autoplay policy blocked), fallback to muted play.
+      video.currentTime = 0;
       const playPromise = video.play();
       if (playPromise !== undefined) {
         playPromise.catch(() => {
@@ -128,6 +118,7 @@ export function IntroSplash() {
         <video
           ref={videoRef}
           src="/intro.mp4"
+          autoPlay
           playsInline
           preload="auto"
           className="max-h-full w-full object-contain pointer-events-none"

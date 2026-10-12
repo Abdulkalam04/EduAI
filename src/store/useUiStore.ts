@@ -14,6 +14,10 @@ interface UiState {
   fontSize: number;
   answerStyle: "Simple" | "Exam Answer" | "Detailed";
   solverMode: "teach" | "exam";
+  showAiModel: boolean;
+  preferredChatModel: string;
+  /** Last model Auto resolved to; shown in composer button alongside "Auto". */
+  resolvedChatModel: string;
   setCollapsed: (v: boolean) => void;
   setTheme: (t: Theme) => void;
   setPaletteOpen: (v: boolean) => void;
@@ -22,6 +26,9 @@ interface UiState {
   setFontSize: (v: number) => void;
   setAnswerStyle: (v: UiState["answerStyle"]) => void;
   setSolverMode: (v: UiState["solverMode"]) => void;
+  setShowAiModel: (v: boolean) => void;
+  setPreferredChatModel: (v: string) => void;
+  setResolvedChatModel: (v: string) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -36,6 +43,9 @@ export const useUiStore = create<UiState>()(
       fontSize: 16,
       answerStyle: "Simple",
       solverMode: "teach",
+      showAiModel: true,
+      preferredChatModel: "auto",
+      resolvedChatModel: "",
       setCollapsed: (collapsed) => set({ collapsed }),
       setTheme: (theme) => set({ theme }),
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
@@ -44,6 +54,9 @@ export const useUiStore = create<UiState>()(
       setFontSize: (fontSize) => set({ fontSize: Math.max(14, Math.min(20, fontSize)) }),
       setAnswerStyle: (answerStyle) => set({ answerStyle }),
       setSolverMode: (solverMode) => set({ solverMode }),
+      setShowAiModel: (showAiModel) => set({ showAiModel }),
+      setPreferredChatModel: (preferredChatModel) => set({ preferredChatModel }),
+      setResolvedChatModel: (resolvedChatModel) => set({ resolvedChatModel }),
     }),
     {
       name: "eduai-ui",
@@ -75,6 +88,8 @@ export const useUiStore = create<UiState>()(
         fontSize: s.fontSize,
         answerStyle: s.answerStyle,
         solverMode: s.solverMode,
+        showAiModel: s.showAiModel,
+        preferredChatModel: s.preferredChatModel,
       }),
     },
   ),

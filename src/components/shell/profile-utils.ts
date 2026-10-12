@@ -5,4 +5,4 @@ export const initials = (name: string) =>
     .filter(Boolean)
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
-    .join("") || "S";
+    .join("") || "E";

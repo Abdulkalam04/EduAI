@@ -2,13 +2,15 @@ import { usePracticeStore } from "@/store/usePracticeStore";
 import { useCreativeStore } from "@/store/useCreativeStore";
 import { useLearningStore } from "@/store/useLearningStore";
 import { useBookStore } from "@/store/useBookStore";
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouterState } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { MotionConfig } from "framer-motion";
 import { Toaster } from "@/components/ui/sonner";
 import { useUiStore, applyTheme, applyUiPreferences } from "@/store/useUiStore";
 import { useUserStore } from "@/store/useUserStore";
 import { useChatStore } from "@/store/useChatStore";
+import { useAuth } from "@/lib/auth";
 import { TopBar } from "./TopBar";
 import { MobileNav } from "./MobileNav";
 import { Onboarding } from "./Onboarding";
@@ -18,15 +20,46 @@ const CommandPalette = lazy(() =>
   import("./CommandPalette").then((module) => ({ default: module.CommandPalette })),
 );
 
-export function AppShell({ children }: { children: ReactNode }) {
+function useOptionalQueryClient() {
+  try {
+    return useQueryClient();
+  } catch {
+    return null;
+  }
+}
+
+export function AppShell({
+  children,
+  introDone = true,
+}: {
+  children: ReactNode;
+  introDone?: boolean;
+}) {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const { theme, hydrated, reduceMotion, accent, fontSize } = useUiStore();
   const paletteOpen = useUiStore((s) => s.paletteOpen);
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
   const onboarded = useUserStore((s) => s.onboarded);
   const [desktop, setDesktop] = useState(false);
+  const queryClient = useOptionalQueryClient();
+  const { user } = useAuth();
+  const prevUserIdRef = useRef<string | null | undefined>(user?.id);
+
+  useEffect(() => {
+    if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== (user?.id ?? null)) {
+      queryClient?.clear();
+    }
+    prevUserIdRef.current = user?.id ?? null;
+  }, [user?.id, queryClient]);
+
+  useEffect(() => {
+    const handleClear = () => {
+      queryClient?.clear();
+    };
+    window.addEventListener("eduai:clear-user-cache", handleClear);
+    return () => window.removeEventListener("eduai:clear-user-cache", handleClear);
+  }, [queryClient]);
   const hasMobileAction =
-    path === "/" ||
     path.startsWith("/book") ||
     path.startsWith("/solver") ||
     path.startsWith("/practice") ||
@@ -116,7 +149,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <CommandPalette />
           </Suspense>
         )}
-        {hydrated && !onboarded && <Onboarding />}
+        {hydrated && introDone && !onboarded && <Onboarding />}
         <Toaster />
       </div>
     </MotionConfig>

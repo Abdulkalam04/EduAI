@@ -8,6 +8,10 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
   vite: {
+    server: {
+      port: 8082,
+      strictPort: true,
+    },
     // Pre-bundle up front so a late dependency discovery can't split React into two copies.
     optimizeDeps: {
       include: ["framer-motion", "zustand", "zustand/middleware", "canvas-confetti"],

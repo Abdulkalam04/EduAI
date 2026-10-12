@@ -2,6 +2,7 @@
 import type {
   AnswerStyle,
   BookDoc,
+  ChatModelsResponse,
   CodeActionKind,
   CodeActionResult,
   CodeLanguage,
@@ -24,9 +25,18 @@ import type {
   SolveMode,
   SolveStyle,
   Source,
+  TutorStreamMeta,
   VivaAnswerFeedback,
   VivaQuestion,
   VivaReport,
+  TodoList,
+  TodoItem,
+  TodoListSummary,
+  TodoItemInput,
+  CreateTodoListInput,
+  PatchTodoListInput,
+  CopyTodoListInput,
+  PatchTodoItemInput,
 } from "./types";
 import type { LevelId } from "@/store/useUserStore";
 
@@ -45,28 +55,51 @@ export function resolveDefaultApiUrl(hostname: string): string {
       (firstOctet === 192 && secondOctet === 168));
 
   if (isPrivateIpv4 || hostname.toLowerCase().endsWith(".local")) {
-    return `http://${hostname}:8000`;
+    return `http://${hostname}:8010`;
   }
-  return "http://localhost:8000";
+  return "http://localhost:8010";
+}
+
+export interface ApiUrlConfig {
+  url: string;
+  source: "saved setting" | "build default";
+}
+
+export function getApiUrlConfig(hostname?: string): ApiUrlConfig {
+  const stored =
+    typeof window === "undefined" ? "" : (window.localStorage.getItem("apiUrl")?.trim() ?? "");
+  if (stored) return { url: stored, source: "saved setting" };
+
+  const configured = import.meta.env["VITE_API_URL"] as string | undefined;
+  if (configured?.trim()) {
+    return { url: configured.trim(), source: "build default" };
+  }
+
+  const currentHostname =
+    hostname ?? (typeof window === "undefined" ? "localhost" : window.location.hostname);
+  return { url: resolveDefaultApiUrl(currentHostname), source: "build default" };
 }
 
 export function getApiUrl(): string {
-  if (typeof window !== "undefined") {
-    const stored = window.localStorage.getItem("apiUrl");
-    if (stored?.trim()) return stored;
-    const configured = import.meta.env["VITE_API_URL"] as string | undefined;
-    if (configured) return configured;
-
-    return resolveDefaultApiUrl(window.location.hostname);
-  }
-  return (import.meta.env["VITE_API_URL"] as string | undefined) ?? "http://localhost:8000";
+  return getApiUrlConfig().url;
 }
 
 export function getAccessToken(): string {
-  if (typeof window !== "undefined") {
-    return window.localStorage.getItem("accessToken") || "";
+  if (typeof window === "undefined") return "";
+
+  const staticToken = window.localStorage.getItem("accessToken") || "";
+  if (staticToken) return staticToken;
+
+  try {
+    const url = import.meta.env["VITE_SUPABASE_URL"] as string | undefined;
+    const project = url?.match(/https?:\/\/([^.]+)\./)?.[1] ?? "";
+    const raw = project ? window.localStorage.getItem(`sb-${project}-auth-token`) : "";
+    if (!raw) return "";
+    const payload = JSON.parse(raw) as { access_token?: string };
+    return payload.access_token ?? "";
+  } catch {
+    return "";
   }
-  return "";
 }
 
 export function setAccessToken(token: string): void {
@@ -79,9 +112,32 @@ export function setAccessToken(token: string): void {
   }
 }
 
-function authHeaders(): Record<string, string> {
-  const token = getAccessToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+/**
+ * Returns a Bearer token for the backend.
+ * If forceRefresh=true, refreshes the session before returning the token.
+ */
+async function getSupabaseToken(forceRefresh = false): Promise<string> {
+  try {
+    const { hasSupabaseConfig, supabase } = await import("./supabase");
+    if (!hasSupabaseConfig || !supabase) return getAccessToken();
+
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) {
+      if (forceRefresh) {
+        const refresh = await supabase.auth.refreshSession();
+        return refresh.data.session?.access_token ?? data.session.access_token;
+      }
+      return data.session.access_token;
+    }
+  } catch {
+    // Supabase not initialized or no active session.
+  }
+  return getAccessToken();
+}
+
+async function authHeaders(forceRefresh = false): Promise<Record<string, string>> {
+  const supabaseToken = await getSupabaseToken(forceRefresh);
+  return supabaseToken ? { Authorization: `Bearer ${supabaseToken}` } : {};
 }
 
 export class ApiConnectionError extends Error {
@@ -89,6 +145,12 @@ export class ApiConnectionError extends Error {
     super(message);
     this.name = "ApiConnectionError";
   }
+}
+
+export interface ApiHealthStatus {
+  backend: "online";
+  gateway: "online" | "offline";
+  gatewayUrl: string;
 }
 
 function apiUrl(path: string) {
@@ -128,21 +190,37 @@ async function parseResponse<T>(response: Response): Promise<T> {
 async function request<T>(
   path: string,
   options: {
-    method?: "GET" | "POST" | "DELETE";
+    method?: "GET" | "POST" | "DELETE" | "PATCH" | "PUT";
     body?: unknown;
     signal?: AbortSignal;
   } = {},
 ): Promise<T> {
-  try {
-    const response = await fetch(apiUrl(path), {
+  const doFetch = async (forceRefresh = false) =>
+    fetch(apiUrl(path), {
       method: options.method ?? "GET",
       headers: {
-        ...authHeaders(),
+        ...(await authHeaders(forceRefresh)),
         ...(options.body === undefined ? {} : { "Content-Type": "application/json" }),
       },
       ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
       ...(options.signal ? { signal: options.signal } : {}),
     });
+
+  try {
+    let response = await doFetch();
+    if (response.status === 401) {
+      response = await doFetch(true);
+      if (response.status === 401) {
+        if (typeof window !== "undefined") {
+          const { supabase, hasSupabaseConfig } = await import("./supabase");
+          if (hasSupabaseConfig && supabase) {
+            await supabase.auth.signOut();
+          }
+          window.location.href = "/login";
+        }
+        throw new Error("Session expired. Please sign in again.");
+      }
+    }
     return await parseResponse<T>(response);
   } catch (cause) {
     if (cause instanceof DOMException && cause.name === "AbortError") throw cause;
@@ -151,26 +229,69 @@ async function request<T>(
   }
 }
 
-export async function checkApiHealth(signal?: AbortSignal): Promise<void> {
+export async function checkApiHealth(signal?: AbortSignal): Promise<ApiHealthStatus> {
+  const backendUrl = apiUrl("/health");
+  const requestOptions = signal ? { signal } : {};
+  let backendResponse: Response;
   try {
-    const response = await fetch(apiUrl("/health"), signal ? { signal } : {});
-    if (!response.ok) throw new Error(`Health check returned ${response.status}`);
+    backendResponse = await fetch(backendUrl, requestOptions);
   } catch (cause) {
     if (cause instanceof DOMException && cause.name === "AbortError") throw cause;
-    if (cause instanceof TypeError) return notifyConnectionFailure(cause);
-    throw cause;
+    if (import.meta.env.DEV) {
+      console.warn(
+        `[EduAI] Backend health request failed for ${backendUrl} (browser network/CORS failure).`,
+        cause,
+      );
+    }
+    return notifyConnectionFailure(cause);
   }
+
+  if (!backendResponse.ok && import.meta.env.DEV) {
+    console.warn(`[EduAI] Backend health endpoint returned HTTP ${backendResponse.status}.`);
+  }
+
+  let backendStatus: {
+    status?: string;
+    omniroute?: { available?: boolean; base_url?: string; reason?: string };
+  } = {};
+  if (backendResponse.ok) {
+    try {
+      backendStatus = (await backendResponse.json()) as typeof backendStatus;
+    } catch (cause) {
+      if (import.meta.env.DEV) {
+        console.warn("[EduAI] Backend health endpoint returned invalid JSON.", cause);
+      }
+    }
+  }
+
+  if (!backendResponse.ok || backendStatus.status !== "ok") {
+    return { backend: "online", gateway: "offline", gatewayUrl: "OmniRoute" };
+  }
+
+  const gateway = backendStatus.omniroute;
+  const gatewayUrl = gateway?.base_url || "OmniRoute";
+  const isAvailable = gateway?.available === true;
+  if (!isAvailable && import.meta.env.DEV) {
+    console.warn(
+      `[EduAI] AI gateway at ${gatewayUrl} is not responding (${gateway?.reason ?? "health unavailable"}).`,
+    );
+  }
+  return {
+    backend: "online",
+    gateway: isAvailable ? "online" : "offline",
+    gatewayUrl,
+  };
 }
 
-export function uploadWithProgress<T>(
+export async function uploadWithProgress<T>(
   path: string,
   formData: FormData,
   onProgress?: (percent: number) => void,
 ): Promise<T> {
+  const token = await getSupabaseToken();
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", apiUrl(path));
-    const token = getAccessToken();
     if (token) {
       xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     }
@@ -224,18 +345,28 @@ export interface TutorRequest {
   topic?: string;
   subject?: string;
   session_id?: string;
+  /** Model to use: "auto" (default) or a catalogue model id. */
+  model?: string;
+}
+
+/** Fetch the chat model catalogue from the backend (cached 60 s server-side). */
+export async function getChatModels(): Promise<ChatModelsResponse> {
+  return request<ChatModelsResponse>("/api/chat/models");
 }
 
 export async function* streamTutor(
   req: TutorRequest,
   signal?: AbortSignal,
+  onMeta?: (meta: TutorStreamMeta) => void,
 ): AsyncGenerator<string> {
   let response: Response;
+  const fetchStart = performance.now();
+  let firstTokenDelivered = false;
   try {
     response = await fetch(apiUrl("/api/chat"), {
       method: "POST",
       headers: {
-        ...authHeaders(),
+        ...(await authHeaders()),
         "Content-Type": "application/json",
         Accept: "text/event-stream",
       },
@@ -251,6 +382,11 @@ export async function* streamTutor(
     await parseResponse<unknown>(response);
     throw new Error("The AI server closed the chat stream.");
   }
+  // Read model headers eagerly — they are set on the response before the body.
+  const modelUsed = response.headers.get("X-Model-Used") ?? undefined;
+  const modelRequested = response.headers.get("X-Model-Requested") ?? undefined;
+  const modelFallback = response.headers.get("X-Model-Fallback") ?? undefined;
+
   if (!response.body) throw new Error("The AI server returned an empty chat stream.");
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -284,7 +420,19 @@ export async function* streamTutor(
         } catch (cause) {
           if (cause instanceof Error && !(cause instanceof SyntaxError)) throw cause;
         }
-        if (chunk) yield chunk;
+        if (chunk) {
+          // Fire onMeta with timing on the first yielded token.
+          if (!firstTokenDelivered) {
+            firstTokenDelivered = true;
+            onMeta?.({
+              ...(modelUsed !== undefined ? { modelUsed } : {}),
+              ...(modelRequested !== undefined ? { modelRequested } : {}),
+              ...(modelFallback !== undefined ? { modelFallback } : {}),
+              ttftMs: Math.round(performance.now() - fetchStart),
+            });
+          }
+          yield chunk;
+        }
       }
       if (done) break;
     }
@@ -479,7 +627,7 @@ export async function exportPptx(opts: {
     response = await fetch(apiUrl("/api/pptx"), {
       method: "POST",
       headers: {
-        ...authHeaders(),
+        ...(await authHeaders()),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(opts),
@@ -544,4 +692,98 @@ export async function createVivaReport(opts: {
   answers: { question: VivaQuestion; answer: string; feedback: VivaAnswerFeedback }[];
 }): Promise<VivaReport> {
   return request<VivaReport>("/api/viva/report", { method: "POST", body: opts });
+}
+
+// ── Todos API ───────────────────────────────────────────────────────────────
+
+export async function getActiveTodoList(signal?: AbortSignal): Promise<TodoList | null> {
+  return request<TodoList | null>("/api/todos/active", signal ? { signal } : {});
+}
+
+export async function getTodoLists(
+  params?: { status?: "unfinished" | "all"; limit?: number },
+  signal?: AbortSignal,
+): Promise<TodoListSummary[]> {
+  const query = new URLSearchParams();
+  if (params?.status) query.set("status", params.status);
+  if (params?.limit) query.set("limit", String(params.limit));
+  const qs = query.toString();
+  return request<TodoListSummary[]>(
+    `/api/todos/lists${qs ? `?${qs}` : ""}`,
+    signal ? { signal } : {},
+  );
+}
+
+export async function createTodoList(input: CreateTodoListInput): Promise<TodoList> {
+  return request<TodoList>("/api/todos/lists", { method: "POST", body: input });
+}
+
+export async function patchTodoList(id: string, input: PatchTodoListInput): Promise<TodoList> {
+  return request<TodoList>(`/api/todos/lists/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: input,
+  });
+}
+
+export async function deleteTodoList(id: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`/api/todos/lists/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function activateTodoList(
+  id: string,
+  input?: { plan_date?: string },
+): Promise<TodoList> {
+  return request<TodoList>(`/api/todos/lists/${encodeURIComponent(id)}/activate`, {
+    method: "POST",
+    body: input ?? {},
+  });
+}
+
+export async function copyTodoList(id: string, input: CopyTodoListInput): Promise<TodoList> {
+  return request<TodoList>(`/api/todos/lists/${encodeURIComponent(id)}/copy`, {
+    method: "POST",
+    body: input,
+  });
+}
+
+export async function appendTodoItems(id: string, items: TodoItemInput[]): Promise<TodoList> {
+  return request<TodoList>(`/api/todos/lists/${encodeURIComponent(id)}/items`, {
+    method: "POST",
+    body: { items },
+  });
+}
+
+export async function patchTodoItem(id: string, input: PatchTodoItemInput): Promise<TodoItem> {
+  return request<TodoItem>(`/api/todos/items/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: input,
+  });
+}
+
+export async function deleteTodoItem(id: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`/api/todos/items/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function reorderTodoItems(id: string, itemIds: string[]): Promise<TodoList> {
+  return request<TodoList>(`/api/todos/lists/${encodeURIComponent(id)}/order`, {
+    method: "PUT",
+    body: { item_ids: itemIds },
+  });
+}
+
+export async function clearCompletedTodoItems(id: string): Promise<TodoList> {
+  return request<TodoList>(`/api/todos/lists/${encodeURIComponent(id)}/clear-completed`, {
+    method: "POST",
+  });
+}
+
+export async function toggleAllTodoItems(id: string, done: boolean): Promise<TodoList> {
+  return request<TodoList>(`/api/todos/lists/${encodeURIComponent(id)}/toggle-all`, {
+    method: "POST",
+    body: { done },
+  });
 }
