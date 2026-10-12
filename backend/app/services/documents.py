@@ -10,7 +10,7 @@ import re
 from collections.abc import Sequence
 from typing import Any, Literal
 
-from pydantic import AliasChoices, BaseModel, Field, ValidationError
+from pydantic import AliasChoices, BaseModel, Field, ValidationError, model_validator
 
 from app.config import settings
 from app.services.llm import (
@@ -49,12 +49,19 @@ class RawMcqSet(BaseModel):
 
 
 class GeneratedFlashcard(BaseModel):
-    front: str
-    back: str
+    front: str = Field(validation_alias=AliasChoices("front", "question"))
+    back: str = Field(validation_alias=AliasChoices("back", "answer"))
 
 
 class FlashcardSet(BaseModel):
     cards: list[GeneratedFlashcard] = Field(min_length=1)
+
+    @model_validator(mode="before")
+    @classmethod
+    def accept_card_list(cls, value: Any) -> Any:
+        if isinstance(value, list):
+            return {"cards": value}
+        return value
 
 
 class GeneratedQuestion(BaseModel):
@@ -289,6 +296,35 @@ def _data_url(data: bytes, media_type: str) -> str:
     return f"data:{media_type};base64,{encoded}"
 
 
+def _vision_data_url(data: bytes, media_type: str) -> str:
+    import cv2
+    import numpy as np
+
+    image = cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
+    if image is None:
+        logger.warning("Could not decode uploaded image for vision optimization")
+        return _data_url(data, media_type)
+
+    height, width = image.shape[:2]
+    longest_edge = max(height, width)
+    if longest_edge <= 2400 and len(data) <= 4 * 1024 * 1024:
+        return _data_url(data, media_type)
+    if longest_edge > 2400:
+        scale = 2400 / longest_edge
+        image = cv2.resize(
+            image,
+            (round(width * scale), round(height * scale)),
+            interpolation=cv2.INTER_AREA,
+        )
+    success, encoded = cv2.imencode(
+        ".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 88]
+    )
+    if not success:
+        logger.warning("Could not re-encode uploaded image for vision optimization")
+        return _data_url(data, media_type)
+    return _data_url(encoded.tobytes(), "image/jpeg")
+
+
 def _ocr_fallback(image: bytes) -> str:
     """Run local OCR only after multimodal extraction fails and Tesseract exists."""
     try:
@@ -323,33 +359,45 @@ def _ocr_fallback(image: bytes) -> str:
         return ""
 
 
+async def _extract_image_batch(
+    batch: Sequence[tuple[int, bytes]], *, page_images: bool
+) -> list[DocumentPage]:
+    page_numbers = [page for page, _ in batch]
+    labelled_images = [_data_url(image, "image/png") for _, image in batch]
+    prompt = (
+        "Transcribe all readable text from these document images faithfully. "
+        "Keep equations and question numbering. Return each page with exactly "
+        "this heading format: [Page N], using the supplied page number for each "
+        "image. Do not invent unreadable text."
+        if page_images
+        else "Transcribe all readable text from this image faithfully. Keep "
+        "equations, headings, and question numbering. Do not invent unreadable text."
+    )
+    try:
+        response = await vision(labelled_images, prompt)
+        return _page_text_from_vision(response, page_numbers)
+    except Exception as error:
+        logger.warning("Multimodal document extraction failed: %s", type(error).__name__)
+        return [
+            DocumentPage(page=page_number, text=await asyncio.to_thread(_ocr_fallback, image))
+            for page_number, image in batch
+        ]
+
+
 async def _extract_images(
     images: Sequence[tuple[int, bytes]], *, page_images: bool
 ) -> list[DocumentPage]:
+    batches = [images[offset : offset + 8] for offset in range(0, len(images), 8)]
     results: list[DocumentPage] = []
-    for offset in range(0, len(images), 8):
-        batch = images[offset : offset + 8]
-        page_numbers = [page for page, _ in batch]
-        labelled_images = [
-            _data_url(image, "image/png") for _, image in batch
-        ]
-        prompt = (
-            "Transcribe all readable text from these document images faithfully. "
-            "Keep equations and question numbering. Return each page with exactly "
-            "this heading format: [Page N], using the supplied page number for each "
-            "image. Do not invent unreadable text."
-            if page_images
-            else "Transcribe all readable text from this image faithfully. Keep "
-            "equations, headings, and question numbering. Do not invent unreadable text."
+    for offset in range(0, len(batches), 2):
+        completed = await asyncio.gather(
+            *(
+                _extract_image_batch(batch, page_images=page_images)
+                for batch in batches[offset : offset + 2]
+            )
         )
-        try:
-            response = await vision(labelled_images, prompt)
-            results.extend(_page_text_from_vision(response, page_numbers))
-        except Exception as error:
-            logger.warning("Multimodal document extraction failed: %s", type(error).__name__)
-            for page_number, image in batch:
-                fallback_text = await asyncio.to_thread(_ocr_fallback, image)
-                results.append(DocumentPage(page=page_number, text=fallback_text))
+        for pages in completed:
+            results.extend(pages)
     return results
 
 
@@ -386,7 +434,7 @@ async def extract_document(
             "image/jpeg" if extension in {"jpg", "jpeg"} else "image/png"
         )
         try:
-            response = await vision([_data_url(data, media_type)], "Transcribe all readable "
+            response = await vision([_vision_data_url(data, media_type)], "Transcribe all readable "
                                     "text from this image faithfully. Keep question numbers, "
                                     "headings, and equations. Do not invent unreadable text.")
             return [DocumentPage(page=1, text=response.strip())]

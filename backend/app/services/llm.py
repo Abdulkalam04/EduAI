@@ -93,6 +93,8 @@ _CHAT_MODEL_DESCRIPTIONS = {
     "groq/qwen/qwen3-32b": "Step-by-step explanations for school maths and science.",
     "groq/qwen/qwen3.6-27b": "Step-by-step explanations for school maths and science.",
     "groq/qwen/qwen3.8-27b": "Step-by-step explanations for school maths and science.",
+    "groq/openai/gpt-oss-120b": "Detailed answers for complex school questions.",
+    "groq/openai/gpt-oss-20b": "Fast, concise answers for everyday school questions.",
     "groq/openai/gpt-oss-safeguard-20b": (
         "Quick, concise answers for routine school questions."
     ),
@@ -1277,7 +1279,7 @@ async def probe_model_details(model_id: str) -> tuple[bool, float, str]:
                 model=model_id,
                 messages=[{"role": "user", "content": "Reply OK."}],
                 temperature=0,
-                max_tokens=16,
+                max_tokens=128,
                 timeout=20,
             )
         elapsed = time.perf_counter() - started_at
@@ -1327,12 +1329,15 @@ _KNOWN_FRIENDLY_NAMES: dict[str, str] = {
     "gemini/gemini-3.8-flash": "Gemini 3.8 Flash",
     "gemini/gemini-3.1-flash-lite": "Gemini 3.1 Flash Lite",
     "gemini/gemini-2.5-pro": "Gemini 2.5 Pro",
-    # === Groq models (hidden until Groq key is fixed) ===
+    # === Free Groq models ===
     "groq/llama-3.3-70b-versatile": "Llama 3.3 70B",
     "groq/meta-llama/llama-4-scout-17b-16e-instruct": "Llama 4 Scout 17B",
     "groq/qwen/qwen3-32b": "Qwen3 32B",
     "groq/qwen/qwen3.6-27b": "Qwen3.6 27B",
     "groq/qwen/qwen3.8-27b": "Qwen3.8 27B",
+    "groq/openai/gpt-oss-120b": "GPT-OSS 120B (Groq)",
+    "groq/openai/gpt-oss-20b": "GPT-OSS 20B (Groq)",
+    "gemini/gemini-3-flash-preview": "Gemini 3 Flash Preview",
     "groq/allam-2-7b": "Allam 2 7B",
     "groq/openai/gpt-oss-safeguard-20b": "GPT-OSS Safeguard 20B (Groq)",
     # === Paid models — tracked for accurate tier labelling but blocked by free_only ===
@@ -1623,7 +1628,7 @@ def _get_model_meta(model_id: str, raw_model: Any = None) -> dict[str, Any]:
     )
     is_long_context = bool(
         (isinstance(raw_ctx_len, (int, float)) and raw_ctx_len >= 64000)
-        or re.search(r"(?i)(gemini|1m|128k|long)", model_id)
+        or re.search(r"(?i)(gemini|llama-4-scout|1m|128k|long)", model_id)
     )
 
     label = _friendly_model_label(model_id, raw_name)
@@ -1694,15 +1699,25 @@ _CATALOGUE_CACHE_TTL = 60.0
 
 
 async def _probe_catalogue_model(model_id: str) -> None:
+    started_at = time.perf_counter()
     try:
-        first_token = await _get_stream_first_token(
+        success, _, error = await probe_model_details(model_id)
+        if not success:
+            logger.info(
+                "Chat catalogue health probe failed model=%s error=%s",
+                model_id,
+                error,
+            )
+            return
+        duration_ms = (time.perf_counter() - started_at) * 1000
+        _mark_model_success(model_id, started_at)
+        record_model_request(
             model_id,
-            [{"role": "user", "content": "Reply with OK."}],
-            temperature=0,
-            max_tokens=16,
+            ttft_ms=None,
+            duration_ms=duration_ms,
+            success=True,
+            status_code=200,
         )
-        async for _ in _consume_stream(first_token):
-            pass
     except OmniRouteError as error:
         logger.info(
             "Chat catalogue health probe failed model=%s status_code=%s error=%s",
@@ -1726,7 +1741,7 @@ def _refresh_catalogue_dynamic_state(items: list[ChatModelCatalogueItem]) -> lis
             else None
         )
         health = get_model_health_state(item.id)
-        if health == "healthy":
+        if health in {"healthy", "slow"}:
             refreshed.append(
                 item.model_copy(
                     update={
@@ -1801,11 +1816,12 @@ async def get_chat_models_catalogue() -> list[ChatModelCatalogueItem]:
             if get_model_health_state(mid) == "unknown"
             and _model_cooldowns.get(mid, 0.0) <= time.monotonic()
         ]
-        if unprobed:
-            await asyncio.gather(*(_probe_catalogue_model(mid) for mid in unprobed))
+        for mid in unprobed:
+            await _probe_catalogue_model(mid)
 
         for mid, meta in eligible:
-            if get_model_health_state(mid) != "healthy":
+            health = get_model_health_state(mid)
+            if health not in {"healthy", "slow"}:
                 continue
             cooldown_until_ts = _model_cooldowns.get(mid, 0.0)
             cooldown_iso = (
@@ -1823,7 +1839,7 @@ async def get_chat_models_catalogue() -> list[ChatModelCatalogueItem]:
                     smart=meta["smart"],
                     vision_verified=meta["vision_verified"],
                     tier="free",
-                    health="healthy",
+                    health=health,
                     median_ttft_ms=get_median_ttft_ms(mid),
                     cooldown_until=cooldown_iso,
                     locked=False,
@@ -1855,7 +1871,7 @@ async def validate_chat_model(model: str | None) -> tuple[bool, str, ChatModelCa
     found = next((item for item in catalogue if item.id == m_clean), None)
     if not found:
         return False, f"Model '{m_clean}' is unknown or not supported for chat.", None
-    if found.health != "healthy":
+    if found.health not in {"healthy", "slow"}:
         return False, f"Model '{m_clean}' is not currently healthy.", found
     return True, "", found
 
@@ -2031,6 +2047,8 @@ async def _get_stream_first_token(
             content = getattr(delta, "content", None)
             if isinstance(content, str) and content:
                 first_token = extract_final_text(content)
+            if finish_reason is not None and not first_token:
+                first_token = extract_final_text("", final=True)
             if finish_reason is not None and not first_token:
                 error_type = (
                     "CompletionTruncated"

@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import logging
 import re
 import uuid
@@ -43,6 +44,14 @@ class SolvedContent(BaseModel):
     answer: str = ""
     blocks: list[SolutionBlock] | None = None
     hints: list[str] = Field(default_factory=list)
+
+
+class SolvedPaperQuestion(ExtractedQuestion):
+    solution: SolvedContent
+
+
+class SolvedPaper(BaseModel):
+    questions: list[SolvedPaperQuestion] = Field(min_length=1)
 
 
 class FollowUpQuestion(BaseModel):
@@ -102,6 +111,15 @@ def split_questions_regex(text: str) -> list[ExtractedQuestion]:
 
 
 async def extract_questions(text: str) -> list[ExtractedQuestion]:
+    numbered_matches = list(_NUMBERED_QUESTION.finditer(text))
+    if len(numbered_matches) >= 2:
+        questions = split_questions_regex(text)
+        numbers = [question.number for question in questions]
+        if len(questions) == len(numbered_matches) and all(
+            current > previous for previous, current in zip(numbers, numbers[1:])
+        ):
+            return questions
+
     messages = [
         {
             "role": "system",
@@ -157,6 +175,7 @@ async def _solve_question(
         "therefore (string), answer (string), blocks (optional array of {label,content}), "
         "and hints (exactly two short progressive hints). Be accurate and encouraging."
     )
+    max_tokens_by_style = {"Simple": 1200, "Exam": 1800, "Detailed": 2800}
     async with _question_semaphore:
         solved = await json_call(
             [
@@ -165,7 +184,20 @@ async def _solve_question(
             ],
             SolvedContent,
             task="solve",
+            max_tokens=(
+                max(max_tokens_by_style[style], 2200)
+                if mode == "teach"
+                else max_tokens_by_style[style]
+            ),
         )
+    return _format_solved_question(question, solved)
+
+
+def _format_solved_question(
+    question: ExtractedQuestion,
+    solved: SolvedContent,
+) -> dict[str, object]:
+    is_theory = bool(re.search(r"\b(?:define|what is|state|explain|describe|why)\b", question.text, re.I))
     hints = list(solved.hints[:2])
     while len(hints) < 2:
         hints.append(
@@ -204,6 +236,70 @@ async def _solve_question(
     }
 
 
+async def _solve_image_paper(
+    image: bytes,
+    filename: str,
+    level: LevelId,
+    subject: str | None,
+    mode: SolveMode,
+    style: SolveStyle,
+) -> list[dict[str, object]]:
+    extension = filename.rsplit(".", 1)[-1].lower()
+    media_type = "image/jpeg" if extension in {"jpg", "jpeg"} else "image/png"
+    image_url = (
+        f"data:{media_type};base64,{base64.b64encode(image).decode('ascii')}"
+    )
+    subject_text = f" Subject: {subject}." if subject else ""
+    answer_guidance = {
+        "Simple": "Give concise, easy-to-follow solutions.",
+        "Exam": "Write concise, mark-appropriate solutions suitable for an exam paper.",
+        "Detailed": "Give thorough explanations and show each important step.",
+    }[style]
+    mode_guidance = (
+        "Include exactly two progressive hints before revealing the full solution."
+        if mode == "teach"
+        else "Include two short study hints, but put the final answer in the solution."
+    )
+    result = await json_call(
+        [
+            {
+                "role": "system",
+                "content": (
+                    "Read the entire question-paper image, extract every question in "
+                    "order, and solve each one. Preserve the question wording and visible "
+                    "marks; use 2 marks only when none are shown. "
+                    f"{_LEVEL_INSTRUCTIONS[level]}{subject_text} "
+                    f"{answer_guidance} {mode_guidance} "
+                    "For theory, include definition, explanation, example, and conclusion "
+                    "blocks. For mathematics, show working and the final answer. "
+                    "Return JSON matching this shape: "
+                    '{"questions":[{"number":1,"text":"question text","marks":2,'
+                    '"solution":{"given":[],"steps":[],"therefore":"",'
+                    '"answer":"","blocks":[{"label":"Step","content":"..."}],'
+                    '"hints":["hint one","hint two"]}}]}.'
+                ),
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Solve the question paper in this image."},
+                    {"type": "image_url", "image_url": {"url": image_url}},
+                ],
+            },
+        ],
+        SolvedPaper,
+        task="multimodal",
+        max_tokens=8192,
+    )
+    return [
+        _format_solved_question(
+            ExtractedQuestion(number=item.number, text=item.text, marks=item.marks),
+            item.solution,
+        )
+        for item in result.questions
+    ]
+
+
 _question_semaphore = asyncio.Semaphore(settings.max_concurrent_llm)
 
 
@@ -216,6 +312,15 @@ async def solve_paper(
     style: SolveStyle = Form(default="Exam"),
 ) -> list[dict[str, object]]:
     filename, payload = await read_validated_upload(file)
+    if filename.rsplit(".", 1)[-1].lower() in {"jpg", "jpeg", "png"}:
+        try:
+            return await _solve_image_paper(
+                payload, filename, level, subject, mode, style
+            )
+        except OmniRouteError as error:
+            raise HTTPException(status_code=503, detail=str(error)) from error
+        except ValueError as error:
+            raise HTTPException(status_code=502, detail=str(error)) from error
     try:
         pages = await extract_document(payload, filename, file.content_type)
     except ValueError as error:

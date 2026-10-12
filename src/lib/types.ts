@@ -361,14 +361,18 @@ const CHAT_MODEL_LABELS: Record<string, string> = {
   "gemini/gemini-3.6-flash": "Gemini 3.6 Flash",
   "gemini/gemini-3.7-flash": "Gemini 3.7 Flash",
   "gemini/gemini-3.8-flash": "Gemini 3.8 Flash",
+  "gemini/gemini-3-flash-preview": "Gemini 3 Flash Preview",
   "gemini/gemini-3.1-flash-lite": "Gemini 3.1 Flash Lite",
   "gemini/gemini-flash-lite-latest": "Gemini Flash Lite",
   "gemini/gemma-4-26b-a4b-it": "Gemma 4 26B IT",
   "gemini/gemma-4-31b-it": "Gemma 4 31B IT",
   "groq/llama-3.3-70b-versatile": "Llama 3.3 70B",
   "groq/meta-llama/llama-4-scout-17b-16e-instruct": "Llama 4 Scout 17B",
+  "groq/qwen/qwen3-32b": "Qwen3 32B",
   "groq/qwen/qwen3.6-27b": "Qwen3.6 27B",
   "groq/qwen/qwen3.8-27b": "Qwen3.8 27B",
+  "groq/openai/gpt-oss-120b": "GPT-OSS 120B (Groq)",
+  "groq/openai/gpt-oss-20b": "GPT-OSS 20B (Groq)",
   "groq/openai/gpt-oss-safeguard-20b": "GPT-OSS Safeguard 20B (Groq)",
 };
 

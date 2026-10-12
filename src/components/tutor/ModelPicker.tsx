@@ -165,7 +165,13 @@ export function ModelPicker({ resolvedLabel }: { resolvedLabel?: string }) {
     try {
       const res = await getChatModels();
       const list = res.models
-        .filter((m) => m.id !== "auto" && !m.hidden && m.tier === "free" && m.health === "healthy")
+        .filter(
+          (m) =>
+            m.id !== "auto" &&
+            !m.hidden &&
+            m.tier === "free" &&
+            (m.health === "healthy" || m.health === "slow"),
+        )
         .slice(0, 5);
       setModels(list);
       if (preferredChatModel !== "auto" && !list.find((m) => m.id === preferredChatModel)) {

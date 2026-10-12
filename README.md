@@ -89,6 +89,13 @@ IDs from a PowerShell terminal with `npm run check:models`. Free routing is
 fail-closed: `FREE_PROVIDERS` defaults to `gemini,groq`. Models from those
 trusted providers may be used when OmniRoute pricing is unknown/null or zero;
 explicitly positive prices and all unlisted providers are refused.
+
+To add Groq, configure a Groq provider and an API key from
+<https://console.groq.com> in the local OmniRoute dashboard, then run
+`npm run check:models` from the repository root to verify the configured model
+chains. Keep provider keys in OmniRoute or the ignored backend `.env`; never
+commit real API keys.
+
 The Gemini benchmark harness (`backend/scripts/benchmark_gemini.py`) applies
 the same verification and makes three runs per model at least 20 seconds apart;
 it refuses to send benchmark prompts when price verification fails.
