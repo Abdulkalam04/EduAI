@@ -44,7 +44,7 @@ _health_lock = asyncio.Lock()
 _health_checked_at = 0.0
 _health_result = (False, "not checked")
 _last_completion_success_at = -float("inf")
-_models_cache_ttl = 15.0
+_models_cache_ttl = 300.0
 _models_checked_at = 0.0
 _models_result: tuple[bool, list[str]] = (False, [])
 _models_reason = "not checked"
@@ -53,12 +53,20 @@ _model_registry: dict[str, Any] | None = None
 _model_registry_checked_at = 0.0
 _model_registry_lock = asyncio.Lock()
 _verified_free_model_ids: frozenset[str] = frozenset()
-_MODEL_REGISTRY_CACHE_TTL = 30.0
+_MODEL_REGISTRY_CACHE_TTL = 300.0
 _MODEL_COOLDOWN_DEFAULT_SECONDS = 60.0
 _MODEL_COOLDOWN_MAX_SECONDS = 600.0
+_MODEL_PROBE_INTERVAL_SECONDS = 900.0
+_PROVIDER_BUDGET_WAIT_SECONDS = 5.0
 _model_state_lock = threading.RLock()
 _model_cooldowns: dict[str, float] = {}
 _model_last_success: dict[str, float] = {}
+_model_probe_checked_at: dict[str, float] = {}
+_model_probe_results: dict[str, tuple[bool, float, str]] = {}
+_model_probe_locks: dict[str, asyncio.Lock] = {}
+_provider_request_times: dict[str, deque[float]] = defaultdict(deque)
+_provider_token_usage: dict[str, deque[tuple[float, int]]] = defaultdict(deque)
+_model_request_times: dict[str, float] = {}
 _unsupported_reasoning_effort: set[str] = set()
 _request_model_callback: contextvars.ContextVar[Callable[[str], None] | None] = (
     contextvars.ContextVar("request_model_callback", default=None)
@@ -76,6 +84,14 @@ _model_stats: dict[str, deque[ModelRequestRecord]] = defaultdict(lambda: deque(m
 _recent_429_timestamps: deque[float] = deque(maxlen=50)
 
 _CHAT_MODEL_DESCRIPTIONS = {
+    "mistral/mistral-medium-3-5": "Clear, step-by-step help for school subjects and homework.",
+    "mistral/mistral-large-latest": "Detailed explanations for challenging questions and reasoning.",
+    "mistral/mistral-small-latest": "Quick answers and concise study help.",
+    "mistral/devstral-latest": "Explains code and helps debug programming exercises.",
+    "mistral/codestral-latest": "Fast coding help and programming explanations.",
+    "mistral/mistral-medium-3-5": "Clear, step-by-step help for school subjects and homework.",
+    "mistral/mistral-large-latest": "Detailed explanations for challenging questions and reasoning.",
+    "mistral/mistral-small-latest": "Quick answers and concise study help.",
     "gemini/gemini-3.5-flash-lite": "Quick everyday explanations for common school questions.",
     "gemini/gemini-flash-lite-latest": "Quick everyday explanations for common school questions.",
     "gemini/gemini-3.1-flash-lite": (
@@ -111,6 +127,7 @@ _VISION_VERIFIED_MODELS: frozenset[str] = frozenset(
     {"gemini/gemini-3.5-flash-lite"}
 )
 
+
 _CONNECT_TIMEOUT_SECONDS = float(settings.chat_connect_timeout_seconds or 3.0)
 _http_limits = httpx.Limits(
     max_keepalive_connections=20,
@@ -131,6 +148,10 @@ _client = AsyncOpenAI(
     max_retries=0,
     http_client=_http_client,
 )
+def _client_request_options(
+    kwargs: dict[str, Any],
+) -> tuple[AsyncOpenAI, dict[str, Any]]:
+    return _client, dict(kwargs)
 
 _TASK_ROLE: dict[str, str] = {
     "teacher": "teacher",
@@ -179,7 +200,7 @@ _TASK_REASONING_SETTINGS: dict[str, str] = {
 
 
 class OmniRouteError(RuntimeError):
-    """Raised when OmniRoute cannot provide a completion."""
+    """Raised when a configured LLM provider cannot provide a completion."""
 
     def __init__(
         self,
@@ -218,20 +239,29 @@ class JsonCallError(ValueError):
 def _safe_excerpt(text: str) -> str:
     text = re.sub(r"(?i)bearer\s+\S+", "Bearer [redacted]", text)
     text = re.sub(r"sk-[A-Za-z0-9_-]{8,}", "[redacted-key]", text)
+    for secret in (settings.omniroute_api_key, settings.app_access_token, settings.supabase_jwt_secret):
+        if secret:
+            text = text.replace(secret, "[redacted-token]")
     return re.sub(r"\s+", " ", text).strip()[:200]
+
+
+def _provider_name(model: str | None) -> str:
+    return "OmniRoute"
 
 
 def _format_omniroute_error(
     error: OpenAIError, model: str | None = None
 ) -> tuple[str, int | None, str]:
+    provider_name = _provider_name(model)
+    base_url = settings.omniroute_base_url
     if isinstance(error, APIConnectionError):
         return (
-            f"Cannot connect to OmniRoute at {settings.omniroute_base_url}. Is it running?",
+            f"Cannot connect to {provider_name} at {base_url}.",
             None,
             "",
         )
     if isinstance(error, APITimeoutError):
-        return ("OmniRoute timed out", None, "")
+        return (f"{provider_name} timed out", None, "")
 
     status_code = error.status_code if isinstance(error, APIStatusError) else None
     response_body = (
@@ -241,15 +271,15 @@ def _format_omniroute_error(
 
     if status_code == 503 and "queue budget" in response_body.lower():
         return (
-            "OmniRoute's AI provider queue is full. Wait briefly, then retry, or select a different model in OmniRoute.",
+            f"{provider_name}'s AI provider queue is full. Wait briefly, then retry.",
             status_code,
             excerpt,
         )
     if status_code in (401, 403):
-        return ("OmniRoute rejected the API key", status_code, excerpt)
+        return (f"{provider_name} rejected the configured API token", status_code, excerpt)
     if status_code == 404:
         return (
-            f"Model not found in OmniRoute: {model or 'unknown'}",
+            f"Model not found in {provider_name}: {model or 'unknown'}",
             status_code,
             excerpt,
         )
@@ -260,10 +290,10 @@ def _format_omniroute_error(
             excerpt,
         )
     if status_code is not None:
-        return (f"OmniRoute returned HTTP {status_code}: {excerpt}", status_code, excerpt)
+        return (f"{provider_name} returned HTTP {status_code}: {excerpt}", status_code, excerpt)
 
     return (
-        f"Cannot connect to OmniRoute at {settings.omniroute_base_url}. Is it running?",
+        f"Cannot connect to {provider_name} at {base_url}.",
         None,
         excerpt,
     )
@@ -314,6 +344,11 @@ def _reject_forbidden_model(model_id: str) -> None:
 
 
 def model_for(task: str) -> str:
+    chain = model_chain_for(task)
+    return chain[0] if chain else ""
+
+
+def model_chain_for(task: str) -> list[str]:
     role = _TASK_ROLE.get(task.strip().lower(), "teacher")
     configured = {
         "teacher": settings.model_teacher,
@@ -322,24 +357,166 @@ def model_for(task: str) -> str:
         "multimodal": settings.model_multimodal,
         "json": settings.model_json,
     }
-    for model in (configured[role], settings.model_teacher):
-        model = model.strip()
-        if model and model in _verified_free_model_ids:
-            return model
-    return ""
-
-
-def model_chain_for(task: str) -> list[str]:
-    role = _TASK_ROLE.get(task.strip().lower(), "teacher")
-    primary = model_for(role)
-    fallbacks = getattr(settings, f"model_{role}_fallbacks").split(",")
-    return list(
+    candidates = [
+        configured[role],
+        *(model.strip() for model in getattr(settings, f"model_{role}_fallbacks").split(",")),
+    ]
+    unique = list(
         dict.fromkeys(
-            model
-            for model in [primary, *(m.strip() for m in fallbacks)]
-            if model and model in _verified_free_model_ids
+            model.strip()
+            for model in candidates
+            if model
+            and not _is_forbidden_model(model.strip())
         )
     )
+    now = time.monotonic()
+    with _model_state_lock:
+        return [
+            model
+            for model in unique
+            if _model_cooldowns.get(model, 0.0) <= now
+        ]
+
+
+def _count_prompt_text(value: Any) -> int:
+    if isinstance(value, str):
+        return 0 if value.startswith("data:image/") else len(value)
+    if isinstance(value, dict):
+        if value.get("type") == "image_url":
+            return 0
+        return sum(_count_prompt_text(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return sum(_count_prompt_text(item) for item in value)
+    return 0
+
+
+def _estimate_prompt_tokens(messages: Sequence[dict[str, Any]]) -> int:
+    return math.ceil(_count_prompt_text(messages) / 4)
+
+
+def _ensure_prompt_within_context(messages: Sequence[dict[str, Any]]) -> None:
+    token_estimate = _estimate_prompt_tokens(messages)
+    if token_estimate > settings.long_context_max_tokens:
+        raise OmniRouteError(
+            "The request exceeds the configured maximum model context. "
+            "Shorten the input or split the document into smaller sections.",
+            status_code=413,
+            error_type="InputTooLarge",
+        )
+
+
+def _messages_have_image(messages: Sequence[dict[str, Any]]) -> bool:
+    def contains_image(value: Any) -> bool:
+        if isinstance(value, dict):
+            return value.get("type") == "image_url" or any(
+                contains_image(item) for item in value.values()
+            )
+        if isinstance(value, (list, tuple)):
+            return any(contains_image(item) for item in value)
+        return False
+
+    return contains_image(messages)
+
+
+def _filter_request_chain(
+    chain: Sequence[str],
+    messages: Sequence[dict[str, Any]],
+    *,
+    has_image: bool | None = None,
+) -> list[str]:
+    image_present = _messages_have_image(messages) if has_image is None else has_image
+    prompt_tokens = _estimate_prompt_tokens(messages)
+    filtered: list[str] = []
+    for model in chain:
+        if (
+            model.split("/", 1)[0].lower() == "groq"
+            and prompt_tokens > 6000
+        ):
+            continue
+        filtered.append(model)
+    return filtered
+
+
+def _provider_limits(provider: str) -> tuple[int, int]:
+    key = re.sub(r"[^a-z0-9_]", "_", provider.lower())
+    rpm = getattr(settings, f"provider_rpm_{key}", 0)
+    tpm = getattr(settings, f"provider_tpm_{key}", 0)
+    return max(0, int(rpm)), max(0, int(tpm))
+
+
+async def _wait_for_provider_budget(
+    model: str,
+    messages: Sequence[dict[str, Any]],
+) -> None:
+    provider = model.split("/", 1)[0].lower()
+    rpm_limit, tpm_limit = _provider_limits(provider)
+    if not rpm_limit and not tpm_limit:
+        return
+
+    prompt_tokens = _estimate_prompt_tokens(messages)
+    if provider == "groq" and prompt_tokens > 6000:
+        raise OmniRouteError(
+            "Prompt exceeds Groq's configured 6000-token request budget.",
+            status_code=429,
+            error_type="ProviderBudgetExceeded",
+        )
+    if tpm_limit and prompt_tokens > tpm_limit:
+        raise OmniRouteError(
+            f"Prompt exceeds the {provider} token budget.",
+            status_code=429,
+            error_type="ProviderBudgetExceeded",
+        )
+
+    deadline = time.monotonic() + _PROVIDER_BUDGET_WAIT_SECONDS
+    while True:
+        now = time.monotonic()
+        with _model_state_lock:
+            request_times = _provider_request_times[provider]
+            while request_times and now - request_times[0] >= 60.0:
+                request_times.popleft()
+            token_usage = _provider_token_usage[provider]
+            while token_usage and now - token_usage[0][0] >= 60.0:
+                token_usage.popleft()
+
+            rpm_available = not rpm_limit or len(request_times) < rpm_limit
+            used_tokens = sum(amount for _, amount in token_usage)
+            tpm_available = not tpm_limit or used_tokens + prompt_tokens <= tpm_limit
+            model_interval_available = (
+                provider != "mistral"
+                or now - _model_request_times.get(model, -float("inf")) >= 1.0
+            )
+            if rpm_available and tpm_available and model_interval_available:
+                request_times.append(now)
+                token_usage.append((now, prompt_tokens))
+                if provider == "mistral":
+                    _model_request_times[model] = now
+                return
+
+            waits: list[float] = []
+            if not rpm_available:
+                waits.append(max(0.01, 60.0 - (now - request_times[0])))
+            if not tpm_available:
+                remaining = used_tokens + prompt_tokens - tpm_limit
+                freed = 0
+                for timestamp, amount in token_usage:
+                    freed += amount
+                    if freed >= remaining:
+                        waits.append(max(0.01, 60.0 - (now - timestamp)))
+                        break
+            if not model_interval_available:
+                waits.append(
+                    max(0.01, 1.0 - (now - _model_request_times[model]))
+                )
+            wait_seconds = max(waits, default=0.1)
+
+        remaining_wait = deadline - time.monotonic()
+        if remaining_wait <= 0:
+            raise OmniRouteError(
+                f"{provider} request budget is currently exhausted; try another provider.",
+                status_code=429,
+                error_type="ProviderBudgetExceeded",
+            )
+        await asyncio.sleep(min(wait_seconds, remaining_wait, 0.1))
 
 
 def record_model_request(
@@ -410,23 +587,12 @@ def get_model_health_state(model: str) -> Literal["healthy", "slow", "cooling_do
         return "unknown"
 
 
-def _mark_model_timeout_cooldown(model: str, seconds: float = 60.0) -> None:
-    with _model_state_lock:
-        _model_cooldowns[model] = time.monotonic() + seconds
-
-
 def _ordered_model_chain(chain: Sequence[str]) -> list[str]:
     now = time.monotonic()
     with _model_state_lock:
-        available = [model for model in chain if _model_cooldowns.get(model, 0) <= now]
-        if available:
-            def sort_key(m: str) -> tuple[float, int]:
-                median = get_median_ttft_ms(m)
-                ttft_val = median if median is not None else 99999.0
-                return (ttft_val, chain.index(m) if m in chain else 999)
-            sorted_avail = sorted(available, key=sort_key)
-            return sorted_avail + [model for model in chain if model not in available]
-        return sorted(chain, key=lambda model: _model_cooldowns.get(model, 0))
+        return list(dict.fromkeys(
+            model for model in chain if _model_cooldowns.get(model, 0) <= now
+        ))
 
 
 def model_health(model: str) -> dict[str, Any]:
@@ -503,21 +669,41 @@ def _parse_retry_after(error: OpenAIError) -> float | None:
 
 def _mark_model_failure(model: str, error: OmniRouteError) -> None:
     now = time.monotonic()
+    if error.error_type == "ProviderBudgetExceeded":
+        return
     if error.status_code == 429:
         with _model_state_lock:
             _recent_429_timestamps.append(now)
-    if error.status_code not in {429} and not (
+    if error.status_code != 429 and not (
         error.status_code is not None and error.status_code >= 500
-    ) and error.error_type not in {"TimeoutError", "APITimeoutError"}:
+    ):
         return
     with _model_state_lock:
         _model_cooldowns[model] = time.monotonic() + _retry_after_seconds(error)
 
 
-def _can_fallback(error: OmniRouteError) -> bool:
+def _can_fallback(error: OmniRouteError, model: str | None = None) -> bool:
     return (
         error.status_code == 404
         or error.status_code == 429
+        or error.status_code == 413
+        or error.error_type == "ProviderBudgetExceeded"
+        or (
+            error.status_code == 400
+            and any(
+                marker in (error.response_excerpt or str(error)).lower()
+                for marker in (
+                    "context_length",
+                    "context length",
+                    "input token",
+                    "too many tokens",
+                    "token limit",
+                    "maximum context",
+                    "prompt is too long",
+                    "request too large",
+                )
+            )
+        )
         or (error.status_code is not None and error.status_code >= 500)
         or error.error_type in {"APITimeoutError", "APIConnectionError", "TimeoutError"}
     )
@@ -531,11 +717,62 @@ def reasoning_effort_for(task: str) -> str | None:
     return effort or None
 
 
+_JSON_TIMEOUT_TASKS = frozenset({"json", "ppt", "mcq", "flashcard", "split"})
+_REASONING_TIMEOUT_TASKS = frozenset(
+    {
+        "reasoning",
+        "solve",
+        "grading",
+        "code_debug",
+        "viva",
+        "viva_questions",
+        "evaluation_feedback",
+        "mermaid",
+        "notes",
+        "multimodal",
+    }
+)
+_NO_HEDGE_TASKS = frozenset(
+    {
+        "reasoning",
+        "solve",
+        "grading",
+        "code_debug",
+        "viva",
+        "viva_questions",
+        "evaluation_feedback",
+        "mermaid",
+        "ppt",
+        "notes",
+    }
+)
+
+
+def _first_token_timeout(task: str) -> float:
+    normalized = task.strip().lower()
+    if normalized in _JSON_TIMEOUT_TASKS:
+        return float(settings.json_first_token_timeout)
+    if normalized in _REASONING_TIMEOUT_TASKS:
+        return float(settings.reasoning_first_token_timeout)
+    return float(settings.chat_first_token_timeout)
+
+
+def _hedging_allowed(task: str) -> bool:
+    return int(settings.chat_hedge_after_ms) > 0 and task.strip().lower() not in _NO_HEDGE_TASKS
+
+
 class CompletionTruncated(ValueError):
-    def __init__(self, content: str, completion_tokens: int | None) -> None:
+    def __init__(
+        self,
+        content: str,
+        completion_tokens: int | None,
+        model: str | None = None,
+    ) -> None:
         self.content = content
         self.completion_tokens = completion_tokens
-        super().__init__("OmniRoute truncated the completion at its token limit")
+        super().__init__(
+            f"{_provider_name(model)} truncated the completion at its token limit"
+        )
 
 
 def _cache_key(
@@ -601,10 +838,17 @@ async def _create_completion(**kwargs: Any) -> Any:
         started_at: float | None = None
         queue_ms = 0.0
         try:
+            await _wait_for_provider_budget(
+                model,
+                kwargs.get("messages", []),
+            )
             async with _llm_semaphore:
                 started_at = time.perf_counter()
                 queue_ms = (started_at - queued_at) * 1000
-                response = await _client.chat.completions.create(**kwargs)
+                provider_client, request_options = _client_request_options(kwargs)
+                response = await provider_client.chat.completions.create(
+                    **request_options
+                )
             choices = getattr(response, "choices", ())
             choice = choices[0] if choices else None
             usage = getattr(response, "usage", None)
@@ -641,6 +885,7 @@ async def _create_completion(**kwargs: Any) -> Any:
                 raise CompletionTruncated(
                     content if isinstance(content, str) else "",
                     completion_tokens,
+                    model,
                 )
             return response
         except OpenAIError as error:
@@ -670,21 +915,24 @@ async def _create_completion(**kwargs: Any) -> Any:
                     _unsupported_reasoning_effort.add(model)
                 fallback_retried = True
                 logger.warning(
-                    "OmniRoute rejected reasoning_effort; retrying once without it "
+                    "%s rejected reasoning_effort; retrying once without it "
                     "step=%s requested_model=%s status_code=%s error_type=%s",
+                    _provider_name(model),
                     diagnostic_step or "unspecified",
                     kwargs.get("model", "unknown"),
                     status_code,
                     type(error).__name__,
                 )
                 continue
-            if not _retryable(error) or retry_count >= 2:
+            retry_limit = 0 if status_code == 429 else 2
+            if not _retryable(error) or retry_count >= retry_limit:
                 response_body = (
                     error.response.text if isinstance(error, APIStatusError) else str(error)
                 )
                 excerpt = _safe_excerpt(response_body)
                 logger.warning(
-                    "OmniRoute completion failed step=%s status_code=%s error_type=%s response_excerpt=%r",
+                    "%s completion failed step=%s status_code=%s error_type=%s response_excerpt=%r",
+                    _provider_name(model),
                     diagnostic_step or "unspecified",
                     status_code,
                     type(error).__name__,
@@ -712,8 +960,9 @@ async def _create_completion(**kwargs: Any) -> Any:
                     retry_after=_parse_retry_after(error),
                 ) from error
             logger.info(
-                "llm_completion_retry step=%s requested_model=%s status_code=%s "
+                "llm_completion_retry provider=%s step=%s requested_model=%s status_code=%s "
                 "error_type=%s duration_ms=%.2f queue_ms=%.2f attempt=%d",
+                _provider_name(model),
                 diagnostic_step or "unspecified",
                 kwargs.get("model", "unknown"),
                 error.status_code if isinstance(error, APIStatusError) else None,
@@ -737,10 +986,8 @@ async def chat(
     diagnostic_step: str | None = None,
     model: str | None = None,
 ) -> str:
-    await _refresh_model_registry()
+    _ensure_prompt_within_context(messages)
     requested_model = model or model_for(task)
-    if model and model.strip().lower() != "auto":
-        await _require_verified_free_model(model.strip())
     key = _cache_key(requested_model, messages, temperature, max_tokens)
     cacheable = task.strip().lower() != "practice"
     if cacheable and key in _response_cache:
@@ -751,7 +998,15 @@ async def chat(
             callback(cached_model)
         return _response_cache[key]
 
-    chain = _ordered_model_chain([model] if model and model.strip() and model.strip().lower() != "auto" else model_chain_for(task))
+    automatic_chain = model_chain_for(task)
+    if model and model.strip() and model.strip().lower() != "auto":
+        automatic_chain = [model.strip(), *automatic_chain]
+    chain = _ordered_model_chain(
+        _filter_request_chain(
+            list(dict.fromkeys(automatic_chain)),
+            messages,
+        )
+    )
     reasoning_effort = reasoning_effort_for(task)
     last_error: OmniRouteError | None = None
     for model in chain:
@@ -790,7 +1045,10 @@ async def chat(
         except OmniRouteError as error:
             last_error = error
             _mark_model_failure(model, error)
-            if not _can_fallback(error):
+            if error.error_type == "RefusedModel":
+                logger.info("llm_model_skipped model=%s reason=not_verified_free", model)
+                continue
+            if not _can_fallback(error, model):
                 raise
             logger.info(
                 "llm_model_fallback model=%s status_code=%s error_type=%s",
@@ -799,7 +1057,11 @@ async def chat(
                 error.error_type,
             )
             continue
-        result = response.choices[0].message.content or ""
+        choices = getattr(response, "choices", ())
+        choice = choices[0] if choices else None
+        message = getattr(choice, "message", None)
+        content = getattr(message, "content", None)
+        result = content if isinstance(content, str) else ""
         if not result.strip():
             last_error = OmniRouteError(
                 "The model returned an empty completion.",
@@ -839,8 +1101,10 @@ async def stream(
     max_tokens: int | None = None,
     reasoning_effort: str | None = None,
 ) -> AsyncGenerator[str, None]:
-    await _refresh_model_registry()
-    chain = _ordered_model_chain(model_chain_for(task))
+    chain = _ordered_model_chain(
+        _filter_request_chain(model_chain_for(task), messages)
+    )
+    _ensure_prompt_within_context(messages)
     effort = reasoning_effort if reasoning_effort is not None else reasoning_effort_for(task)
     last_error: OmniRouteError | None = None
     for model in chain:
@@ -916,12 +1180,13 @@ async def stream(
                 try:
                     first_event = await asyncio.wait_for(
                         anext(response),
-                        timeout=float(settings.chat_first_token_timeout),
+                        timeout=_first_token_timeout(task),
                     )
                 except asyncio.TimeoutError:
                     await _close_stream(response)
                     timeout_error = OmniRouteError(
-                        f"Model {model} did not return a first token within {settings.chat_first_token_timeout}s.",
+                        f"Model {model} did not return a first token within "
+                        f"{_first_token_timeout(task)}s.",
                         status_code=None,
                         error_type="TimeoutError",
                     )
@@ -929,10 +1194,10 @@ async def stream(
                     logger.warning(
                         "llm_model_first_token_timeout model=%s timeout_seconds=%s",
                         model,
-                        settings.chat_first_token_timeout,
+                        _first_token_timeout(task),
                     )
                     last_error = timeout_error
-                    if not _can_fallback(timeout_error):
+                    if not _can_fallback(timeout_error, model):
                         raise timeout_error
                     continue
                 if first_event is not None:
@@ -989,7 +1254,10 @@ async def stream(
         if last_error is None:
             raise RuntimeError("Streaming model failed without an error.")
         _mark_model_failure(model, last_error)
-        if sent_text or not _can_fallback(last_error):
+        if last_error.error_type == "RefusedModel" and not sent_text:
+            logger.info("llm_model_skipped model=%s reason=not_verified_free", model)
+            continue
+        if sent_text or not _can_fallback(last_error, model):
             raise last_error
         logger.info(
             "llm_model_fallback model=%s status_code=%s error_type=%s streaming=true",
@@ -1020,7 +1288,14 @@ async def _create_stream_with_retry(**kwargs: Any) -> Any:
     while attempt < 4:
         attempt += 1
         try:
-            return await _client.chat.completions.create(stream=True, **kwargs)
+            await _wait_for_provider_budget(
+                model,
+                kwargs.get("messages", []),
+            )
+            provider_client, request_options = _client_request_options(kwargs)
+            return await provider_client.chat.completions.create(
+                stream=True, **request_options
+            )
         except OpenAIError as error:
             status_code = (
                 error.status_code if isinstance(error, APIStatusError) else None
@@ -1049,21 +1324,26 @@ async def _create_stream_with_retry(**kwargs: Any) -> Any:
                     _unsupported_reasoning_effort.add(model)
                 fallback_retried = True
                 logger.warning(
-                    "OmniRoute stream rejected reasoning_effort; retrying once without it "
+                    "%s stream rejected reasoning_effort; retrying once without it "
                     "requested_model=%s status_code=%s error_type=%s",
+                    _provider_name(model),
                     kwargs.get("model", "unknown"),
                     status_code,
                     type(error).__name__,
                 )
                 continue
             retry_limit = (
-                1
+                0
+                if status_code == 429
+                else 1
                 if isinstance(error, (APIConnectionError, APITimeoutError))
                 else 2
             )
             if not _retryable(error) or retry_count >= retry_limit:
                 logger.warning(
-                    "OmniRoute stream setup failed (%s)", type(error).__name__
+                    "%s stream setup failed (%s)",
+                    _provider_name(model),
+                    type(error).__name__,
                 )
                 reason, code, excerpt = _format_omniroute_error(
                     error, kwargs.get("model")
@@ -1309,8 +1589,49 @@ async def probe_model_details(model_id: str) -> tuple[bool, float, str]:
         return False, time.perf_counter() - started_at, error.response_excerpt or str(error)
 
 
+async def _cached_probe_model_details(
+    model_id: str,
+) -> tuple[bool, float, str]:
+    with _model_state_lock:
+        lock = _model_probe_locks.setdefault(model_id, asyncio.Lock())
+
+    async with lock:
+        now = time.monotonic()
+        with _model_state_lock:
+            if _model_cooldowns.get(model_id, 0.0) > now:
+                return False, 0.0, "model is cooling down"
+            recent_success = any(
+                record.success
+                and now - record.timestamp < _MODEL_PROBE_INTERVAL_SECONDS
+                for record in _model_stats.get(model_id, ())
+            )
+            if recent_success:
+                return True, 0.0, ""
+            checked_at = _model_probe_checked_at.get(model_id, 0.0)
+            cached = _model_probe_results.get(model_id)
+            if now - checked_at < _MODEL_PROBE_INTERVAL_SECONDS and cached is not None:
+                return cached
+            _model_probe_checked_at[model_id] = now
+
+        result = await probe_model_details(model_id)
+        with _model_state_lock:
+            _model_probe_results[model_id] = result
+        success, elapsed, error = result
+        if success:
+            started_at = time.perf_counter() - elapsed
+            _mark_model_success(model_id, started_at)
+            record_model_request(
+                model_id,
+                ttft_ms=None,
+                duration_ms=elapsed * 1000,
+                success=True,
+                status_code=200,
+            )
+        return result
+
+
 async def probe_model(model_id: str) -> bool:
-    success, _, _ = await probe_model_details(model_id)
+    success, _, _ = await _cached_probe_model_details(model_id)
     return success
 
 
@@ -1320,6 +1641,11 @@ async def probe_model(model_id: str) -> bool:
 
 _KNOWN_FRIENDLY_NAMES: dict[str, str] = {
     # === Actively used free models ===
+    "mistral/mistral-medium-3-5": "Mistral Medium 3.5",
+    "mistral/mistral-large-latest": "Mistral Large 3",
+    "mistral/mistral-small-latest": "Mistral Small 4",
+    "mistral/devstral-latest": "Mistral Devstral",
+    "mistral/codestral-latest": "Mistral Codestral",
     "gemini/gemini-3.5-flash-lite": "Gemini Flash Lite",
     # gemini-flash-lite-latest is an alias of gemini-3.5-flash-lite—shown as one entry.
     "gemini/gemini-flash-lite-latest": "Gemini Flash Lite",
@@ -1365,11 +1691,11 @@ def _friendly_model_label(model_id: str, raw_name: str | None = None) -> str:
         clean = raw_name.strip()
         if clean.lower().startswith("agy/"):
             clean = clean[4:].strip()
-        return clean
-    parts = model_id.split("/")
-    name_part = parts[-1] if len(parts) > 1 else model_id
-    clean_name = name_part.replace("-", " ").replace("_", " ").title()
-    return clean_name
+    else:
+        parts = model_id.split("/")
+        name_part = parts[-1] if len(parts) > 1 else model_id
+        clean = name_part.replace("-", " ").replace("_", " ").title()
+    return clean
 
 
 def _is_chat_capable(model_id: str, raw_model: Any = None) -> bool:
@@ -1483,21 +1809,21 @@ async def _refresh_model_registry(*, force: bool = False) -> dict[str, Any]:
             _verified_free_model_ids = frozenset()
             _model_registry_checked_at = time.monotonic()
             logger.warning(
-                "Unable to verify OmniRoute model pricing; free routing is disabled: %s",
+                "Unable to verify OmniRoute model pricing: %s",
                 type(exc).__name__,
             )
-            raise OmniRouteError(
-                "Cannot verify model availability and pricing with OmniRoute.",
-                status_code=503,
-                error_type="ModelRegistryUnavailable",
-            ) from exc
+            return _model_registry
 
-        registry = {model.id: model for model in raw_models if hasattr(model, "id")}
+        registry = {
+            model.id: model for model in raw_models if hasattr(model, "id")
+        }
         _model_registry = registry
         _verified_free_model_ids = frozenset(
-            model_id
-            for model_id, raw_model in registry.items()
-            if _free_model_decision(model_id, raw_model)[0]
+            [
+                model_id
+                for model_id, raw_model in registry.items()
+                if _free_model_decision(model_id, raw_model)[0]
+            ]
         )
         _model_registry_checked_at = time.monotonic()
         return registry
@@ -1518,6 +1844,7 @@ async def _require_verified_free_model(model_id: str) -> Any:
 
 
 async def validate_configured_model_roles() -> None:
+    role_names = ("teacher", "practice", "reasoning", "multimodal", "json")
     try:
         registry = await _refresh_model_registry()
     except OmniRouteError:
@@ -1526,7 +1853,6 @@ async def validate_configured_model_roles() -> None:
     else:
         registry_available = True
 
-    role_names = ("teacher", "practice", "reasoning", "multimodal", "json")
     rejected_roles: list[str] = []
     for role in role_names:
         configured = [
@@ -1564,7 +1890,7 @@ async def validate_configured_model_roles() -> None:
 
 
 def _get_model_meta(model_id: str, raw_model: Any = None) -> dict[str, Any]:
-    if raw_model is None:
+    if raw_model is None and _model_registry is not None:
         raw_model = _model_registry.get(model_id)
     overrides: dict[str, Any] = {}
     if settings.model_meta_overrides:
@@ -1678,7 +2004,7 @@ def _effective_max_tokens(
     if capabilities.get("thinking") or capabilities.get("supportsThinking") or re.search(
         r"(?i)(deepseek-r1|o1|o3|reasoner|thinking|qwq)", model_id
     ):
-        return min(max_tokens * 2, 8192)
+        return min(max_tokens * 2, max(1, settings.reasoning_max_tokens_cap))
     return max_tokens
 
 
@@ -1699,9 +2025,10 @@ _CATALOGUE_CACHE_TTL = 60.0
 
 
 async def _probe_catalogue_model(model_id: str) -> None:
-    started_at = time.perf_counter()
+    if _model_cooldowns.get(model_id, 0.0) > time.monotonic():
+        return
     try:
-        success, _, error = await probe_model_details(model_id)
+        success, _, error = await _cached_probe_model_details(model_id)
         if not success:
             logger.info(
                 "Chat catalogue health probe failed model=%s error=%s",
@@ -1709,15 +2036,6 @@ async def _probe_catalogue_model(model_id: str) -> None:
                 error,
             )
             return
-        duration_ms = (time.perf_counter() - started_at) * 1000
-        _mark_model_success(model_id, started_at)
-        record_model_request(
-            model_id,
-            ttft_ms=None,
-            duration_ms=duration_ms,
-            success=True,
-            status_code=200,
-        )
     except OmniRouteError as error:
         logger.info(
             "Chat catalogue health probe failed model=%s status_code=%s error=%s",
@@ -1735,12 +2053,12 @@ def _refresh_catalogue_dynamic_state(items: list[ChatModelCatalogueItem]) -> lis
             refreshed.append(item)
             continue
         cooldown_until_ts = _model_cooldowns.get(item.id, 0.0)
+        health = get_model_health_state(item.id)
         cooldown_iso = (
             datetime.fromtimestamp(time.time() + (cooldown_until_ts - now), timezone.utc).isoformat()
             if cooldown_until_ts > now
             else None
         )
-        health = get_model_health_state(item.id)
         if health in {"healthy", "slow"}:
             refreshed.append(
                 item.model_copy(
@@ -1810,13 +2128,26 @@ async def get_chat_models_catalogue() -> list[ChatModelCatalogueItem]:
             if mid in _verified_free_model_ids and meta["tier"] == "free":
                 eligible.append((mid, meta))
 
-        unprobed = [
-            mid
-            for mid, _ in eligible
-            if get_model_health_state(mid) == "unknown"
-            and _model_cooldowns.get(mid, 0.0) <= time.monotonic()
-        ]
+        unprobed = []
+        for mid, _ in eligible:
+            with _model_state_lock:
+                recent_success = any(
+                    record.success and now - record.timestamp < _MODEL_PROBE_INTERVAL_SECONDS
+                    for record in _model_stats.get(mid, ())
+                )
+                last_probe_at = _model_probe_checked_at.get(
+                    mid, -_MODEL_PROBE_INTERVAL_SECONDS
+                )
+                cooling_down = _model_cooldowns.get(mid, 0.0) > time.monotonic()
+            if (
+                get_model_health_state(mid) == "unknown"
+                and not recent_success
+                and now - last_probe_at >= _MODEL_PROBE_INTERVAL_SECONDS
+                and not cooling_down
+            ):
+                unprobed.append(mid)
         for mid in unprobed:
+            _model_probe_checked_at[mid] = time.monotonic()
             await _probe_catalogue_model(mid)
 
         for mid, meta in eligible:
@@ -1898,49 +2229,40 @@ def _ordered_auto_chain(
                 and _KNOWN_MODEL_ALIAS_CANONICAL.get(model) in eligible_models
             )
         ]
-    chain = [
-        model
-        for model in chain
-        if model in _verified_free_model_ids
-        and _get_model_meta(model, _model_registry.get(model))["tier"] == "free"
-        and (not has_image or _get_model_meta(model, _model_registry.get(model))["capabilities"]["vision"])
-        and (
-            not is_long_doc
-            or _get_model_meta(model, _model_registry.get(model))["capabilities"]["long_context"]
+    candidates: list[str] = []
+    for model in chain:
+        provider = model.split("/", 1)[0].lower()
+        route_candidate = (
+            model in _verified_free_model_ids
+            and provider in settings.free_provider_set
+            and not _is_forbidden_model(model)
         )
+        if not route_candidate:
+            continue
+        raw_model = (
+            _model_registry.get(model)
+            if _model_registry is not None
+            else None
+        )
+        meta = _get_model_meta(model, raw_model)
+        capabilities = meta["capabilities"]
+        if has_image and not capabilities["vision"]:
+            continue
+        if is_long_doc and not capabilities["long_context"]:
+            continue
+        candidates.append(model)
+
+    available = [
+        model
+        for model in candidates
+        if _model_cooldowns.get(model, 0.0) <= now
     ]
-    non_reasoning = [
-        m for m in chain
-        if not _get_model_meta(m, _model_registry.get(m))["capabilities"]["reasoning"]
-    ] or chain
-
-    free_candidates = [
-        m for m in non_reasoning
-        if _get_model_meta(m, _model_registry.get(m))["tier"] == "free"
-    ]
-    available_free = [m for m in free_candidates if _model_cooldowns.get(m, 0.0) <= now]
-    if available_free:
-        primary_pool = available_free
-        secondary_pool = [m for m in free_candidates if m not in available_free]
-    else:
-        primary_pool = free_candidates
-        secondary_pool = []
-
-    def sort_key(m: str) -> tuple[int, float, int]:
-        cooling = 1 if _model_cooldowns.get(m, 0.0) > now else 0
-        median = get_median_ttft_ms(m)
-        ttft_val = median if median is not None else 99999.0
-        chain_idx = chain.index(m) if m in chain else 999
-        return (cooling, ttft_val, chain_idx)
-
-    ordered_primary = sorted(primary_pool, key=sort_key)
-    ordered_secondary = sorted(secondary_pool, key=sort_key)
-    return list(dict.fromkeys(ordered_primary + ordered_secondary))
+    return list(dict.fromkeys(available))
 
 
 def pick_auto_model(task: str = "teacher") -> str:
     chain = _ordered_auto_chain(task)
-    return chain[0] if chain else model_for(task)
+    return chain[0] if chain else ""
 
 
 @dataclass
@@ -1960,6 +2282,7 @@ async def _get_stream_first_token(
     task: str = "teacher",
 ) -> FirstTokenStream:
     started_at = time.perf_counter()
+    first_token_timeout = _first_token_timeout(task)
     pending = ""
     in_reasoning = False
 
@@ -2029,7 +2352,7 @@ async def _get_stream_first_token(
             try:
                 first_event = await asyncio.wait_for(
                     anext(raw_stream),
-                    timeout=float(settings.chat_first_token_timeout),
+                    timeout=first_token_timeout,
                 )
             except StopAsyncIteration as exc:
                 error_type = (
@@ -2073,7 +2396,6 @@ async def _get_stream_first_token(
         if raw_stream is not None:
             await _close_stream(raw_stream)
         duration_ms = (time.perf_counter() - started_at) * 1000
-        _mark_model_timeout_cooldown(model, 60.0)
         record_model_request(
             model,
             ttft_ms=None,
@@ -2082,7 +2404,8 @@ async def _get_stream_first_token(
             status_code=None,
         )
         raise OmniRouteError(
-            f"Model {model} did not return a first token within {settings.chat_first_token_timeout}s.",
+            f"Model {model} did not return a first token within "
+            f"{first_token_timeout}s.",
             error_type="TimeoutError",
         )
     except Exception as exc:
@@ -2148,7 +2471,7 @@ async def _consume_stream(first_stream: FirstTokenStream) -> AsyncGenerator[str,
             status_code=200,
         )
     except Exception as exc:
-        logger.warning("Stream error for %s: %s", model, exc)
+        logger.warning("Stream error for %s: %s", model, _safe_excerpt(str(exc)))
         raise
     finally:
         await _close_stream(raw_stream)
@@ -2163,25 +2486,20 @@ async def _stream_auto(
     has_image: bool = False,
     is_long_doc: bool = False,
 ) -> tuple[AsyncGenerator[str, None], str, str | None, float]:
-    await _refresh_model_registry()
-    eligible_models: set[str] | None = set(_verified_free_model_ids)
-    if settings.chat_model_allowlist_ids:
-        catalogue = await get_chat_models_catalogue()
-        eligible_models = {
-            item.id
-            for item in catalogue
-            if item.id != "auto"
-            and item.tier == "free"
-            and item.health == "healthy"
-            and (not has_image or item.capabilities.vision)
-            and (not is_long_doc or item.capabilities.long_context)
-        }
+    eligible_models: set[str] | None = (
+        set(settings.chat_model_allowlist_ids) | set(model_chain_for(task))
+        if settings.chat_model_allowlist_ids
+        else None
+    )
     chain = _ordered_auto_chain(
         task,
         eligible_models,
         has_image=has_image,
         is_long_doc=is_long_doc,
     )
+    chain = _filter_request_chain(chain, messages, has_image=has_image)
+    if fallback_from:
+        chain = [model for model in chain if model != fallback_from]
     if not chain:
         raise OmniRouteError("No model is configured for this task.")
 
@@ -2189,7 +2507,11 @@ async def _stream_auto(
     m2 = chain[1] if len(chain) > 1 else None
 
     hedge_after_ms = int(settings.chat_hedge_after_ms)
-    hedge_enabled = hedge_after_ms > 0 and m2 is not None and is_hedging_safe()
+    hedge_enabled = (
+        _hedging_allowed(task)
+        and m2 is not None
+        and is_hedging_safe()
+    )
 
     if not hedge_enabled:
         last_err: Exception | None = None
@@ -2323,6 +2645,7 @@ async def prepare_chat_stream(
     has_image: bool = False,
     is_long_doc: bool = False,
 ) -> tuple[AsyncGenerator[str, None], str, str | None, float]:
+    _ensure_prompt_within_context(messages)
     req_clean = (requested_model or "auto").strip()
     is_auto = req_clean.lower() == "auto"
 
@@ -2385,7 +2708,7 @@ async def prepare_chat_stream(
         logger.warning(
             "Explicit model %s failed before first token; falling back to Auto: %s",
             req_clean,
-            error,
+            _safe_excerpt(str(error)),
         )
         task = "multimodal" if (has_image or is_long_doc) else "teacher"
         return await _stream_auto(
@@ -2400,19 +2723,22 @@ async def prepare_chat_stream(
 
 
 async def warmup_primary_model() -> None:
-    try:
-        await _refresh_model_registry()
-        primary = model_for("teacher")
-        if not primary:
-            return
-        logger.info("Warming up primary chat model: %s", primary)
-        await _create_completion(
-            model=primary,
-            messages=[{"role": "user", "content": "Reply OK."}],
-            temperature=0,
-            max_tokens=16,
-            timeout=10,
-        )
+    candidates = model_chain_for("teacher")
+    for primary in candidates:
+        try:
+            await _create_completion(
+                model=primary,
+                messages=[{"role": "user", "content": "Reply OK."}],
+                temperature=0,
+                max_tokens=16,
+                timeout=10,
+            )
+        except Exception as exc:
+            logger.info(
+                "Primary chat model warmup failed model=%s error=%s",
+                primary,
+                _safe_excerpt(str(exc)),
+            )
+            continue
         logger.info("Primary chat model warmup completed: %s", primary)
-    except Exception as exc:
-        logger.warning("Primary chat model warmup failed (non-fatal): %s", exc)
+        return

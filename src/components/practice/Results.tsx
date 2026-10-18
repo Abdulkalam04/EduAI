@@ -170,7 +170,12 @@ export function Results({ paper, attempt }: { paper: Paper; attempt: Attempt }) 
 
       <SoftCard className="p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="font-semibold">Question review</h3>
+          <div>
+            <h3 className="font-semibold">Your solved paper</h3>
+            <p className="text-sm text-muted-foreground">
+              Review each generated question, your answer, the model answer, and feedback.
+            </p>
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {(["All", "Correct", "Wrong", "Skipped"] as Filter[]).map((f) => (
               <Chip key={f} selected={filter === f} onClick={() => setFilter(f)}>
@@ -182,7 +187,7 @@ export function Results({ paper, attempt }: { paper: Paper; attempt: Attempt }) 
         {items.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">Nothing here.</p>
         ) : (
-          <Accordion type="multiple">
+          <Accordion type="multiple" defaultValue={items.map(({ q }) => q.id)}>
             {items.map(({ q, i, res }) => (
               <AccordionItem key={q.id} value={q.id}>
                 <AccordionTrigger className="gap-3 text-left hover:no-underline">

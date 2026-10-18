@@ -44,7 +44,7 @@ import {
   setAccessToken,
 } from "@/lib/api";
 import type { AnswerStyle } from "@/lib/types";
-import { LEVELS, SUBJECTS, getLevel, useUserStore } from "@/store/useUserStore";
+import { DEFAULT_LEVEL, LEVELS, SUBJECTS, getLevel, useUserStore } from "@/store/useUserStore";
 import { useChatStore } from "@/store/useChatStore";
 import { useLearningStore } from "@/store/useLearningStore";
 import { usePracticeStore } from "@/store/usePracticeStore";
@@ -101,6 +101,7 @@ interface SettingsDraft {
 interface SettingsContextValue {
   draft: SettingsDraft;
   updateDraft: (update: (current: SettingsDraft) => SettingsDraft) => void;
+  updateProfile: (update: (current: SettingsDraft["user"]) => SettingsDraft["user"]) => void;
   resetApiUrl: () => void;
   connected: boolean | null;
   setConnected: (connected: boolean | null) => void;
@@ -165,10 +166,27 @@ export function SettingsPage() {
   const desktop = useDesktopBreakpoint();
   const [draft, setDraft] = useState(readDraft);
   const [savedDraft, setSavedDraft] = useState(readDraft);
+  const profileName = useUserStore((state) => state.name);
+  const profileLevel = useUserStore((state) => state.level);
+  const profileLevelSet = useUserStore((state) => state.levelSet);
+  const profileSubject = useUserStore((state) => state.subject);
+  const profileInterests = useUserStore((state) => state.interests);
   const [connected, setConnected] = useState<boolean | null>(null);
   const hasChanges = !sameDraft(draft, savedDraft);
   const activeSection = SECTIONS.find((section) => sectionUrl(section.id) === path);
   const isSectionRoute = Boolean(activeSection);
+
+  useEffect(() => {
+    const user = {
+      name: profileName,
+      level: profileLevel,
+      levelSet: profileLevelSet,
+      subject: profileSubject,
+      interests: [...profileInterests],
+    };
+    setDraft((current) => ({ ...current, user }));
+    setSavedDraft((current) => ({ ...current, user }));
+  }, [profileName, profileLevel, profileLevelSet, profileSubject, profileInterests]);
 
   useEffect(() => {
     if (desktop && path === "/settings") {
@@ -190,15 +208,29 @@ export function SettingsPage() {
     setConnected(null);
   }, []);
 
+  const updateProfile = useCallback(
+    (update: (current: SettingsDraft["user"]) => SettingsDraft["user"]) => {
+      const nextUser = update(draft.user);
+      useUserStore.getState().set({
+        ...nextUser,
+        ...(nextUser.name !== draft.user.name ? { nameCustomized: true } : {}),
+      });
+      setDraft((current) => ({ ...current, user: nextUser }));
+      setSavedDraft((current) => ({ ...current, user: nextUser }));
+    },
+    [draft.user],
+  );
+
   const contextValue = useMemo<SettingsContextValue>(
     () => ({
       draft,
       updateDraft: (update) => setDraft(update),
+      updateProfile,
       resetApiUrl,
       connected,
       setConnected,
     }),
-    [connected, draft, resetApiUrl],
+    [connected, draft, resetApiUrl, updateProfile],
   );
 
   const save = () => {
@@ -368,7 +400,8 @@ function SectionList({
 }
 
 export function SettingsSectionContent({ section }: { section: SettingsSectionId }) {
-  const { draft, updateDraft, resetApiUrl, connected, setConnected } = useSettingsDraft();
+  const { draft, updateDraft, updateProfile, resetApiUrl, connected, setConnected } =
+    useSettingsDraft();
   const queryClient = useQueryClient();
   const [testing, setTesting] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
@@ -382,8 +415,7 @@ export function SettingsSectionContent({ section }: { section: SettingsSectionId
     ((SUBJECTS as readonly string[]).includes(subject) ? "" : subject);
   const otherSubjectSelected = Boolean(otherSubjectDraft) || otherSubjectOpen;
 
-  const updateUser = (update: (current: SettingsDraft["user"]) => SettingsDraft["user"]) =>
-    updateDraft((current) => ({ ...current, user: update(current.user) }));
+  const updateUser = updateProfile;
   const updateUi = (update: (current: SettingsDraft["ui"]) => SettingsDraft["ui"]) =>
     updateDraft((current) => ({ ...current, ui: update(current.ui) }));
 
@@ -489,7 +521,13 @@ export function SettingsSectionContent({ section }: { section: SettingsSectionId
                 <button
                   type="button"
                   aria-pressed={!levelSet}
-                  onClick={() => updateUser((current) => ({ ...current, levelSet: false }))}
+                  onClick={() =>
+                    updateUser((current) => ({
+                      ...current,
+                      level: DEFAULT_LEVEL,
+                      levelSet: false,
+                    }))
+                  }
                   className={`min-h-14 rounded-xl border p-3 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99] ${
                     !levelSet ? "border-primary bg-primary/5" : "bg-card"
                   }`}
@@ -519,6 +557,42 @@ export function SettingsSectionContent({ section }: { section: SettingsSectionId
                     <span className="mt-0.5 block text-xs text-muted-foreground">{item.style}</span>
                   </button>
                 ))}
+              </div>
+            </fieldset>
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium">Study subject</legend>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                <button
+                  type="button"
+                  aria-pressed={!subject}
+                  onClick={() => updateUser((current) => ({ ...current, subject: "" }))}
+                  className={`min-h-11 rounded-xl border px-3 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    !subject ? "border-primary bg-primary/10 text-primary" : "bg-card"
+                  }`}
+                >
+                  Default (all subjects)
+                </button>
+                {SUBJECTS.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    aria-pressed={subject === item}
+                    onClick={() => updateUser((current) => ({ ...current, subject: item }))}
+                    className={`min-h-11 rounded-xl border px-3 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      subject === item ? "border-primary bg-primary/10 text-primary" : "bg-card"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ))}
+                {subject && !(SUBJECTS as readonly string[]).includes(subject) && (
+                  <div
+                    aria-current="true"
+                    className="flex min-h-11 items-center rounded-xl border border-primary bg-primary/10 px-3 text-sm text-primary"
+                  >
+                    Other: {subject}
+                  </div>
+                )}
               </div>
             </fieldset>
             <fieldset className="space-y-3">

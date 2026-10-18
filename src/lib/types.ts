@@ -56,12 +56,30 @@ export interface PaperQuestion {
   solution: Solution;
 }
 
+export interface SolvedPaperHistoryItem {
+  id: string;
+  title: string;
+  subject: string;
+  mode: SolveMode;
+  style: SolveStyle;
+  question_count: number;
+  created_at: string;
+}
+
+export interface SolvedPaperHistoryRecord extends SolvedPaperHistoryItem {
+  questions: PaperQuestion[];
+}
+
 export interface BookDoc {
   id: string;
   title: string;
   pages: number;
   uploadedAt: string;
   sections: { title: string; page: number }[];
+}
+
+export interface BookWorkspace extends BookDoc {
+  results: Partial<Record<DocTask, DocGenerationResult>>;
 }
 
 export interface Mcq {
@@ -80,6 +98,13 @@ export interface ImportantQ {
   q: string;
   marks: number;
 }
+
+export type DocTask = "explain" | "summary" | "notes" | "mcqs" | "flashcards" | "questions";
+export type DocGenerationResult =
+  | { kind: "explain" | "summary" | "notes"; md: string }
+  | { kind: "mcqs"; mcqs: Mcq[] }
+  | { kind: "flashcards"; cards: Flashcard[] }
+  | { kind: "questions"; questions: ImportantQ[] };
 
 export interface Source {
   page: number;
@@ -264,6 +289,7 @@ export interface CodeTestCase {
 export interface CodeActionResult {
   markdown: string;
   output?: string;
+  preview?: string;
   tests?: CodeTestCase[];
   hints?: string[];
   exercise?: CodeExercise;
@@ -329,7 +355,7 @@ export type ModelTier = "free" | "paid";
 export interface ChatModel {
   /** Stable identifier to send as the `model` field in chat requests. */
   id: string;
-  /** One of: groq, gemini, openai, anthropic, … */
+  /** Provider identifier reported by the model gateway. */
   provider: string;
   /** Human-readable label to show in the picker. */
   label: string;
@@ -356,6 +382,9 @@ export interface ChatModel {
 }
 
 const CHAT_MODEL_LABELS: Record<string, string> = {
+  "mistral/mistral-medium-3-5": "Mistral Medium 3.5",
+  "mistral/mistral-large-latest": "Mistral Large 3",
+  "mistral/mistral-small-latest": "Mistral Small 4",
   "gemini/gemini-2.5-flash": "Gemini 2.5 Flash",
   "gemini/gemini-3.5-flash-lite": "Gemini Flash Lite",
   "gemini/gemini-3.6-flash": "Gemini 3.6 Flash",

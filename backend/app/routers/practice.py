@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 import time
 import uuid
 from datetime import datetime, timezone
@@ -170,11 +171,31 @@ class ReevaluateRequest(BaseModel):
 
 
 _SECTION_PLANS: dict[int, tuple[tuple[str, str, int, int], ...]] = {
-    20: (("A", "MCQ", 5, 1), ("B", "short", 3, 2), ("C", "long", 1, 5), ("D", "numerical", 1, 4)),
-    30: (("A", "MCQ", 6, 1), ("B", "short", 4, 2), ("C", "long", 2, 4), ("D", "numerical", 2, 4)),
+    20: (
+        ("A", "MCQ", 6, 1),
+        ("B", "short", 2, 2),
+        ("C", "long", 1, 5),
+        ("D", "numerical", 1, 5),
+    ),
+    30: (
+        ("A", "MCQ", 4, 1),
+        ("B", "short", 3, 2),
+        ("C", "long", 2, 5),
+        ("D", "numerical", 2, 5),
+    ),
     50: (("A", "MCQ", 10, 1), ("B", "short", 5, 2), ("C", "long", 3, 5), ("D", "numerical", 3, 5)),
-    80: (("A", "MCQ", 16, 1), ("B", "short", 8, 2), ("C", "long", 4, 6), ("D", "numerical", 4, 6)),
-    100: (("A", "MCQ", 20, 1), ("B", "short", 10, 2), ("C", "long", 5, 6), ("D", "numerical", 5, 6)),
+    80: (
+        ("A", "MCQ", 14, 1),
+        ("B", "short", 8, 2),
+        ("C", "long", 5, 5),
+        ("D", "numerical", 5, 5),
+    ),
+    100: (
+        ("A", "MCQ", 20, 1),
+        ("B", "short", 10, 2),
+        ("C", "long", 6, 5),
+        ("D", "numerical", 6, 5),
+    ),
 }
 
 _BATCH_LIMITS = {"MCQ": 4, "short": 2, "long": 1, "numerical": 2}
@@ -191,6 +212,7 @@ def _valid_partial_questions(
     question_model: type[GeneratedPracticeQuestionFields],
     section_type: str,
     each: int,
+    default_topic: str,
 ) -> list[GeneratedPracticeQuestionFields]:
     marker = '"questions"'
     marker_position = raw.find(marker)
@@ -231,16 +253,45 @@ def _valid_partial_questions(
             if depth == 0:
                 try:
                     question_data = json.loads(raw[object_start : index + 1])
-                    generated_type = str(question_data.get("type", "")).lower()
+                    generated_type = re.sub(
+                        r"[-_]+",
+                        " ",
+                        str(question_data.get("type", "")).strip().lower(),
+                    )
                     accepted_types = {
-                        "mcq": {"mcq"},
-                        "short": {"short", "short_answer"},
-                        "long": {"long", "long_answer"},
-                        "numerical": {"numerical", "numeric"},
+                        "mcq": {"mcq", "multiple choice"},
+                        "short": {"short", "short answer"},
+                        "long": {"long", "long answer"},
+                        "numerical": {"numerical", "numeric", "numerical problem"},
                     }[section_type.lower()]
-                    if generated_type not in accepted_types:
+                    if generated_type and generated_type not in accepted_types:
                         object_start = None
                         continue
+
+                    question_data["text"] = (
+                        question_data.get("text")
+                        or question_data.get("question")
+                        or question_data.get("prompt")
+                    )
+                    question_data["marks"] = each
+                    question_data["model"] = (
+                        question_data.get("model")
+                        or question_data.get("model_answer")
+                        or question_data.get("expected_answer")
+                        or question_data.get("answer")
+                    )
+                    question_data["topic"] = (
+                        question_data.get("topic") or default_topic
+                    )
+                    question_data.setdefault("keywords", [])
+                    if section_type.lower() == "mcq":
+                        question_data["options"] = (
+                            question_data.get("options")
+                            or question_data.get("choices")
+                        )
+                        question_data["correct"] = question_data.get(
+                            "correct", question_data.get("correct_index")
+                        )
                     question_data["type"] = section_type.lower()
                     question = question_model.model_validate_json(
                         json.dumps(question_data)
@@ -297,6 +348,7 @@ async def generate_paper(
             *,
             continuation: bool = False,
             retry_count: int = 0,
+            existing_question_texts: list[str] | None = None,
         ) -> list[GeneratedPracticeQuestionFields]:
             nonlocal request_number
             request_number += 1
@@ -307,7 +359,8 @@ async def generate_paper(
                 f"{', '.join(payload.weakFocus) if payload.weakFocus else 'none specified'}. "
                 "Return compact JSON only: {\"questions\":[...]}. No markdown, commentary, "
                 "section metadata, or IDs. Each item must contain type, text, marks, options, "
-                "correct, model, topic, keywords. Keep question text short, model answer to one "
+                "correct, model, topic, keywords. Copy the requested type and marks exactly "
+                "into every item. Keep question text short, model answer to one "
                 "sentence (20 words maximum), topic to a few words, and keywords to at most two. "
                 "For non-MCQs use null options/correct. MCQs need four short options and a valid "
                 "zero-based correct index."
@@ -321,7 +374,9 @@ async def generate_paper(
             if continuation:
                 prompt += (
                     f" This is continuation request {request_number}; generate only the "
-                    f"{requested_count} missing {section_type} questions."
+                    f"{requested_count} missing {section_type} questions. Do not repeat these "
+                    "already generated questions: "
+                    f"{json.dumps(existing_question_texts or [], ensure_ascii=True)}."
                 )
             try:
                 generated = await json_call(
@@ -353,7 +408,11 @@ async def generate_paper(
                 questions = generated.questions
             except CompletionTruncated as error:
                 questions = _valid_partial_questions(
-                    error.content, question_model, section_type, each
+                    error.content,
+                    question_model,
+                    section_type,
+                    each,
+                    payload.chapter,
                 )
                 missing_count = requested_count - len(questions)
                 if missing_count <= 0:
@@ -366,17 +425,19 @@ async def generate_paper(
                 if missing_count == requested_count:
                     left_count = requested_count // 2
                     right_count = requested_count - left_count
-                    left, right = await asyncio.gather(
-                        request_batch(left_count, continuation=True),
-                        request_batch(right_count, continuation=True),
-                    )
+                    left = await request_batch(left_count, continuation=True)
+                    right = await request_batch(right_count, continuation=True)
                     return left + right
                 return questions + await request_batch(
                     missing_count, continuation=True
                 )
             except JsonCallError as error:
                 questions = _valid_partial_questions(
-                    error.raw_response, question_model, section_type, each
+                    error.raw_response,
+                    question_model,
+                    section_type,
+                    each,
+                    payload.chapter,
                 )
             validate_questions(questions, requested_count)
             missing_count = requested_count - len(questions)
@@ -387,7 +448,10 @@ async def generate_paper(
                         f"{missing_count} question(s) after continuation attempts."
                     )
                 return questions + await request_batch(
-                    missing_count, continuation=True, retry_count=retry_count + 1
+                    missing_count,
+                    continuation=True,
+                    retry_count=retry_count + 1,
+                    existing_question_texts=[question.text for question in questions],
                 )
             return questions
 
@@ -396,25 +460,25 @@ async def generate_paper(
             min(batch_limit, count - start)
             for start in range(0, count, batch_limit)
         ]
-        batch_results = await asyncio.gather(
-            *(request_batch(batch_size) for batch_size in batch_sizes),
-            return_exceptions=True,
-        )
-        for batch_size, result in zip(batch_sizes, batch_results, strict=True):
-            if isinstance(result, Exception):
+        batch_results: list[list[GeneratedPracticeQuestionFields]] = []
+        for batch_size in batch_sizes:
+            try:
+                result = await request_batch(batch_size)
+            except Exception as error:
                 logger.warning(
                     "practice_generation section=%s duration_ms=%.2f status=failed "
                     "error_type=%s",
                     section_type,
                     (time.perf_counter() - section_started) * 1000,
-                    type(result).__name__,
+                    type(error).__name__,
                 )
-                raise result
+                raise
             if len(result) != batch_size:
                 raise ValueError(
                     f"Practice {section_type} section {section_id} generated an "
                     f"unexpected question count ({len(result)} of {batch_size})."
                 )
+            batch_results.append(result)
         questions = [
             question
             for result in batch_results
@@ -428,24 +492,29 @@ async def generate_paper(
         )
         return questions
 
-    section_results = await asyncio.gather(
-        *(generate_section(*spec) for spec in specs),
-        return_exceptions=True,
-    )
-    for spec, result in zip(specs, section_results, strict=True):
-        if isinstance(result, Exception):
+    section_results: list[list[GeneratedPracticeQuestionFields]] = []
+    for spec in specs:
+        try:
+            section_results.append(await generate_section(*spec))
+        except Exception as error:
             status_code = (
                 502
-                if not isinstance(result, OmniRouteError) or result.status_code is not None
+                if not isinstance(error, OmniRouteError) or error.status_code is not None
                 else 503
             )
             raise HTTPException(
                 status_code=status_code,
-                detail=f"Practice paper section {spec[0]} ({spec[1]}) failed: {result}",
-            ) from result
+                detail=f"Practice paper section {spec[0]} ({spec[1]}) failed: {error}",
+            ) from error
 
     sections = [
-        PaperSection(id=section_id, name=section_type, count=count, each=each, marks=count * each)
+        PaperSection(
+            id=section_id,
+            name=section_type,
+            count=count,
+            each=each,
+            marks=count * each,
+        )
         for section_id, section_type, count, each in specs
     ]
     questions = [

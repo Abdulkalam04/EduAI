@@ -1,5 +1,7 @@
 import asyncio
 import os
+import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -71,6 +73,7 @@ class ExerciseResult(BaseModel):
 class CodeResult(BaseModel):
     markdown: str
     output: str | None = None
+    preview: str | None = None
     tests: list[TestCase] | None = None
     hints: list[str] | None = None
     exercise: CodeExercise | None = None
@@ -225,6 +228,206 @@ def run_python(code: str, stdin: str = "") -> tuple[str, int]:
         return output, int(process.returncode or 0)
 
 
+def _docker_command(language: str, source_path: Path) -> tuple[str, list[str]]:
+    container_source = "/input/" + source_path.name
+    if language == "Java":
+        source = source_path.read_text(encoding="utf-8")
+        class_match = re.search(
+            r"\bpublic\s+(?:(?:abstract|final|sealed|non-sealed)\s+)*class\s+([A-Za-z_$][\w$]*)",
+            source,
+        )
+        class_name = class_match.group(1) if class_match else "Main"
+        quoted_class_name = f"'{class_name}'"
+        container_source = f"'/input/{class_name}.java'"
+        return (
+            "eclipse-temurin:21-jdk-alpine",
+            [
+                "sh",
+                "-c",
+                f"cp {container_source} /work/{quoted_class_name}.java && "
+                f"javac /work/{quoted_class_name}.java && "
+                f"java -cp /work {quoted_class_name}",
+            ],
+        )
+    if language == "C":
+        return (
+            "gcc:14-bookworm",
+            ["sh", "-c", f"cp {container_source} /work/main.c && gcc -O2 -std=c17 /work/main.c -o /work/main && /work/main"],
+        )
+    if language == "C++":
+        return (
+            "gcc:14-bookworm",
+            ["sh", "-c", f"cp {container_source} /work/main.cpp && g++ -O2 -std=c++20 /work/main.cpp -o /work/main && /work/main"],
+        )
+    if language == "JavaScript":
+        return "node:22-alpine", ["node", container_source]
+    if language == "SQL":
+        sql_runner = """import sqlite3, sys
+db = sqlite3.connect(":memory:")
+denied = {
+    sqlite3.SQLITE_ATTACH,
+    sqlite3.SQLITE_DETACH,
+    sqlite3.SQLITE_PRAGMA,
+    sqlite3.SQLITE_CREATE_VTABLE,
+}
+db.set_authorizer(
+    lambda action, *args: sqlite3.SQLITE_DENY
+    if action in denied
+    else sqlite3.SQLITE_OK
+)
+seed = sys.stdin.read()
+if seed.strip():
+    db.executescript(seed)
+sql = open(sys.argv[1], encoding="utf-8").read()
+def run_statement(statement):
+    cursor = db.execute(statement)
+    if cursor.description:
+        for row in cursor.fetchmany(500):
+            print("\\t".join("" if value is None else str(value) for value in row))
+buffer = ""
+for character in sql:
+    buffer += character
+    if character == ";" and sqlite3.complete_statement(buffer):
+        if buffer.strip():
+            run_statement(buffer)
+        buffer = ""
+if buffer.strip():
+    run_statement(buffer)
+"""
+        return (
+            "python:3.12-alpine",
+            [
+                "python",
+                "-c",
+                sql_runner,
+                container_source,
+            ],
+        )
+    raise ValueError(f"Execution is not configured for {language}.")
+
+
+def _run_docker_code(
+    language: str,
+    code: str,
+    stdin: str = "",
+) -> tuple[str, int]:
+    docker_path = shutil.which("docker")
+    if docker_path is None:
+        raise OSError("Docker is not installed or is not available on PATH.")
+
+    suffix = {
+        "Java": ".java",
+        "C": ".c",
+        "C++": ".cpp",
+        "JavaScript": ".js",
+        "SQL": ".sql",
+    }[language]
+    with tempfile.TemporaryDirectory(prefix="eduai-code-") as temp_dir:
+        folder = Path(temp_dir)
+        if language == "Java":
+            public_class = re.search(
+                r"\bpublic\s+(?:(?:abstract|final|sealed|non-sealed)\s+)*class\s+([A-Za-z_$][\w$]*)",
+                code,
+            )
+            source_name = f"{public_class.group(1) if public_class else 'Main'}.java"
+        else:
+            source_name = f"student{suffix}"
+        source_path = folder / source_name
+        source_path.write_text(code, encoding="utf-8")
+        image, command = _docker_command(language, source_path)
+        cid_path = folder / "container.cid"
+        docker_args = [
+            docker_path,
+            "run",
+            "--interactive",
+            "--cidfile",
+            str(cid_path),
+            "--network",
+            "none",
+            "--read-only",
+            "--cap-drop",
+            "ALL",
+            "--security-opt",
+            "no-new-privileges:true",
+            "--pids-limit",
+            "32",
+            "--memory",
+            "256m",
+            "--cpus",
+            "1",
+            "--user",
+            "65534:65534",
+            "--tmpfs",
+            "/tmp:rw,nosuid,nodev,size=64m,uid=65534,gid=65534",
+            "--tmpfs",
+            "/work:rw,nosuid,nodev,exec,size=64m,uid=65534,gid=65534",
+            "--mount",
+            f"type=bind,source={folder},target=/input,readonly",
+            "--workdir",
+            "/work",
+            image,
+            *command,
+        ]
+        process = subprocess.Popen(
+            docker_args,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        try:
+            stdout, stderr = process.communicate(stdin, timeout=15)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            stdout, stderr = process.communicate()
+            raise TimeoutError("Execution exceeded the 15-second time limit.") from None
+        finally:
+            if cid_path.exists():
+                container_id = cid_path.read_text(encoding="utf-8").strip()
+                if container_id:
+                    try:
+                        cleanup = subprocess.run(
+                            [docker_path, "rm", "--force", container_id],
+                            capture_output=True,
+                            text=True,
+                            timeout=5,
+                            check=False,
+                        )
+                    except (OSError, subprocess.TimeoutExpired) as error:
+                        raise OSError(
+                            "Docker could not confirm sandbox cleanup."
+                        ) from error
+                    if cleanup.returncode != 0:
+                        raise OSError(
+                            "Docker could not confirm sandbox cleanup: "
+                            f"{cleanup.stderr.strip()[:200]}"
+                        )
+        output = stdout
+        if stderr:
+            output += ("\n" if output else "") + stderr
+        if len(output) > 20_000:
+            output = output[:20_000] + "\n[output truncated]"
+        if process.returncode == 125:
+            raise OSError(output.strip() or "Docker could not start the language runner.")
+        return output, int(process.returncode or 0)
+
+
+def _html_preview(code: str) -> str:
+    csp = (
+        "<meta http-equiv=\"Content-Security-Policy\" "
+        "content=\"default-src 'none'; img-src data:; style-src 'unsafe-inline'; "
+        "font-src data:; form-action 'none'; base-uri 'none'; object-src 'none';\">"
+    )
+    if re.search(r"<[A-Za-z][^>]*>", code):
+        return f"<!doctype html><html><head>{csp}</head><body>{code}</body></html>"
+    return (
+        f"<!doctype html><html><head>{csp}<style>{code}</style></head>"
+        "<body><main class=\"eduai-preview\">HTML/CSS preview</main></body></html>"
+    )
+
+
 def _system_instruction(payload: CodeRequest) -> str:
     level_text = (
         "Use simple language and one small example."
@@ -247,20 +450,33 @@ def _system_instruction(payload: CodeRequest) -> str:
 @router.post("/code", response_model=CodeResult, response_model_exclude_none=True)
 async def code_action(payload: CodeRequest):
     if payload.action == "Run":
-        if payload.language != "Python":
+        if payload.language == "HTML/CSS":
             return CodeResult(
-                markdown="Only Python can run here. Other languages are not executed by this service.",
-                output="Execution is available for Python only.",
+                markdown="HTML/CSS preview is isolated from the app.",
+                preview=_html_preview(payload.code),
             )
         try:
-            output, return_code = await asyncio.to_thread(run_python, payload.code, payload.input or "")
+            if payload.language == "Python":
+                output, return_code = await asyncio.to_thread(
+                    run_python, payload.code, payload.input or ""
+                )
+            else:
+                output, return_code = await asyncio.to_thread(
+                    _run_docker_code,
+                    payload.language,
+                    payload.code,
+                    payload.input or "",
+                )
         except TimeoutError as error:
             output, return_code = str(error), 124
         except OSError as error:
-            raise HTTPException(status_code=503, detail="The Python sandbox could not start.") from error
+            raise HTTPException(
+                status_code=503,
+                detail=f"The isolated {payload.language} runner could not start: {error}",
+            ) from error
         status = "Process finished" if return_code == 0 else f"Process exited with code {return_code}"
         return CodeResult(
-            markdown="**Basic sandbox, not a security boundary.** Python execution is limited by timeout and memory; do not submit sensitive code.",
+            markdown="Code runs in a restricted local sandbox. Do not submit sensitive code.",
             output=f"{output.rstrip()}\n{status}".strip(),
         )
 

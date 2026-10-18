@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import AuthUser, get_current_user
 from app.database import get_db
-from app.models import StudyDocument
+from app.models import StudyDocument, StudyDocumentResult
 from app.security import read_validated_upload
 from app.services.documents import (
     extract_document,
@@ -124,6 +124,27 @@ def list_documents(
     return [_book_doc(item) for item in documents]
 
 
+@router.get("/docs/{document_id}")
+def get_document(
+    document_id: str,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+) -> dict[str, object]:
+    document = db.get(StudyDocument, document_id)
+    if document is None or document.user_id != current_user.uid:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    saved_results = db.scalars(
+        select(StudyDocumentResult).where(
+            StudyDocumentResult.document_id == document_id,
+            StudyDocumentResult.user_id == current_user.uid,
+        )
+    ).all()
+    return {
+        **_book_doc(document),
+        "results": {item.task: json.loads(item.result_json) for item in saved_results},
+    }
+
+
 @router.delete("/docs/{document_id}", status_code=204)
 def delete_document(
     document_id: str,
@@ -133,6 +154,9 @@ def delete_document(
     document = db.get(StudyDocument, document_id)
     if document is None or document.user_id != current_user.uid:
         raise HTTPException(status_code=404, detail="Document not found.")
+    db.query(StudyDocumentResult).filter_by(
+        document_id=document_id, user_id=current_user.uid
+    ).delete()
     db.delete(document)
     db.commit()
 
@@ -155,7 +179,8 @@ async def ask_document(
             document.token_estimate,
         )
     except OmniRouteError as error:
-        raise HTTPException(status_code=503, detail=str(error)) from error
+        status_code = 413 if error.status_code == 413 else 503
+        raise HTTPException(status_code=status_code, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
     sources = [
@@ -176,10 +201,24 @@ async def generate_from_document(
     if document is None or document.user_id != current_user.uid:
         raise HTTPException(status_code=404, detail="Document not found.")
     try:
-        return await generate_document_result(
+        result = await generate_document_result(
             _stored_pages(document), payload.task, document.token_estimate
         )
+        saved_result = db.get(StudyDocumentResult, (document_id, payload.task))
+        if saved_result is None:
+            saved_result = StudyDocumentResult(
+                document_id=document_id,
+                task=payload.task,
+                user_id=current_user.uid,
+                result_json=json.dumps(result, ensure_ascii=False),
+            )
+            db.add(saved_result)
+        else:
+            saved_result.result_json = json.dumps(result, ensure_ascii=False)
+        db.commit()
+        return result
     except OmniRouteError as error:
-        raise HTTPException(status_code=503, detail=str(error)) from error
+        status_code = 413 if error.status_code == 413 else 503
+        raise HTTPException(status_code=status_code, detail=str(error)) from error
     except ValueError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error

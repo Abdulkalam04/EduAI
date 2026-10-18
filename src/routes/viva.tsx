@@ -508,6 +508,21 @@ function VivaMode() {
                   Start viva
                 </GradientButton>
               </StickyActionBar>
+              <div className="mt-5 hidden md:block">
+                <GradientButton
+                  className="w-full"
+                  size="lg"
+                  disabled={busy}
+                  onClick={() => void begin()}
+                >
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Mic className="h-4 w-4" />
+                  )}
+                  Start viva
+                </GradientButton>
+              </div>
             </SoftCard>
           </motion.div>
         )}

@@ -463,16 +463,10 @@ html[data-reduce-motion="true"] *::after {
   margin: 0.75rem 0;
   font-style: normal;
 }
-/* Exam sheet stays paper-toned in both themes */
+/* Keep practice surfaces consistent with the active theme. */
 .exam-paper {
-  background: oklch(0.985 0.012 85);
-  color: oklch(0.25 0.02 60);
-  --border: oklch(0.88 0.02 80);
-  --muted-foreground: oklch(0.48 0.02 60);
-  --muted: oklch(0.95 0.015 85);
-  --card: oklch(0.995 0.008 85);
-  --foreground: oklch(0.25 0.02 60);
-  --background: oklch(0.99 0.01 85);
+  background: var(--card);
+  color: var(--card-foreground);
 }
 @keyframes timer-pulse {
   50% {

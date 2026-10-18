@@ -24,7 +24,7 @@ import { getChatModels } from "@/lib/api";
 import type { ChatModel, ModelHealth } from "@/lib/types";
 import { useUiStore } from "@/store/useUiStore";
 import { cn } from "@/lib/utils";
-import { formatTtft } from "./model-picker-utils";
+import { formatTtft, modelProviderBadge } from "./model-picker-utils";
 
 function useIsMobile() {
   const [mobile, setMobile] = useState(false);
@@ -115,6 +115,11 @@ function ModelRow({
         </span>
       </span>
       <span className="flex max-w-[112px] shrink-0 flex-wrap justify-end gap-1">
+        {modelProviderBadge(model.provider) && (
+          <span className="rounded bg-slate-500/10 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 dark:text-slate-300">
+            {modelProviderBadge(model.provider)}
+          </span>
+        )}
         {model.capabilities.thinking && (
           <span className="rounded bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-medium text-purple-700 dark:text-purple-400">
             Thinking
@@ -290,7 +295,7 @@ export function ModelPicker({ resolvedLabel }: { resolvedLabel?: string }) {
               <span className="min-w-0 flex-1 text-left">
                 <span className="block font-medium">{AUTO_LABEL}</span>
                 <span className="mt-0.5 block whitespace-nowrap text-xs text-muted-foreground">
-                  Picks the fastest healthy option
+                  Picks the first healthy model in the configured task chain
                 </span>
               </span>
               <span className="flex shrink-0 gap-1">

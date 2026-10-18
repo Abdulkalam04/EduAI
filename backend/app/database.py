@@ -26,6 +26,7 @@ def run_sqlite_migrations(target_engine=engine) -> None:
         "practice_papers",
         "practice_attempts",
         "practice_evaluations",
+        "solved_papers",
     ]
     with target_engine.begin() as conn:
         for table in tables:

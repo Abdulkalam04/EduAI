@@ -43,10 +43,9 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { askDoc, generateFromDoc, type DocTask } from "@/lib/api";
-import type { Flashcard, ImportantQ, Mcq, Source } from "@/lib/types";
+import { askDoc, generateFromDoc, getDoc, type DocTask } from "@/lib/api";
+import type { BookWorkspace, Flashcard, ImportantQ, Mcq, Source } from "@/lib/types";
 import { downloadPdf, downloadText } from "@/lib/pdf";
-import { useBookStore } from "@/store/useBookStore";
 import { useUserStore } from "@/store/useUserStore";
 
 export const Route = createFileRoute("/book/$id")({
@@ -89,6 +88,18 @@ interface Results {
   questions?: ImportantQ[];
 }
 
+function restoreResults(workspace: BookWorkspace): Results {
+  const results: Results = {};
+  for (const result of Object.values(workspace.results)) {
+    if (!result) continue;
+    if (result.kind === "mcqs") results.mcqs = result.mcqs;
+    else if (result.kind === "flashcards") results.flashcards = result.cards;
+    else if (result.kind === "questions") results.questions = result.questions;
+    else results[result.kind] = result.md;
+  }
+  return results;
+}
+
 const TABS: { id: Tab; label: string; icon: typeof MessageSquare }[] = [
   { id: "chat", label: "Chat", icon: MessageSquare },
   { id: "notes", label: "Notes", icon: NotebookPen },
@@ -108,14 +119,17 @@ const ACTIONS: { task: DocTask | "ppt"; label: string; icon: typeof BookOpen; ta
 
 function Workspace() {
   const { id } = Route.useParams();
-  const doc = useBookStore((s) => s.docs.find((d) => d.id === id));
   const level = useUserStore((s) => s.level);
   const navigate = useNavigate();
+  const [workspace, setWorkspace] = useState<BookWorkspace | null>(null);
+  const [loadingDoc, setLoadingDoc] = useState(true);
+  const [docError, setDocError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [tab, setTab] = useState<Tab>("chat");
   const [panel, setPanel] = useState(true);
   const [results, setResults] = useState<Results>({});
   const [loading, setLoading] = useState<Partial<Record<DocTask, boolean>>>({});
-  const [failed, setFailed] = useState<Partial<Record<DocTask, boolean>>>({});
+  const [failed, setFailed] = useState<Partial<Record<DocTask, string>>>({});
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [source, setSource] = useState<Source | null>(null);
@@ -125,33 +139,78 @@ function Workspace() {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let active = true;
+    setLoadingDoc(true);
+    setDocError("");
+    void getDoc(id)
+      .then((loaded) => {
+        if (active) {
+          setWorkspace(loaded);
+          setResults(restoreResults(loaded));
+        }
+      })
+      .catch((cause: unknown) => {
+        if (active) {
+          setWorkspace(null);
+          setDocError(cause instanceof Error ? cause.message : "The document could not be loaded.");
+        }
+      })
+      .finally(() => {
+        if (active) setLoadingDoc(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [id, loadAttempt]);
+
+  useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [msgs]);
   useEffect(() => {
     if (window.innerWidth < 1024) setPanel(false);
   }, []);
 
-  if (!doc)
+  if (loadingDoc)
+    return (
+      <div className="mx-auto max-w-7xl space-y-4 px-4 py-5 md:px-8" aria-label="Loading document">
+        <div className="h-12 animate-pulse rounded-xl bg-muted" />
+        <div className="h-96 animate-pulse rounded-2xl bg-muted" />
+      </div>
+    );
+
+  if (!workspace)
     return (
       <div className="mx-auto max-w-xl px-4 py-16">
         <EmptyState
           icon={BookOpen}
           accent="book"
-          title="Document not found"
-          description="It may have been deleted."
+          title="Couldn't open this document"
+          description={
+            docError || "The document may have been deleted. Try again or return to your library."
+          }
           action={
-            <Link to="/book">
-              <GradientButton>Back to library</GradientButton>
-            </Link>
+            <div className="flex flex-wrap justify-center gap-2">
+              <GradientButton
+                variant="secondary"
+                onClick={() => setLoadAttempt((value) => value + 1)}
+              >
+                <RefreshCw className="h-4 w-4" />
+                Retry
+              </GradientButton>
+              <Link to="/book">
+                <GradientButton>Back to library</GradientButton>
+              </Link>
+            </div>
           }
         />
       </div>
     );
 
+  const doc = workspace;
   const run = async (task: DocTask, force = false) => {
     if (!force && results[task]) return;
     setLoading((l) => ({ ...l, [task]: true }));
-    setFailed((f) => ({ ...f, [task]: false }));
+    setFailed((f) => ({ ...f, [task]: "" }));
     try {
       const r = await generateFromDoc(doc.id, task);
       setResults((s) => {
@@ -161,9 +220,10 @@ function Workspace() {
         return { ...s, [r.kind]: r.md };
       });
       toast.success("Generated from your document");
-    } catch {
-      setFailed((f) => ({ ...f, [task]: true }));
-      toast.error("Generation failed");
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Generation failed";
+      setFailed((f) => ({ ...f, [task]: message }));
+      toast.error(message);
     }
     setLoading((l) => ({ ...l, [task]: false }));
   };
@@ -483,7 +543,7 @@ function Workspace() {
                       </div>
                     </SoftCard>
                   ) : failed.notes ? (
-                    <RetryCard onRetry={() => void run("notes", true)} />
+                    <RetryCard message={failed.notes} onRetry={() => void run("notes", true)} />
                   ) : (
                     !anyNotesLoading &&
                     !results.summary &&
@@ -512,7 +572,7 @@ function Workspace() {
                     <McqQuiz questions={results.mcqs} />
                   </SoftCard>
                 ) : failed.mcqs ? (
-                  <RetryCard onRetry={() => void run("mcqs", true)} />
+                  <RetryCard message={failed.mcqs} onRetry={() => void run("mcqs", true)} />
                 ) : (
                   <EmptyState
                     icon={ListChecks}
@@ -533,7 +593,10 @@ function Workspace() {
                 ) : results.flashcards ? (
                   <FlashcardDeck cards={results.flashcards} />
                 ) : failed.flashcards ? (
-                  <RetryCard onRetry={() => void run("flashcards", true)} />
+                  <RetryCard
+                    message={failed.flashcards}
+                    onRetry={() => void run("flashcards", true)}
+                  />
                 ) : (
                   <EmptyState
                     icon={Layers}
@@ -572,7 +635,10 @@ function Workspace() {
                     ))}
                   </SoftCard>
                 ) : failed.questions ? (
-                  <RetryCard onRetry={() => void run("questions", true)} />
+                  <RetryCard
+                    message={failed.questions}
+                    onRetry={() => void run("questions", true)}
+                  />
                 ) : (
                   <EmptyState
                     icon={Star}
@@ -649,10 +715,11 @@ function Workspace() {
   );
 }
 
-function RetryCard({ onRetry }: { onRetry: () => void }) {
+function RetryCard({ onRetry, message }: { onRetry: () => void; message?: string }) {
   return (
     <SoftCard className="p-6 text-center">
       <p className="font-medium">Something went wrong generating this.</p>
+      {message && <p className="mt-2 text-sm text-muted-foreground">{message}</p>}
       <GradientButton className="mt-3" variant="secondary" onClick={onRetry}>
         <RefreshCw className="h-4 w-4" />
         Retry

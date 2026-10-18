@@ -38,7 +38,12 @@ export function Attempt({ paper, attempt }: { paper: Paper; attempt: AttemptT })
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(() =>
+    Math.min(
+      Math.max(0, attempt.currentQuestionIndex ?? 0),
+      Math.max(0, paper.questions.length - 1),
+    ),
+  );
   const [mode, setMode] = useState<"type" | "upload">("type");
   const [files, setFiles] = useState<File[]>([]);
   const dirty = useRef(false);
@@ -79,13 +84,26 @@ export function Attempt({ paper, attempt }: { paper: Paper; attempt: AttemptT })
   }, [remaining, submitting, submitError, doSubmit]);
 
   // Autosave every 3s (reads latest values through a ref so the interval isn't reset each tick)
-  const latest = useRef({ answers, flagged, photos, remaining });
-  latest.current = { answers, flagged, photos, remaining };
+  const latest = useRef({
+    answers,
+    flagged,
+    photos,
+    remaining,
+    currentQuestionIndex,
+  });
+  latest.current = {
+    answers,
+    flagged,
+    photos,
+    remaining,
+    currentQuestionIndex,
+  };
   useEffect(() => {
     const t = setInterval(() => {
       const l = latest.current;
       patch(paper.id, {
         remainingSec: l.remaining,
+        currentQuestionIndex: l.currentQuestionIndex,
         ...(dirty.current ? { answers: l.answers, flagged: l.flagged, photos: l.photos } : {}),
       });
       if (dirty.current) {
@@ -93,7 +111,23 @@ export function Attempt({ paper, attempt }: { paper: Paper; attempt: AttemptT })
         setSaved("saved");
       }
     }, 3000);
-    return () => clearInterval(t);
+    const saveOnClose = () => {
+      const l = latest.current;
+      patch(paper.id, {
+        answers: l.answers,
+        flagged: l.flagged,
+        photos: l.photos,
+        remainingSec: l.remaining,
+        currentQuestionIndex: l.currentQuestionIndex,
+      });
+    };
+    window.addEventListener("pagehide", saveOnClose);
+    document.addEventListener("visibilitychange", saveOnClose);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("pagehide", saveOnClose);
+      document.removeEventListener("visibilitychange", saveOnClose);
+    };
   }, [paper.id, patch]);
 
   const setAns = (id: string, v: string) => {
@@ -127,7 +161,16 @@ export function Attempt({ paper, attempt }: { paper: Paper; attempt: AttemptT })
   const jump = (id: string) => {
     setNavOpen(false);
     const index = paper.questions.findIndex((question) => question.id === id);
-    if (index >= 0) setCurrentQuestionIndex(index);
+    if (index >= 0) {
+      setCurrentQuestionIndex(index);
+      patch(paper.id, { currentQuestionIndex: index });
+    }
+  };
+
+  const moveToQuestion = (index: number) => {
+    const nextIndex = Math.min(Math.max(0, index), paper.questions.length - 1);
+    setCurrentQuestionIndex(nextIndex);
+    patch(paper.id, { currentQuestionIndex: nextIndex });
   };
 
   const navigator = (
@@ -159,7 +202,7 @@ export function Attempt({ paper, attempt }: { paper: Paper; attempt: AttemptT })
     <>
       <GradientButton
         variant="secondary"
-        onClick={() => setCurrentQuestionIndex((index) => Math.max(0, index - 1))}
+        onClick={() => moveToQuestion(currentQuestionIndex - 1)}
         disabled={currentQuestionIndex === 0}
       >
         Previous
@@ -168,11 +211,7 @@ export function Attempt({ paper, attempt }: { paper: Paper; attempt: AttemptT })
         {answeredCount} of {paper.questions.length} answered
       </span>
       {currentQuestionIndex + 1 < paper.questions.length ? (
-        <GradientButton
-          onClick={() =>
-            setCurrentQuestionIndex((index) => Math.min(paper.questions.length - 1, index + 1))
-          }
-        >
+        <GradientButton onClick={() => moveToQuestion(currentQuestionIndex + 1)}>
           Next
         </GradientButton>
       ) : (

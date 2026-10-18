@@ -55,6 +55,17 @@ class StudyDocument(Base):
     sections_json: Mapped[str] = mapped_column(Text)
 
 
+class StudyDocumentResult(Base):
+    __tablename__ = "study_document_results"
+
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("study_documents.id", ondelete="CASCADE"), primary_key=True
+    )
+    task: Mapped[str] = mapped_column(String(32), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(128), index=True)
+    result_json: Mapped[str] = mapped_column(Text)
+
+
 class VivaSession(Base):
     __tablename__ = "viva_sessions"
 
@@ -115,6 +126,24 @@ class PracticeEvaluation(Base):
         String(128), index=True, default="local", server_default="local"
     )
     evaluation_json: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
+class SolvedPaperRecord(Base):
+    __tablename__ = "solved_papers"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        String(128), index=True, default="local", server_default="local"
+    )
+    title: Mapped[str] = mapped_column(String(512))
+    subject: Mapped[str] = mapped_column(String(120), default="Default")
+    mode: Mapped[str] = mapped_column(String(16))
+    style: Mapped[str] = mapped_column(String(16))
+    question_count: Mapped[int] = mapped_column(Integer)
+    questions_json: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
     )

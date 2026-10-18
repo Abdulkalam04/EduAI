@@ -46,8 +46,14 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { solvePaper, resolveQuestion, solutionFollowUp } from "@/lib/api";
-import type { PaperQuestion, SolveMode, SolveStyle } from "@/lib/types";
+import {
+  getSolvedPaperHistory,
+  getSolvedPaperHistoryRecord,
+  solvePaper,
+  resolveQuestion,
+  solutionFollowUp,
+} from "@/lib/api";
+import type { PaperQuestion, SolvedPaperHistoryItem, SolveMode, SolveStyle } from "@/lib/types";
 import { downloadPdf } from "@/lib/pdf";
 import { SUBJECTS, useEffectiveProfile, toApiSubject, type Subject } from "@/store/useUserStore";
 import { useUiStore } from "@/store/useUiStore";
@@ -75,6 +81,7 @@ export const Route = createFileRoute("/solver")({
 type Phase = "idle" | "uploading" | "processing" | "results" | "error";
 const fmtSize = (b: number) =>
   b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1e3))} KB`;
+const MAX_PAPER_SIZE_BYTES = 20 * 1024 * 1024;
 
 function solutionMd(q: PaperQuestion) {
   const s = q.solution;
@@ -104,6 +111,9 @@ function SolverPage() {
 
   useEffect(() => setMode(defaultSolverMode), [defaultSolverMode]);
   const [questions, setQuestions] = useState<PaperQuestion[]>([]);
+  const [paperHistory, setPaperHistory] = useState<SolvedPaperHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState("");
   const [active, setActive] = useState(0);
   const [setupStep, setSetupStep] = useState<0 | 1>(0);
   const [drag, setDrag] = useState(false);
@@ -111,10 +121,38 @@ function SolverPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const camRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    let active = true;
+    getSolvedPaperHistory()
+      .then((items) => {
+        if (active) {
+          setPaperHistory(items);
+          setHistoryError("");
+        }
+      })
+      .catch((cause: unknown) => {
+        if (active) {
+          setHistoryError(
+            cause instanceof Error ? cause.message : "Couldn't load your solved-paper history.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setHistoryLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const choose = (f: File | undefined) => {
     if (!f) return;
     if (!/pdf|jpe?g|png/i.test(f.type || f.name)) {
       toast.error("Please choose a PDF, JPG or PNG file.");
+      return;
+    }
+    if (f.size > MAX_PAPER_SIZE_BYTES) {
+      toast.error("The question paper must be 20 MB or smaller.");
       return;
     }
     setFile(f);
@@ -141,6 +179,11 @@ function SolverPage() {
       setActive(0);
       setMobileTab("q");
       setPhase("results");
+      getSolvedPaperHistory()
+        .then(setPaperHistory)
+        .catch(() =>
+          setHistoryError("The solutions are ready, but history could not be refreshed."),
+        );
       toast.success(`Solved ${qs.length} questions`);
     } catch (cause) {
       setErrorMessage(
@@ -150,12 +193,29 @@ function SolverPage() {
     }
   };
 
+  const openHistoryPaper = async (paper: SolvedPaperHistoryItem) => {
+    try {
+      const savedPaper = await getSolvedPaperHistoryRecord(paper.id);
+      setQuestions(savedPaper.questions);
+      setSubjectChoice(savedPaper.subject);
+      setMode(savedPaper.mode);
+      setStyle(savedPaper.style);
+      setActive(0);
+      setMobileTab("q");
+      setFile(null);
+      setPhase("results");
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Couldn't open the saved solutions.");
+    }
+  };
+
   const reset = () => {
     setPhase("idle");
     setSetupStep(0);
     setFile(null);
     setQuestions([]);
     setProgress(0);
+    setErrorMessage("");
   };
 
   const exportPdf = async () => {
@@ -318,19 +378,12 @@ function SolverPage() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{file.name}</p>
                       <p className="text-xs text-muted-foreground">{fmtSize(file.size)}</p>
-                      {file && progress < 100 && (
-                        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                          <div
-                            className="h-full bg-primary transition-all"
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
-                      )}
                     </div>
                     <button
                       aria-label="Remove file"
                       onClick={() => {
                         setFile(null);
+                        setProgress(0);
                       }}
                       className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"
                     >
@@ -359,13 +412,19 @@ function SolverPage() {
             {setupStep === 0 ? (
               <>
                 {file && (
-                  <GradientButton
-                    size="lg"
-                    className="hidden w-full md:inline-flex"
-                    onClick={() => setSetupStep(1)}
-                  >
-                    Continue to options
-                  </GradientButton>
+                  <>
+                    <p className="text-center text-sm text-muted-foreground" role="status">
+                      File selected and ready. It has not been uploaded yet; it will be sent when
+                      you press <span className="font-medium text-foreground">Solve paper</span>.
+                    </p>
+                    <GradientButton
+                      size="lg"
+                      className="hidden w-full md:inline-flex"
+                      onClick={() => setSetupStep(1)}
+                    >
+                      Continue to options
+                    </GradientButton>
+                  </>
                 )}
                 <StickyActionBar>
                   <GradientButton
@@ -379,6 +438,17 @@ function SolverPage() {
               </>
             ) : (
               <>
+                {file && (
+                  <SoftCard className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{file.name}</p>
+                      <p className="text-xs text-muted-foreground">{fmtSize(file.size)}</p>
+                    </div>
+                    <p className="text-sm font-medium text-success" role="status">
+                      Ready to upload
+                    </p>
+                  </SoftCard>
+                )}
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Subject</label>
@@ -468,6 +538,61 @@ function SolverPage() {
                 </StickyActionBar>
               </>
             )}
+            {setupStep === 0 && (
+              <section aria-labelledby="solved-paper-history-title" className="space-y-3 pt-4">
+                <div>
+                  <h2 id="solved-paper-history-title" className="text-lg font-semibold">
+                    Solved paper history
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Reopen papers you solved earlier and view their saved solutions.
+                  </p>
+                </div>
+                {historyLoading ? (
+                  <p className="text-sm text-muted-foreground" role="status">
+                    Loading your solved papers…
+                  </p>
+                ) : historyError ? (
+                  <p className="text-sm text-destructive" role="alert">
+                    {historyError}
+                  </p>
+                ) : paperHistory.length ? (
+                  <ul className="grid gap-3 sm:grid-cols-2">
+                    {paperHistory.map((paper) => (
+                      <li key={paper.id}>
+                        <button
+                          type="button"
+                          onClick={() => void openHistoryPaper(paper)}
+                          className="w-full rounded-xl border bg-card p-4 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <span className="flex items-center gap-3">
+                            <FileText
+                              className="h-5 w-5 shrink-0"
+                              style={{ color: "var(--solver)" }}
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate font-medium">{paper.title}</span>
+                              <span className="mt-1 block text-xs text-muted-foreground">
+                                {paper.subject} · {paper.question_count}{" "}
+                                {paper.question_count === 1 ? "question" : "questions"} ·{" "}
+                                {new Date(paper.created_at).toLocaleString()}
+                              </span>
+                            </span>
+                            <span className="shrink-0 text-sm font-medium text-primary">
+                              View solutions
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                    No solved papers yet. Once you solve a paper, it will be saved here.
+                  </p>
+                )}
+              </section>
+            )}
           </motion.div>
         )}
 
@@ -483,7 +608,33 @@ function SolverPage() {
           >
             <SoftCard className="flex items-center gap-3 p-6" role="status">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              <p className="text-sm font-medium">Analyzing your question paper…</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">
+                  {progress >= 100
+                    ? "Paper sent. Waiting for analysis to finish…"
+                    : "Sending your paper to EduAI…"}
+                </p>
+                {progress < 100 && (
+                  <>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Upload progress: {progress}%
+                    </p>
+                    <div
+                      className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
+                      role="progressbar"
+                      aria-label="Question paper upload progress"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={progress}
+                    >
+                      <div
+                        className="h-full bg-primary transition-all"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
             </SoftCard>
             <div className="grid gap-3 md:grid-cols-2">
               {Array.from({ length: 2 }).map((_, i) => (

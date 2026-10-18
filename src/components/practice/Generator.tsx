@@ -62,6 +62,7 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
   const [weak, setWeak] = useState<string[]>(prefillWeak ?? []);
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
+  const [loadingElapsed, setLoadingElapsed] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
 
@@ -71,11 +72,17 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
   useEffect(() => {
     if (!loading) return;
     setLoadingStep(0);
+    setLoadingElapsed(0);
     const writingTimer = window.setTimeout(() => setLoadingStep(1), 1200);
-    const checkingTimer = window.setTimeout(() => setLoadingStep(2), 15_000);
+    const waitingTimer = window.setTimeout(() => setLoadingStep(2), 15_000);
+    const elapsedTimer = window.setInterval(
+      () => setLoadingElapsed((elapsed) => elapsed + 1),
+      1000,
+    );
     return () => {
       window.clearTimeout(writingTimer);
-      window.clearTimeout(checkingTimer);
+      window.clearTimeout(waitingTimer);
+      window.clearInterval(elapsedTimer);
     };
   }, [loading]);
   const structure = paperStructure(marks);
@@ -112,7 +119,7 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
     }
   };
 
-  if (loading) return <ExamSkeleton currentStep={loadingStep} />;
+  if (loading) return <ExamSkeleton currentStep={loadingStep} elapsedSeconds={loadingElapsed} />;
 
   return (
     <div className="space-y-6">
@@ -137,6 +144,84 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
           <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground" />
         </SoftCard>
       </Link>
+
+      <SoftCard className="space-y-3 p-5">
+        <div>
+          <h2 className="font-semibold">Your previous papers</h2>
+          <p className="text-sm text-muted-foreground">
+            Open a completed paper to review its questions, your answers, and solutions.
+          </p>
+        </div>
+        {papers.length === 0 ? (
+          <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
+            Your generated papers will appear here.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {papers.map((p) => {
+              const a = attempts[p.id];
+              const done = a?.status === "submitted" && a.result;
+              const pct = done ? Math.round((a.result!.score / a.result!.total) * 100) : 0;
+              return (
+                <li key={p.id}>
+                  <SoftCard className="flex flex-wrap items-center gap-3 p-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">
+                        {p.subject} · {p.chapter}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {p.totalMarks} marks · {p.difficulty} ·{" "}
+                        {new Date(p.createdAt).toLocaleDateString(undefined, {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </p>
+                    </div>
+                    {done ? (
+                      <span
+                        className={cn(
+                          "rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                          pct >= 80
+                            ? "bg-success/15 text-success"
+                            : pct >= 50
+                              ? "bg-warning/20 text-warning"
+                              : "bg-destructive/10 text-destructive",
+                        )}
+                      >
+                        {a.result!.score}/{a.result!.total}
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                        In progress
+                      </span>
+                    )}
+                    <GradientButton
+                      size="sm"
+                      variant="secondary"
+                      onClick={() =>
+                        done
+                          ? setView({ stage: "results", paperId: p.id })
+                          : a
+                            ? setView({ stage: "attempt", paperId: p.id })
+                            : startAttempt(p)
+                      }
+                    >
+                      {done ? "View solved paper" : "Resume paper"}
+                    </GradientButton>
+                    <button
+                      aria-label="Delete paper"
+                      onClick={() => setConfirmDel(p.id)}
+                      className="rounded-lg p-2 text-muted-foreground hover:bg-muted"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </SoftCard>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </SoftCard>
 
       <div className="grid gap-5 lg:grid-cols-[1.1fr_1fr]">
         <SoftCard className="space-y-4 p-5">
@@ -348,79 +433,6 @@ export function Generator({ prefillWeak }: { prefillWeak?: string[] }) {
         </SoftCard>
       </div>
 
-      <div className="space-y-3">
-        <h2 className="font-semibold">Previous papers</h2>
-        {papers.length === 0 ? (
-          <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-            No papers yet — generate your first one above.
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {papers.map((p) => {
-              const a = attempts[p.id];
-              const done = a?.status === "submitted" && a.result;
-              const pct = done ? Math.round((a.result!.score / a.result!.total) * 100) : 0;
-              return (
-                <li key={p.id}>
-                  <SoftCard className="flex flex-wrap items-center gap-3 p-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">
-                        {p.subject} · {p.chapter}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {p.totalMarks} marks · {p.difficulty} ·{" "}
-                        {new Date(p.createdAt).toLocaleDateString(undefined, {
-                          day: "numeric",
-                          month: "short",
-                        })}
-                      </p>
-                    </div>
-                    {done ? (
-                      <span
-                        className={cn(
-                          "rounded-full px-2.5 py-0.5 text-xs font-semibold",
-                          pct >= 80
-                            ? "bg-success/15 text-success"
-                            : pct >= 50
-                              ? "bg-warning/20 text-warning"
-                              : "bg-destructive/10 text-destructive",
-                        )}
-                      >
-                        {a.result!.score}/{a.result!.total}
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                        In progress
-                      </span>
-                    )}
-                    <GradientButton
-                      size="sm"
-                      variant="secondary"
-                      onClick={() =>
-                        done
-                          ? setView({ stage: "results", paperId: p.id })
-                          : a
-                            ? setView({ stage: "attempt", paperId: p.id })
-                            : startAttempt(p)
-                      }
-                    >
-                      {done ? "View result" : "Resume"}
-                    </GradientButton>
-                    <button
-                      aria-label="Delete paper"
-                      onClick={() => setConfirmDel(p.id)}
-                      className="rounded-lg p-2 text-muted-foreground hover:bg-muted"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </SoftCard>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
       <AlertDialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -455,8 +467,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function ExamSkeleton({ currentStep }: { currentStep: number }) {
-  const steps = ["Planning", "Writing questions", "Checking marks", "Done"];
+function ExamSkeleton({
+  currentStep,
+  elapsedSeconds,
+}: {
+  currentStep: number;
+  elapsedSeconds: number;
+}) {
+  const steps = ["Preparing", "Generating questions", "Waiting for AI", "Done"];
   return (
     <div
       className="exam-paper mx-auto max-w-3xl space-y-6 rounded-2xl border p-8 shadow-lift"
@@ -489,8 +507,9 @@ function ExamSkeleton({ currentStep }: { currentStep: number }) {
         ))}
       </ol>
       <p className="text-center text-sm text-muted-foreground">
-        This can take up to a minute. You can keep this page open while we create and check your
-        questions.
+        {elapsedSeconds < 60
+          ? "This usually takes under a minute. Keep this page open while the questions are generated."
+          : "This is taking longer than usual while we wait for an AI response. Keep this page open; your selections will remain if generation fails."}
       </p>
     </div>
   );

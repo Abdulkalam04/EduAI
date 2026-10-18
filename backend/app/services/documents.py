@@ -457,7 +457,7 @@ async def _generate_summary_group(pages: Sequence[DocumentPage], task: str) -> s
             {"role": "system", "content": instruction},
             {"role": "user", "content": format_page_text(pages)},
         ],
-        task="notes" if task == "notes" else "multimodal",
+        task="teacher" if task == "notes" else "multimodal",
         temperature=0.2,
     )
 
@@ -487,7 +487,7 @@ async def generate_document_result(
                 },
                 {"role": "user", "content": "\n\n".join(partials)},
             ],
-            task="notes" if task == "notes" else "multimodal",
+            task="teacher" if task == "notes" else "multimodal",
             temperature=0.2,
         )
         return {"kind": task, "md": combined}
@@ -521,7 +521,7 @@ async def generate_document_result(
                 {"role": "system", "content": instruction},
                 {"role": "user", "content": context},
             ],
-            task="notes" if task == "notes" else "multimodal",
+            task="teacher" if task == "notes" else "multimodal",
             temperature=0.2,
         )
         return {"kind": task, "md": markdown}

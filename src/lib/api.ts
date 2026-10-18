@@ -2,6 +2,7 @@
 import type {
   AnswerStyle,
   BookDoc,
+  BookWorkspace,
   ChatModelsResponse,
   CodeActionKind,
   CodeActionResult,
@@ -25,6 +26,8 @@ import type {
   SolveMode,
   SolveStyle,
   Source,
+  SolvedPaperHistoryItem,
+  SolvedPaperHistoryRecord,
   TutorStreamMeta,
   VivaAnswerFeedback,
   VivaQuestion,
@@ -450,6 +453,10 @@ export async function listDocs(): Promise<BookDoc[]> {
   return request<BookDoc[]>("/api/docs");
 }
 
+export async function getDoc(docId: string): Promise<BookWorkspace> {
+  return request<BookWorkspace>(`/api/docs/${encodeURIComponent(docId)}`);
+}
+
 export async function solvePaper(opts: {
   file: File;
   level: LevelId;
@@ -465,6 +472,16 @@ export async function solvePaper(opts: {
   if (opts.mode) form.append("mode", opts.mode);
   form.append("style", opts.style);
   return uploadWithProgress<PaperQuestion[]>("/api/solve", form, opts.onProgress);
+}
+
+export async function getSolvedPaperHistory(): Promise<SolvedPaperHistoryItem[]> {
+  return request<SolvedPaperHistoryItem[]>("/api/solve/history");
+}
+
+export async function getSolvedPaperHistoryRecord(
+  paperId: string,
+): Promise<SolvedPaperHistoryRecord> {
+  return request<SolvedPaperHistoryRecord>(`/api/solve/history/${encodeURIComponent(paperId)}`);
 }
 
 export async function resolveQuestion(
@@ -512,12 +529,7 @@ export async function askDoc(
   );
 }
 
-export type DocTask = "explain" | "summary" | "notes" | "mcqs" | "flashcards" | "questions";
-export type DocGenerationResult =
-  | { kind: "explain" | "summary" | "notes"; md: string }
-  | { kind: "mcqs"; mcqs: Mcq[] }
-  | { kind: "flashcards"; cards: Flashcard[] }
-  | { kind: "questions"; questions: ImportantQ[] };
+export type { DocGenerationResult, DocTask } from "@/lib/types";
 
 export async function generateFromDoc(docId: string, task: DocTask): Promise<DocGenerationResult> {
   return request<DocGenerationResult>(`/api/docs/${encodeURIComponent(docId)}/generate`, {

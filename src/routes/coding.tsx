@@ -214,12 +214,19 @@ function CodingPractice() {
           className="min-h-0 flex-1 overflow-auto rounded-xl border bg-code-background p-4 font-mono text-xs text-code-foreground"
         >
           <p className="mb-3 text-gray-400">
-            $ {language === "Python" ? "python main.py" : `${language} · execution unavailable`}
+            $ {language === "HTML/CSS" ? "isolated HTML/CSS preview" : `${language} · isolated run`}
           </p>
-          {result?.output ? (
+          {result?.preview ? (
+            <iframe
+              title="HTML and CSS preview"
+              sandbox=""
+              srcDoc={result.preview}
+              className="h-80 w-full rounded-lg border bg-white"
+            />
+          ) : result?.output ? (
             <pre className="whitespace-pre-wrap">{result.output}</pre>
           ) : (
-            <p className="text-gray-500">Run your Python code to see the output.</p>
+            <p className="text-gray-500">Run your code to see its output or preview.</p>
           )}
           {error && (
             <p role="alert" className="mt-3 whitespace-pre-wrap text-rose-300">
@@ -428,11 +435,11 @@ function CodingPractice() {
             )}
             <Tooltip>
               <TooltipTrigger asChild>
-                <span tabIndex={language === "Python" ? undefined : 0}>
+                <span>
                   <GradientButton
                     size="sm"
                     onClick={() => void runAction(interviewPractice ? "Interview" : "Run")}
-                    disabled={busy || language !== "Python"}
+                    disabled={busy}
                   >
                     <Play className="h-4 w-4" />
                     Run
@@ -440,7 +447,9 @@ function CodingPractice() {
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                {language === "Python" ? "Run code · Ctrl/Cmd + Enter" : "Run supports Python only"}
+                {language === "HTML/CSS"
+                  ? "Preview HTML/CSS · Ctrl/Cmd + Enter"
+                  : "Run in an isolated local environment · Ctrl/Cmd + Enter"}
               </TooltipContent>
             </Tooltip>
           </div>

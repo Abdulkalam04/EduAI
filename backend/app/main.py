@@ -247,7 +247,7 @@ async def models():
     try:
         await _refresh_model_registry()
     except OmniRouteError:
-        # Registry refresh logs the failure and clears all verified-free models.
+        # Registry refresh logs the failure; role chains still expose configured fallbacks.
         pass
     reachable, available_models = await list_models()
     available = set(available_models)

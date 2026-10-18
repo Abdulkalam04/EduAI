@@ -8,6 +8,7 @@ export interface Attempt {
   flagged: string[];
   photos: Record<string, string>;
   remainingSec: number;
+  currentQuestionIndex?: number;
   status: "inprogress" | "submitted";
   result?: PaperResult;
 }
@@ -47,6 +48,7 @@ export const usePracticeStore = create<PracticeState>()(
               flagged: [],
               photos: {},
               remainingSec: p.timeMin * 60,
+              currentQuestionIndex: 0,
               status: "inprogress",
             },
           },

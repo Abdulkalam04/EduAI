@@ -1,14 +1,21 @@
 import asyncio
 import base64
+import json
 import logging
 import re
 import uuid
+from datetime import datetime, timezone
 from typing import Literal
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from app.auth import AuthUser, get_current_user
 from app.config import settings
+from app.database import get_db
+from app.models import SolvedPaperRecord
 from app.schemas import LevelId
 from app.security import read_validated_upload
 from app.services.documents import extract_document, format_page_text
@@ -77,6 +84,18 @@ class ResolveRequest(BaseModel):
 class FollowUpRequest(BaseModel):
     kind: Literal["simpler", "method", "similar"]
     question: FollowUpQuestion
+
+
+def _solved_paper_summary(record: SolvedPaperRecord) -> dict[str, object]:
+    return {
+        "id": record.id,
+        "title": record.title,
+        "subject": record.subject,
+        "mode": record.mode,
+        "style": record.style,
+        "question_count": record.question_count,
+        "created_at": record.created_at.isoformat(),
+    }
 
 
 _NUMBERED_QUESTION = re.compile(
@@ -310,38 +329,92 @@ async def solve_paper(
     subject: str | None = Form(default=None),
     mode: SolveMode = Form(default="exam"),
     style: SolveStyle = Form(default="Exam"),
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
 ) -> list[dict[str, object]]:
     filename, payload = await read_validated_upload(file)
     if filename.rsplit(".", 1)[-1].lower() in {"jpg", "jpeg", "png"}:
         try:
-            return await _solve_image_paper(
+            questions = await _solve_image_paper(
                 payload, filename, level, subject, mode, style
             )
         except OmniRouteError as error:
-            raise HTTPException(status_code=503, detail=str(error)) from error
+            status_code = 413 if error.status_code == 413 else 503
+            raise HTTPException(status_code=status_code, detail=str(error)) from error
         except ValueError as error:
             raise HTTPException(status_code=502, detail=str(error)) from error
-    try:
-        pages = await extract_document(payload, filename, file.content_type)
-    except ValueError as error:
-        raise HTTPException(status_code=400, detail=str(error)) from error
-    source_text = format_page_text(pages)
-    if not source_text.strip():
-        raise HTTPException(status_code=422, detail="No readable text was found in the paper.")
-    questions = await extract_questions(source_text)
-    if not questions:
-        raise HTTPException(status_code=422, detail="No questions could be found in the paper.")
-    try:
-        return await asyncio.gather(
-            *(
-                _solve_question(question, level, subject, mode, style)
-                for question in questions
+    else:
+        try:
+            pages = await extract_document(payload, filename, file.content_type)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        source_text = format_page_text(pages)
+        if not source_text.strip():
+            raise HTTPException(status_code=422, detail="No readable text was found in the paper.")
+        extracted_questions = await extract_questions(source_text)
+        if not extracted_questions:
+            raise HTTPException(status_code=422, detail="No questions could be found in the paper.")
+        try:
+            questions = await asyncio.gather(
+                *(
+                    _solve_question(question, level, subject, mode, style)
+                    for question in extracted_questions
+                )
             )
+        except OmniRouteError as error:
+            status_code = 413 if error.status_code == 413 else 503
+            raise HTTPException(status_code=status_code, detail=str(error)) from error
+        except ValueError as error:
+            raise HTTPException(status_code=502, detail=str(error)) from error
+
+    record = SolvedPaperRecord(
+        id=str(uuid.uuid4()),
+        user_id=current_user.uid,
+        title=filename[:512],
+        subject=(subject or "Default")[:120],
+        mode=mode,
+        style=style,
+        question_count=len(questions),
+        questions_json=json.dumps(questions, ensure_ascii=False),
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(record)
+    db.commit()
+    return questions
+
+
+@router.get("/solve/history")
+async def solved_paper_history(
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+) -> list[dict[str, object]]:
+    records = db.scalars(
+        select(SolvedPaperRecord)
+        .where(SolvedPaperRecord.user_id == current_user.uid)
+        .order_by(SolvedPaperRecord.created_at.desc())
+        .limit(50)
+    ).all()
+    return [_solved_paper_summary(record) for record in records]
+
+
+@router.get("/solve/history/{paper_id}")
+async def get_solved_paper(
+    paper_id: str,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+) -> dict[str, object]:
+    record = db.scalar(
+        select(SolvedPaperRecord).where(
+            SolvedPaperRecord.id == paper_id,
+            SolvedPaperRecord.user_id == current_user.uid,
         )
-    except OmniRouteError as error:
-        raise HTTPException(status_code=503, detail=str(error)) from error
-    except ValueError as error:
-        raise HTTPException(status_code=502, detail=str(error)) from error
+    )
+    if record is None:
+        raise HTTPException(status_code=404, detail="Solved paper not found.")
+    return {
+        **_solved_paper_summary(record),
+        "questions": json.loads(record.questions_json),
+    }
 
 
 @router.post("/solve/resolve")
@@ -356,7 +429,8 @@ async def resolve_question(payload: ResolveRequest) -> dict[str, object]:
             question, payload.level, None, payload.mode, payload.style
         )
     except OmniRouteError as error:
-        raise HTTPException(status_code=503, detail=str(error)) from error
+        status_code = 413 if error.status_code == 413 else 503
+        raise HTTPException(status_code=status_code, detail=str(error)) from error
     result["id"] = payload.question.id
     return result
 
@@ -390,4 +464,5 @@ async def solve_follow_up(payload: FollowUpRequest) -> str:
             temperature=0.3,
         )
     except OmniRouteError as error:
-        raise HTTPException(status_code=503, detail=str(error)) from error
+        status_code = 413 if error.status_code == 413 else 503
+        raise HTTPException(status_code=status_code, detail=str(error)) from error

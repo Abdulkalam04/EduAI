@@ -153,7 +153,8 @@ async def chat_stream(
             gen = stream(messages, task="teacher", temperature=0.4)
             first_chunk = await anext(gen, None)
         except OmniRouteError as error:
-            raise HTTPException(status_code=503, detail=str(error)) from error
+            status_code = 413 if error.status_code == 413 else 503
+            raise HTTPException(status_code=status_code, detail=str(error)) from error
         finally:
             if "callback_token" in locals():
                 reset_request_model_callback(callback_token)
@@ -204,7 +205,8 @@ async def chat_stream(
             is_long_doc=is_long_doc,
         )
     except OmniRouteError as error:
-        raise HTTPException(status_code=503, detail=str(error)) from error
+        status_code = 413 if error.status_code == 413 else 503
+        raise HTTPException(status_code=status_code, detail=str(error)) from error
 
     async def response_events() -> AsyncGenerator[bytes, None]:
         accumulated = ""

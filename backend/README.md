@@ -2,8 +2,8 @@
 
 FastAPI backend for the EduAI frontend. The frontend request and response
 contracts are defined in `src/lib/types.ts` and API calls are centralized in
-`src/lib/api.ts`. Model calls route through an OpenAI-compatible OmniRoute
-gateway. Python 3.11+ is supported.
+`src/lib/api.ts`. AI requests route through OmniRoute, with Mistral first for
+text tasks and Gemini first for multimodal tasks. Python 3.11+ is supported.
 
 ## Setup
 
@@ -19,8 +19,11 @@ Copy-Item .env.example .env
 
 Set `DATABASE_URL` to a persistent SQLite file and make sure its parent folder
 exists. Tables are created at startup. `UPLOADS_DIR` is mounted at `/uploads`;
-the current document pipeline processes uploads in memory and does not retain
-the original files.
+the document pipeline extracts uploads in memory, saves extracted page text
+and generated study results in the configured database, and does not retain
+the original files. Successfully solved question papers are saved with their
+solutions in the configured database and can be reopened from the Solver
+history; uploaded source files are not stored.
 
 ## OmniRoute configuration
 
@@ -34,11 +37,12 @@ Copy `.env.example` to `.env` and configure:
 ```dotenv
 OMNIROUTE_BASE_URL=http://localhost:20128/v1
 OMNIROUTE_API_KEY=your-local-gateway-key
-MODEL_TEACHER=provider/model-for-tutoring
-MODEL_PRACTICE=provider/model-for-fast-practice-generation
-MODEL_REASONING=provider/model-for-code-solving-and-grading
-MODEL_MULTIMODAL=provider/model-with-vision
-MODEL_JSON=provider/model-with-json-output
+FREE_PROVIDERS=gemini,groq,mistral
+MODEL_TEACHER=mistral/mistral-medium-3-5
+MODEL_PRACTICE=mistral/mistral-medium-3-5
+MODEL_REASONING=mistral/mistral-large-latest
+MODEL_MULTIMODAL=gemini/gemini-3-flash-preview
+MODEL_JSON=mistral/mistral-small-latest
 REASONING_EFFORT_PPT=low
 REASONING_EFFORT_MCQ=low
 REASONING_EFFORT_FLASHCARD=low
@@ -75,14 +79,44 @@ debugging use `high`. Empty task settings use the gateway default. If a model
 explicitly rejects `reasoning_effort`, that model is remembered for the process
 lifetime and subsequent requests omit the parameter.
 
-The model IDs must exactly match IDs exposed by OmniRoute. Each
-`MODEL_<ROLE>_FALLBACKS` value is an ordered, comma-separated list. Requests
-retry each eligible model before moving on; 404, 429, 5xx, timeout, and
-connection failures can move to the next model. Authentication and invalid
-request errors are returned directly. Models returning 429 or 5xx are skipped
-during a cooldown (60 seconds by default, or `Retry-After`, capped at 10
-minutes); a successful request clears that model's cooldown. Streaming can
-switch models only before sending its first text token.
+The model IDs in `MODEL_<ROLE>_FALLBACKS` must exactly match IDs exposed by
+OmniRoute; each value is an ordered, comma-separated list. The role-specific
+primary and fallback model IDs are configurable in `.env`; routing preserves
+that order. Add a provider in the OmniRoute dashboard, confirm its model IDs
+appear in the gateway model catalogue, add its provider prefix to
+`FREE_PROVIDERS`, then place those model IDs in the appropriate `MODEL_<ROLE>`
+and `MODEL_<ROLE>_FALLBACKS` settings. No application code change or provider
+API key in this app's `.env` is needed. A provider is trusted only when listed
+in `FREE_PROVIDERS`, and any model with positive listed pricing remains refused.
+
+Hedging is disabled by default (`CHAT_HEDGE_AFTER_MS=0`) to avoid duplicate
+requests; it is never used for reasoning, solve, grading, code-debug, viva,
+Mermaid, PPT, or notes tasks. Catalogue health probes are cached per model for
+15 minutes and are skipped for models with recent successful traffic or an
+active cooldown. OmniRoute's `/models` list is cached for five minutes.
+First-token timeouts default to 10 seconds for chat, 20 seconds for JSON, and
+30 seconds for reasoning/multimodal work; override them with
+`CHAT_FIRST_TOKEN_TIMEOUT`, `JSON_FIRST_TOKEN_TIMEOUT`, and
+`REASONING_FIRST_TOKEN_TIMEOUT`. Timeouts do not cool down models; 429 and 5xx
+responses do, honoring `Retry-After` when present.
+
+Local rolling budgets default to 10 Gemini requests/minute, 20 Groq
+requests/minute, and 5,000 Groq prompt tokens/minute. Mistral defaults to a
+local cap of 50 requests/minute and 400,000 prompt tokens/minute, with at least
+one second between requests to each Mistral model. Configure
+`PROVIDER_RPM_GEMINI`, `PROVIDER_RPM_GROQ`, `PROVIDER_TPM_GROQ`,
+`PROVIDER_RPM_MISTRAL`, and `PROVIDER_TPM_MISTRAL` to adjust local budgets; a
+budget wait is capped at five seconds before trying the next provider. Prompts
+above 6,000 estimated tokens skip Groq. Document Q&A already retrieves
+relevant pages from large books, and solve-paper separates extracted questions;
+requests exceeding `LONG_CONTEXT_MAX_TOKENS` receive HTTP 413 with guidance to
+shorten or split the input.
+
+A 429 or 413 moves immediately to the next model. Other retryable transient
+failures may retry the current model before falling through. Models returning
+429 or 5xx are skipped during a cooldown (60 seconds by default, or
+`Retry-After`, capped at 10 minutes); a successful request clears that model's
+cooldown. Streaming can switch models only before sending its first text token.
 
 `/api/models` reports each role's ordered chain and per-model cooldown and last
 success state. `/health` uses the cached `/v1/models` check (5-second timeout,
@@ -138,6 +172,7 @@ curl.exe -H "Content-Type: application/json" -d "{\"kind\":\"simpler\",\"questio
 # Study From My Book: upload, list, ask, generate, delete
 curl.exe -F "file=@chapter.pdf" http://localhost:8010/api/docs/upload
 curl.exe http://localhost:8010/api/docs
+curl.exe http://localhost:8010/api/docs/DOCUMENT_ID
 curl.exe -H "Content-Type: application/json" -d "{\"question\":\"Summarise the key idea\",\"level\":\"c9-10\"}" http://localhost:8010/api/docs/DOCUMENT_ID/ask
 curl.exe -H "Content-Type: application/json" -d "{\"task\":\"notes\",\"level\":\"c9-10\"}" http://localhost:8010/api/docs/DOCUMENT_ID/generate
 curl.exe -X DELETE http://localhost:8010/api/docs/DOCUMENT_ID
@@ -200,9 +235,15 @@ removed automatically. Expensive AI routes have an in-memory per-IP limit of
 - **Empty document extraction:** scanned pages require a vision-capable
   `MODEL_MULTIMODAL`; Tesseract is optional fallback only and the system
   executable must be installed separately.
-- **Python code execution denied/timed out:** run only short educational
-  snippets. The service deliberately has strict process/time/memory limits and
-  is not a secure multi-tenant sandbox.
+- **Code execution is unavailable:** Python uses the backend's local
+  time/memory-limited runner. Java, C, C++, JavaScript, and SQL use Docker
+  containers, so Docker Desktop must be running and these images must be
+  available locally: `eclipse-temurin:21-jdk-alpine`, `gcc:14-bookworm`,
+  `node:22-alpine`, and `python:3.12-alpine`. HTML/CSS opens in a sandboxed
+  browser preview. Container runs disable networking, use a read-only root
+  filesystem, and enforce process, memory, and time limits; this is intended
+  for short educational snippets, not as a secure multi-tenant code-hosting
+  service.
 
 To manually check the configured model roles against OmniRoute, run this from
 `backend/`:

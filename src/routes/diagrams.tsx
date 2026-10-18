@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import {
   Copy,
+  ChevronRight,
   Download,
   Expand,
   FileImage,
@@ -410,15 +411,23 @@ function DiagramMaker() {
       <div className="grid min-w-0 gap-5 xl:grid-cols-[400px_minmax(0,1fr)]">
         <SoftCard className="order-2 space-y-4 p-4 sm:p-5 xl:order-1">
           <details
+            className="[&[open]>summary]:bg-[#dce8e9] dark:[&[open]>summary]:bg-[#304149]"
             open={optionsOpen}
             onToggle={(event) => setOptionsOpen(event.currentTarget.open)}
           >
-            <summary className="min-h-11 cursor-pointer list-none rounded-xl border p-3 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              Diagram options
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between rounded-xl border border-[#cbd9dc] bg-[#e8f0f1] p-3 font-semibold transition-colors hover:bg-[#dce8e9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-[#465861] dark:bg-[#26363d] dark:hover:bg-[#304149]">
+              <span>Diagram options</span>
+              <ChevronRight
+                aria-hidden="true"
+                className={cn(
+                  "h-4 w-4 transition-transform duration-200",
+                  optionsOpen && "rotate-90",
+                )}
+              />
             </summary>
-            <div className="mt-4 space-y-4">
+            <div className="mt-3 space-y-4 rounded-xl border border-[#cbd9dc] bg-[#f1f5f5] p-4 dark:border-[#465861] dark:bg-[#202d33]">
               <div
-                className="grid grid-cols-3 rounded-xl bg-muted p-1"
+                className="grid grid-cols-3 gap-1.5 rounded-xl border border-[#cbd9dc] bg-[#e1eaeb] p-1.5 dark:border-[#465861] dark:bg-[#19252a]"
                 role="tablist"
                 aria-label="Diagram mode"
               >
@@ -433,10 +442,10 @@ function DiagramMaker() {
                       if (item === "Flowchart Generator") setType("Flowchart");
                     }}
                     className={cn(
-                      "rounded-lg px-2 py-2 text-xs font-medium transition-colors",
+                      "min-h-10 rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
                       mode === item
-                        ? "bg-card shadow-soft"
-                        : "text-muted-foreground hover:text-foreground",
+                        ? "border-primary bg-card text-foreground shadow-soft"
+                        : "border-border bg-background/70 text-muted-foreground hover:border-primary/50 hover:bg-card hover:text-foreground",
                     )}
                   >
                     {item}
@@ -444,7 +453,7 @@ function DiagramMaker() {
                 ))}
               </div>
               {mode !== "General" && (
-                <p className="rounded-xl bg-muted/70 p-3 text-xs text-muted-foreground">
+                <p className="rounded-xl border border-[#b8cbd0] bg-[#e5edef] p-3 text-xs text-muted-foreground dark:border-[#52666f] dark:bg-[#26373e]">
                   {mode === "Flowchart Generator"
                     ? "Describe a process, e.g. checking whether a number is even or odd. Every result includes clear Start and End shapes."
                     : "Describe a topic and we’ll organise it into a Mermaid mind map with connected branches."}
@@ -459,6 +468,7 @@ function DiagramMaker() {
                 onChange={(event) => setPrompt(event.target.value)}
                 rows={4}
                 placeholder="Describe a process, system, or concept…"
+                className="border-[#9fb3b9] bg-white/70 focus-visible:ring-2 dark:border-[#52666f] dark:bg-[#182328]"
               />
               <div className="space-y-2">
                 <p className="text-sm font-medium">Diagram type</p>
@@ -474,8 +484,8 @@ function DiagramMaker() {
                       className={cn(
                         "rounded-full border px-2.5 py-1 text-xs transition-colors",
                         type === item
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "hover:bg-muted",
+                          ? "border-primary bg-primary/10 font-semibold text-primary"
+                          : "border-[#aebfc4] bg-white/60 text-foreground hover:border-primary hover:bg-primary/5 dark:border-[#52666f] dark:bg-[#26343a] dark:hover:border-primary",
                       )}
                     >
                       {item}
@@ -486,16 +496,28 @@ function DiagramMaker() {
               <label className="block space-y-1.5 text-sm font-medium">
                 Subject
                 <Select value={subject} onValueChange={setSubject}>
-                  <SelectTrigger aria-label="Subject">
+                  <SelectTrigger
+                    aria-label="Subject"
+                    className="border-[#9fb3b9] bg-white/70 hover:border-primary/70 dark:border-[#52666f] dark:bg-[#182328]"
+                  >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="border-[#cbd9dc] bg-[#e8f0f1] shadow-lg dark:border-[#52636c] dark:bg-[#2b3b42]">
                     {SUBJECTS.map((item) => (
-                      <SelectItem key={item} value={item}>
+                      <SelectItem
+                        key={item}
+                        value={item}
+                        className="focus:bg-[#d4e2e4] dark:focus:bg-[#40545d]"
+                      >
                         {item}
                       </SelectItem>
                     ))}
-                    <SelectItem value="Other">Other</SelectItem>
+                    <SelectItem
+                      value="Other"
+                      className="focus:bg-[#d4e2e4] dark:focus:bg-[#40545d]"
+                    >
+                      Other
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </label>
@@ -521,13 +543,25 @@ function DiagramMaker() {
                     setSelectedLevel(value as LevelId | "default");
                   }}
                 >
-                  <SelectTrigger aria-label="Learning level">
+                  <SelectTrigger
+                    aria-label="Learning level"
+                    className="border-[#9fb3b9] bg-white/70 hover:border-primary/70 dark:border-[#52666f] dark:bg-[#182328]"
+                  >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">Default (any level)</SelectItem>
+                  <SelectContent className="border-[#cbd9dc] bg-[#e8f0f1] shadow-lg dark:border-[#52636c] dark:bg-[#2b3b42]">
+                    <SelectItem
+                      value="default"
+                      className="focus:bg-[#d4e2e4] dark:focus:bg-[#40545d]"
+                    >
+                      Default (any level)
+                    </SelectItem>
                     {LEVELS.map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
+                      <SelectItem
+                        key={item.id}
+                        value={item.id}
+                        className="focus:bg-[#d4e2e4] dark:focus:bg-[#40545d]"
+                      >
                         {item.label}
                       </SelectItem>
                     ))}

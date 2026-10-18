@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     # always refuses paid and personal-login providers.
     free_only: bool = True
     # Trusted providers may be routed when pricing is unknown or explicitly zero.
-    free_providers: str = "gemini,groq"
+    free_providers: str = "gemini,groq,mistral"
     # Comma-separated provider prefixes that are considered paid.
     paid_providers: str = "openai,anthropic"
     # Comma-separated model IDs that are valid but hidden from the picker UI.
@@ -38,10 +38,18 @@ class Settings(BaseSettings):
     # same model as gemini-3.5-flash-lite) while still keeping them in fallback chains.
     model_hidden_aliases: str = "gemini/gemini-flash-lite-latest"
     # ──────────────────────────────────────────────────────────────────────────
-    chat_hedge_after_ms: int = 2500
+    chat_hedge_after_ms: int = 0
     chat_hedge_max_parallel: int = 1
-    chat_first_token_timeout: float = 6.0
+    chat_first_token_timeout: float = 10.0
+    json_first_token_timeout: float = 20.0
+    reasoning_first_token_timeout: float = 30.0
     chat_connect_timeout_seconds: float = 3.0
+    reasoning_max_tokens_cap: int = 8192
+    provider_rpm_gemini: int = 10
+    provider_rpm_groq: int = 20
+    provider_tpm_groq: int = 5000
+    provider_rpm_mistral: int = 50
+    provider_tpm_mistral: int = 400000
     reasoning_effort_ppt: str = "low"
     reasoning_effort_mcq: str = "low"
     reasoning_effort_flashcard: str = "low"
@@ -92,7 +100,16 @@ class Settings(BaseSettings):
     @property
     def free_provider_set(self) -> frozenset[str]:
         """Provider prefixes trusted for free routing unless pricing is positive."""
-        return frozenset(p.strip().lower() for p in self.free_providers.split(",") if p.strip())
+        return frozenset(
+            p.strip().lower() for p in self.free_providers.split(",") if p.strip()
+        )
+
+    @property
+    def free_provider_order(self) -> list[str]:
+        """Provider prefixes in routing priority order."""
+        return list(dict.fromkeys(
+            p.strip().lower() for p in self.free_providers.split(",") if p.strip()
+        ))
 
     @property
     def model_hidden_alias_set(self) -> frozenset[str]:
@@ -101,7 +118,7 @@ class Settings(BaseSettings):
 
     @property
     def chat_model_allowlist_ids(self) -> list[str]:
-        """Allowlisted chat models, in the configured display order."""
+        """Allowlisted chat models in configured picker order."""
         return list(dict.fromkeys(
             model.strip()
             for model in self.chat_model_allowlist.split(",")
